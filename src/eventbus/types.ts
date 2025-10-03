@@ -1,4 +1,4 @@
-import type { Origin } from '../generated/lakehouse/bronze/v1/normalized_event_pb'
+import type { NormalizedEvent, Origin } from '../generated/lakehouse/bronze/v1/normalized_event_pb'
 import type { Disconnect, NormalizedData } from 'tardis-dev'
 
 export type NormalizedMessage = NormalizedData | Disconnect
@@ -20,12 +20,14 @@ export type PublishMeta = {
 
 export type BronzeEvent = {
   key: string
-  payloadCase: string
+  payloadCase: BronzePayloadCase
   /** Human readable description of payload case */
   dataType: string
   /** Encoded Binary payload ready for transport */
   binary: Uint8Array
 }
+
+export type BronzePayloadCase = Exclude<NormalizedEvent['payload']['case'], undefined>
 
 export interface NormalizedEventEncoder {
   encode(message: NormalizedMessage, meta: PublishMeta): BronzeEvent[]
@@ -45,6 +47,8 @@ export type PublishFn = (message: NormalizedMessage, meta: PublishInjection) => 
 export type KafkaEventBusConfig = {
   brokers: string[]
   topic: string
+  /** Optional map for routing payload cases to dedicated topics */
+  topicByPayloadCase?: Partial<Record<BronzePayloadCase, string>>
   clientId?: string
   ssl?: boolean
   sasl?: {

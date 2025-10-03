@@ -1,6 +1,13 @@
 import { Kafka, logLevel, Producer, SASLOptions } from 'kafkajs'
 import { BronzeNormalizedEventEncoder } from './bronzeMapper'
-import type { BronzeEvent, KafkaEventBusConfig, NormalizedEventSink, NormalizedMessage, PublishMeta } from './types'
+import type {
+  BronzeEvent,
+  BronzePayloadCase,
+  KafkaEventBusConfig,
+  NormalizedEventSink,
+  NormalizedMessage,
+  PublishMeta
+} from './types'
 import { wait } from '../helpers'
 import { debug } from '../debug'
 
@@ -92,17 +99,20 @@ export class KafkaEventBus implements NormalizedEventSink {
     while (attempt < MAX_RETRY_ATTEMPTS) {
       attempt++
       try {
-        await this.producer.send({
-          topic: this.config.topic,
-          messages: batch.map((event) => ({
-            key: event.key,
-            value: Buffer.from(event.binary),
-            headers: {
-              payloadCase: Buffer.from(event.payloadCase),
-              dataType: Buffer.from(event.dataType)
-            }
-          }))
-        })
+        const groups = this.groupByTopic(batch)
+        for (const [topic, events] of groups) {
+          await this.producer.send({
+            topic,
+            messages: events.map((event) => ({
+              key: event.key,
+              value: Buffer.from(event.binary),
+              headers: {
+                payloadCase: Buffer.from(event.payloadCase),
+                dataType: Buffer.from(event.dataType)
+              }
+            }))
+          })
+        }
         return
       } catch (error) {
         log('Kafka send attempt %d failed: %o', attempt, error)
@@ -138,6 +148,25 @@ export class KafkaEventBus implements NormalizedEventSink {
     this.closed = true
     await this.flush()
     await this.producer.disconnect()
+  }
+
+  private groupByTopic(events: BronzeEvent[]): Map<string, BronzeEvent[]> {
+    const groups = new Map<string, BronzeEvent[]>()
+    for (const event of events) {
+      const topic = this.resolveTopic(event.payloadCase)
+      const bucket = groups.get(topic)
+      if (bucket) {
+        bucket.push(event)
+      } else {
+        groups.set(topic, [event])
+      }
+    }
+    return groups
+  }
+
+  private resolveTopic(payloadCase: BronzePayloadCase): string {
+    const { topicByPayloadCase, topic } = this.config
+    return topicByPayloadCase?.[payloadCase] ?? topic
   }
 }
 

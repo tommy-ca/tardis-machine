@@ -30,9 +30,7 @@ import {
   BookTickerSchema
 } from '../generated/lakehouse/bronze/v1/normalized_event_pb'
 import type { Optional, BookChange as NormalizedBookChange, BookSnapshot as NormalizedBookSnapshot, BookTicker as NormalizedBookTicker, DerivativeTicker as NormalizedDerivativeTicker, Disconnect, Liquidation as NormalizedLiquidation, NormalizedData, OptionSummary as NormalizedOptionSummary, Trade as NormalizedTrade, TradeBar as NormalizedTradeBar } from 'tardis-dev'
-import type { BronzeEvent, NormalizedEventEncoder, NormalizedMessage, PublishMeta } from './types'
-
-type BronzePayloadCase = Exclude<NormalizedEvent['payload']['case'], undefined>
+import type { BronzeEvent, BronzePayloadCase, NormalizedEventEncoder, NormalizedMessage, PublishMeta } from './types'
 
 type EventRecord = {
   event: NormalizedEvent

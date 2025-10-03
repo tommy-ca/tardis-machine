@@ -52,6 +52,10 @@ const argv = yargs
     type: 'string',
     describe: 'Kafka topic name for normalized events'
   })
+  .option('kafka-topic-routing', {
+    type: 'string',
+    describe: 'Comma separated payloadCase:topic pairs overriding the base topic'
+  })
   .option('kafka-client-id', {
     type: 'string',
     describe: 'Kafka client id used by tardis-machine publisher'
@@ -157,6 +161,32 @@ function buildEventBusConfig(argv) {
     topic,
     clientId: argv['kafka-client-id'] || 'tardis-machine-publisher',
     ssl: Boolean(argv['kafka-ssl'])
+  }
+
+  const topicRouting = argv['kafka-topic-routing']
+  if (topicRouting) {
+    const pairs = topicRouting
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    const map = {}
+
+    for (const pair of pairs) {
+      const [payloadCase, mappedTopic] = pair.split(':').map((part) => part?.trim())
+      if (!payloadCase || !mappedTopic) {
+        throw new Error(
+          `Invalid kafka-topic-routing entry "${pair}". Expected format payloadCase:topicName.`
+        )
+      }
+      map[payloadCase] = mappedTopic
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('kafka-topic-routing must define at least one payloadCase mapping.')
+    }
+
+    config.topicByPayloadCase = map
   }
 
   const mechanism = argv['kafka-sasl-mechanism']

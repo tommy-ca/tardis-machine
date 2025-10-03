@@ -3,4 +3,4 @@
 - [x] Integrate publisher into normalized replay/streaming flows
 - [x] Cover publishing with integration tests
 - [x] Update CLI/docs for event bus configuration
-- [ ] Enable configurable topic routing for bronze events
+- [x] Enable configurable topic routing for bronze events

@@ -54,3 +54,4 @@
 - Publish normalized market data encoded with Buf-managed Protobufs to Kafka by supplying `--kafka-brokers` and `--kafka-topic` flags.
 - Use `--kafka-topic-routing` to route specific payload cases (e.g. `trade`, `bookChange`) to dedicated topics via a comma separated `payloadCase:topic` list.
 - Additional flags like `--kafka-client-id`, `--kafka-ssl`, and SASL options remain available for secure deployments.
+- Tune publishing throughput via `--kafka-max-batch-size` (events per batch) and `--kafka-max-batch-delay-ms` (max milliseconds to wait before flushing).

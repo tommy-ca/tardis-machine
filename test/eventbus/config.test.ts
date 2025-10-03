@@ -37,6 +37,38 @@ describe('parseKafkaEventBusConfig', () => {
     })
   })
 
+  test('applies batch tuning options when provided', () => {
+    const config = parseKafkaEventBusConfig({
+      'kafka-brokers': 'localhost:9092',
+      'kafka-topic': 'bronze.events',
+      'kafka-max-batch-size': 512,
+      'kafka-max-batch-delay-ms': 125
+    })
+
+    expect(config).toMatchObject({
+      maxBatchSize: 512,
+      maxBatchDelayMs: 125
+    })
+  })
+
+  test('rejects non-positive batch tuning values', () => {
+    expect(() =>
+      parseKafkaEventBusConfig({
+        'kafka-brokers': 'localhost:9092',
+        'kafka-topic': 'bronze.events',
+        'kafka-max-batch-size': 0
+      })
+    ).toThrow('kafka-max-batch-size must be a positive integer.')
+
+    expect(() =>
+      parseKafkaEventBusConfig({
+        'kafka-brokers': 'localhost:9092',
+        'kafka-topic': 'bronze.events',
+        'kafka-max-batch-delay-ms': -1
+      })
+    ).toThrow('kafka-max-batch-delay-ms must be a positive integer.')
+  })
+
   test('throws on invalid topic routing entry', () => {
     expect(() =>
       parseKafkaEventBusConfig({

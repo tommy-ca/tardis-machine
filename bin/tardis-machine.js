@@ -66,6 +66,14 @@ const argv = yargs
     describe: 'Enable SSL when connecting to Kafka brokers',
     default: false
   })
+  .option('kafka-max-batch-size', {
+    type: 'number',
+    describe: 'Maximum number of bronze events per Kafka batch'
+  })
+  .option('kafka-max-batch-delay-ms', {
+    type: 'number',
+    describe: 'Maximum milliseconds events can wait before forced flush'
+  })
   .option('kafka-sasl-mechanism', {
     type: 'string',
     choices: ['plain', 'scram-sha-256', 'scram-sha-512'],

@@ -62,6 +62,20 @@ function parseSasl(argv: Record<string, any>): KafkaEventBusConfig['sasl'] | und
   }
 }
 
+function parsePositiveInteger(value: unknown, optionName: string): number | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined
+  }
+
+  const numeric = typeof value === 'number' ? value : Number(value)
+
+  if (!Number.isFinite(numeric) || numeric <= 0 || !Number.isInteger(numeric)) {
+    throw new Error(`${optionName} must be a positive integer.`)
+  }
+
+  return numeric
+}
+
 export function parseKafkaEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
   const brokersRaw = argv['kafka-brokers']
   const brokers = parseKafkaBrokers(brokersRaw)
@@ -90,6 +104,19 @@ export function parseKafkaEventBusConfig(argv: Record<string, any>): EventBusCon
   const sasl = parseSasl(argv)
   if (sasl) {
     kafkaConfig.sasl = sasl
+  }
+
+  const maxBatchSize = parsePositiveInteger(argv['kafka-max-batch-size'], 'kafka-max-batch-size')
+  if (maxBatchSize !== undefined) {
+    kafkaConfig.maxBatchSize = maxBatchSize
+  }
+
+  const maxBatchDelayMs = parsePositiveInteger(
+    argv['kafka-max-batch-delay-ms'],
+    'kafka-max-batch-delay-ms'
+  )
+  if (maxBatchDelayMs !== undefined) {
+    kafkaConfig.maxBatchDelayMs = maxBatchDelayMs
   }
 
   return {

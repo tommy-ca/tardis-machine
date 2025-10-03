@@ -6,6 +6,6 @@
 - [x] Enable configurable topic routing for bronze events
 - [x] Document schema maintenance workflow
 - [x] Land bronze/silver proto regression tests
-- [ ] Expose Kafka batch tuning CLI options
-- [ ] Backfill tests for Kafka config parsing
-- [ ] Document Kafka batch tuning usage
+- [x] Expose Kafka batch tuning CLI options
+- [x] Backfill tests for Kafka config parsing
+- [x] Document Kafka batch tuning usage

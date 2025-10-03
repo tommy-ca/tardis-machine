@@ -35,3 +35,8 @@
 - Reuse existing normalized data fixtures to assert correct payload mapping.
 - Add regression test ensuring publishing can be toggled off without side effects.
 
+## Implementation Notes (2025-10-03)
+- `KafkaEventBus` batches bronze events using Buf-generated codecs, retrying transient send failures with exponential backoff.
+- HTTP `/replay-normalized` and WS `/ws-replay-normalized`, `/ws-stream-normalized` pipe normalized messages into the publisher with request/session metadata.
+- CLI exposes `--kafka-*` options (brokers, topic, client id, SSL, SASL) to enable publishing.
+- Publishing is optional; when Kafka options are missing, the server behaves exactly as before.

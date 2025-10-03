@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto'
 import { debug } from '../debug'
 import { constructDataTypeFilter, getComputables, getNormalizers, StreamNormalizedRequestOptions, wait } from '../helpers'
 import { Origin } from '../generated/lakehouse/bronze/v1/normalized_event_pb'
-import type { PublishFn } from '../eventbus/types'
+import type { ControlErrorMessage, PublishFn } from '../eventbus/types'
 
 export function createStreamNormalizedWSHandler(publishNormalized?: PublishFn) {
   return async function streamNormalizedWS(ws: any, req: HttpRequest) {
@@ -41,16 +41,44 @@ export function createStreamNormalizedWSHandler(publishNormalized?: PublishFn) {
 
             subSequentErrorsCount[exchange]!++
 
+            const timestamp = new Date()
+            const primarySymbol =
+              Array.isArray(option.symbols) && option.symbols.length > 0
+                ? option.symbols[0]
+                : undefined
+
+            const controlError: ControlErrorMessage = {
+              type: 'error',
+              exchange,
+              symbol: primarySymbol,
+              localTimestamp: timestamp,
+              details: error.message ?? 'Unknown stream error',
+              subsequentErrors: subSequentErrorsCount[exchange]
+            }
+
             if (option.withErrorMessages && !ws.closed) {
               ws.send(
                 JSON.stringify({
                   type: 'error',
                   exchange,
-                  localTimestamp: new Date(),
-                  details: error.message,
+                  localTimestamp: timestamp,
+                  details: controlError.details,
                   subSequentErrorsCount: subSequentErrorsCount[exchange]
                 })
               )
+            }
+
+            if (publishNormalized) {
+              publishSafe(publishNormalized, controlError, {
+                origin: Origin.REALTIME,
+                requestId,
+                sessionId,
+                extraMeta: {
+                  transport: 'ws',
+                  route: '/ws-stream-normalized',
+                  phase: 'onError'
+                }
+              })
             }
 
             debug('WebSocket /ws-stream-normalized %s WS connection error: %o', exchange, error)

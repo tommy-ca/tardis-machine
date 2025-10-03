@@ -1,7 +1,24 @@
 import type { NormalizedEvent, Origin } from '../generated/lakehouse/bronze/v1/normalized_event_pb'
 import type { Disconnect, NormalizedData } from 'tardis-dev'
 
-export type NormalizedMessage = NormalizedData | Disconnect
+export type ControlErrorCode =
+  | 'unspecified'
+  | 'ws_connect'
+  | 'ws_send'
+  | 'source_auth'
+  | 'source_rate_limit'
+
+export type ControlErrorMessage = {
+  type: 'error'
+  exchange: string
+  localTimestamp: Date
+  symbol?: string
+  details: string
+  subsequentErrors?: number
+  code?: ControlErrorCode
+}
+
+export type NormalizedMessage = NormalizedData | Disconnect | ControlErrorMessage
 
 export type PublishMeta = {
   /** Identifier for producer instance, defaults to tardis-machine */

@@ -4,8 +4,11 @@ import {
   BarKind,
   ControlDisconnect,
   ControlDisconnectSchema,
+  ControlError,
+  ControlErrorSchema,
   DerivativeTicker,
   DerivativeTickerSchema,
+  ErrorCode,
   Liquidation,
   LiquidationSchema,
   NormalizedEvent,
@@ -30,7 +33,14 @@ import {
   BookTickerSchema
 } from '../generated/lakehouse/bronze/v1/normalized_event_pb'
 import type { Optional, BookChange as NormalizedBookChange, BookSnapshot as NormalizedBookSnapshot, BookTicker as NormalizedBookTicker, DerivativeTicker as NormalizedDerivativeTicker, Disconnect, Liquidation as NormalizedLiquidation, NormalizedData, OptionSummary as NormalizedOptionSummary, Trade as NormalizedTrade, TradeBar as NormalizedTradeBar } from 'tardis-dev'
-import type { BronzeEvent, BronzePayloadCase, NormalizedEventEncoder, NormalizedMessage, PublishMeta } from './types'
+import type {
+  BronzeEvent,
+  BronzePayloadCase,
+  ControlErrorMessage,
+  NormalizedEventEncoder,
+  NormalizedMessage,
+  PublishMeta
+} from './types'
 
 type EventRecord = {
   event: NormalizedEvent
@@ -62,6 +72,10 @@ export class BronzeNormalizedEventEncoder implements NormalizedEventEncoder {
 function buildEvents(message: NormalizedMessage, meta: PublishMeta): EventRecord[] {
   if (isDisconnect(message)) {
     return [buildDisconnectEvent(message, meta)]
+  }
+
+  if (isControlError(message)) {
+    return [buildControlErrorEvent(message, meta)]
   }
 
   const typed = message as NormalizedData
@@ -329,6 +343,24 @@ function buildDisconnectEvent(message: Disconnect, meta: PublishMeta): EventReco
   }
 }
 
+function buildControlErrorEvent(message: ControlErrorMessage, meta: PublishMeta): EventRecord {
+  const event = createBaseEventForControlError(message, meta)
+  event.payload = {
+    case: 'error',
+    value: create(ControlErrorSchema, {
+      details: message.details,
+      subsequentErrors: message.subsequentErrors ?? 0,
+      code: toErrorCode(message.code)
+    }) as ControlError
+  }
+
+  return {
+    event,
+    payloadCase: 'error',
+    dataType: 'error'
+  }
+}
+
 function createBaseEvent(message: NormalizedData, meta: PublishMeta): NormalizedEvent {
   return create(NormalizedEventSchema, {
     source: meta.source,
@@ -355,7 +387,23 @@ function createBaseEventForDisconnect(message: Disconnect, meta: PublishMeta): N
   })
 }
 
-function buildMeta(message: Partial<NormalizedData> | Disconnect, meta: PublishMeta): Record<string, string> {
+function createBaseEventForControlError(message: ControlErrorMessage, meta: PublishMeta): NormalizedEvent {
+  return create(NormalizedEventSchema, {
+    source: meta.source,
+    exchange: message.exchange,
+    symbol: message.symbol ?? '',
+    localTs: dateToTimestamp(message.localTimestamp),
+    ingestTs: dateToTimestamp(meta.ingestTimestamp),
+    origin: meta.origin,
+    meta: buildMeta(message, meta),
+    payload: { case: undefined }
+  })
+}
+
+function buildMeta(
+  message: Partial<NormalizedData> | Disconnect | ControlErrorMessage,
+  meta: PublishMeta
+): Record<string, string> {
   const result: Record<string, string> = {}
 
   if ('type' in message && message.type) {
@@ -438,4 +486,23 @@ function toBarKind(kind: NormalizedTradeBar['kind']): BarKind {
 
 function isDisconnect(message: NormalizedMessage): message is Disconnect {
   return (message as any).type === 'disconnect' && !(message as any).timestamp
+}
+
+function isControlError(message: NormalizedMessage): message is ControlErrorMessage {
+  return (message as any).type === 'error' && typeof (message as any).details === 'string'
+}
+
+function toErrorCode(code: ControlErrorMessage['code']): ErrorCode {
+  switch (code) {
+    case 'ws_connect':
+      return ErrorCode.WS_CONNECT
+    case 'ws_send':
+      return ErrorCode.WS_SEND
+    case 'source_auth':
+      return ErrorCode.SOURCE_AUTH
+    case 'source_rate_limit':
+      return ErrorCode.SOURCE_RATE_LIMIT
+    default:
+      return ErrorCode.UNSPECIFIED
+  }
 }

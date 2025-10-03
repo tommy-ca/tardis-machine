@@ -24,6 +24,7 @@
 - Extend `TardisMachine` constructor options to accept an `eventBus` configuration object.
 - Introduce an internal publisher abstraction so additional backends (e.g., AWS Kinesis) can be added later.
 - Kafka implementation should use `kafkajs` for Node.js with configurable client/batch options.
+- Publish WS control errors as Bronze `ControlError` payloads so downstream systems observe retry behavior.
 
 ## Schema Management
 - Introduce Buf CLI workflows (format, lint, generate) and TypeScript generation via `@bufbuild/protoc-gen-es` to avoid runtime reflection encoding.

@@ -1,6 +1,13 @@
 import { fromBinary } from '@bufbuild/protobuf'
 import { BronzeNormalizedEventEncoder } from '../../src/eventbus/bronzeMapper'
-import { NormalizedEventSchema, Origin, Side, Action, BarKind } from '../../src/generated/lakehouse/bronze/v1/normalized_event_pb'
+import {
+  NormalizedEventSchema,
+  Origin,
+  Side,
+  Action,
+  BarKind,
+  ErrorCode
+} from '../../src/generated/lakehouse/bronze/v1/normalized_event_pb'
 import type {
   Trade as NormalizedTrade,
   BookChange as NormalizedBookChange,
@@ -11,6 +18,7 @@ import type {
   Liquidation as NormalizedLiquidation,
   Disconnect
 } from 'tardis-dev'
+import type { ControlErrorMessage } from '../../src/eventbus/types'
 
 const encoder = new BronzeNormalizedEventEncoder()
 const ingest = new Date('2024-01-01T00:00:00.000Z')
@@ -248,5 +256,32 @@ describe('BronzeNormalizedEventEncoder', () => {
     expect(decoded.payload.case).toBe('disconnect')
     expect(decoded.meta.session_id).toBe('ws-1')
     expect(event.payloadCase).toBe('disconnect')
+  })
+
+  test('encodes control error payload', () => {
+    const errorMessage: ControlErrorMessage = {
+      type: 'error',
+      exchange: 'bitmex',
+      symbol: 'BTCUSD',
+      localTimestamp: new Date('2024-01-01T00:00:00.000Z'),
+      details: 'WS connection failed',
+      subsequentErrors: 3,
+      code: 'ws_connect'
+    }
+
+    const [event] = encoder.encode(errorMessage, baseMeta)
+    expect(event.payloadCase).toBe('error')
+
+    const decoded = fromBinary(NormalizedEventSchema, event.binary)
+
+    expect(decoded.payload.case).toBe('error')
+    if (decoded.payload.case !== 'error') {
+      throw new Error('expected control error payload')
+    }
+
+    expect(decoded.payload.value.details).toBe('WS connection failed')
+    expect(decoded.payload.value.subsequentErrors).toBe(3)
+    expect(decoded.payload.value.code).toBe(ErrorCode.WS_CONNECT)
+    expect(decoded.meta.data_type).toBe('error')
   })
 })

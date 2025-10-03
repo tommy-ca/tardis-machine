@@ -7,6 +7,7 @@ const cluster = require('cluster')
 const numCPUs = require('os').cpus().length
 const isDocker = require('is-docker')
 const pkg = require('../package.json')
+const { parseKafkaEventBusConfig } = require('../dist/eventbus/config')
 
 const DEFAULT_PORT = 8000
 const argv = yargs
@@ -97,7 +98,7 @@ if (enableDebug) {
 const { TardisMachine } = require('../dist')
 
 async function start() {
-  const eventBusConfig = buildEventBusConfig(argv)
+  const eventBusConfig = parseKafkaEventBusConfig(argv)
 
   const machine = new TardisMachine({
     apiKey: argv['api-key'],
@@ -136,72 +137,6 @@ async function start() {
   }
 
   console.log(`See https://docs.tardis.dev/api/tardis-machine for more information.`)
-}
-
-function buildEventBusConfig(argv) {
-  const brokersRaw = argv['kafka-brokers']
-  const topic = argv['kafka-topic']
-
-  if (!brokersRaw || !topic) {
-    return undefined
-  }
-
-  const brokers = brokersRaw
-    .split(',')
-    .map((broker) => broker.trim())
-    .filter(Boolean)
-
-  if (brokers.length === 0) {
-    throw new Error('Invalid kafka-brokers value. Provide at least one broker URL.')
-  }
-
-  const config = {
-    provider: 'kafka',
-    brokers,
-    topic,
-    clientId: argv['kafka-client-id'] || 'tardis-machine-publisher',
-    ssl: Boolean(argv['kafka-ssl'])
-  }
-
-  const topicRouting = argv['kafka-topic-routing']
-  if (topicRouting) {
-    const pairs = topicRouting
-      .split(',')
-      .map((pair) => pair.trim())
-      .filter(Boolean)
-
-    const map = {}
-
-    for (const pair of pairs) {
-      const [payloadCase, mappedTopic] = pair.split(':').map((part) => part?.trim())
-      if (!payloadCase || !mappedTopic) {
-        throw new Error(
-          `Invalid kafka-topic-routing entry "${pair}". Expected format payloadCase:topicName.`
-        )
-      }
-      map[payloadCase] = mappedTopic
-    }
-
-    if (Object.keys(map).length === 0) {
-      throw new Error('kafka-topic-routing must define at least one payloadCase mapping.')
-    }
-
-    config.topicByPayloadCase = map
-  }
-
-  const mechanism = argv['kafka-sasl-mechanism']
-  if (mechanism) {
-    if (!argv['kafka-sasl-username'] || !argv['kafka-sasl-password']) {
-      throw new Error('Kafka SASL username and password must be provided when sasl mechanism is set.')
-    }
-    config.sasl = {
-      mechanism,
-      username: argv['kafka-sasl-username'],
-      password: argv['kafka-sasl-password']
-    }
-  }
-
-  return config
 }
 
 start()

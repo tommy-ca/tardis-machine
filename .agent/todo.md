@@ -4,3 +4,8 @@
 - [x] Cover publishing with integration tests
 - [x] Update CLI/docs for event bus configuration
 - [x] Enable configurable topic routing for bronze events
+- [x] Document schema maintenance workflow
+- [x] Land bronze/silver proto regression tests
+- [ ] Expose Kafka batch tuning CLI options
+- [ ] Backfill tests for Kafka config parsing
+- [ ] Document Kafka batch tuning usage

@@ -61,6 +61,7 @@
   "license": "MPL-2.0",
   "dependencies": {
     "@bufbuild/protobuf": "^2.9.0",
+    "kafkajs": "^2.2.4",
     "debug": "^4.4.1",
     "find-my-way": "^9.3.0",
     "is-docker": "^2.2.1",
@@ -86,6 +87,8 @@
     "prettier": "^3.6.2",
     "split2": "^4.2.0",
     "protobufjs": "^7.5.4",
+    "@testcontainers/kafka": "^11.7.1",
+    "testcontainers": "^11.7.1",
     "ts-jest": "^29.4.0",
     "typescript": "^5.9.2",
     "ws": "^8.18.3"

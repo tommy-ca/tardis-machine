@@ -1,0 +1,158 @@
+syntax = "proto3";
+
+package lakehouse.silver.v1;
+
+import "google/protobuf/timestamp.proto";
+
+enum Side {
+  SIDE_UNSPECIFIED = 0;
+  SIDE_BUY = 1;
+  SIDE_SELL = 2;
+}
+
+enum Action {
+  ACTION_UNSPECIFIED = 0;
+  ACTION_UPSERT = 1;
+  ACTION_DELETE = 2;
+}
+
+// Trades (curated)
+message TradeRecord {
+  string exchange = 1;
+  string symbol = 2;
+  google.protobuf.Timestamp event_ts = 3;   // venue time
+  google.protobuf.Timestamp ingest_ts = 4;  // pipeline ingest time
+  string trade_id = 5;                      // optional
+  Side side = 6;                            // aggressor side if known
+  int64 price_e8 = 7;                       // price * 1e8
+  int64 qty_e8 = 8;                         // qty * 1e8
+  int64 sequence = 9;                       // optional sequence
+  Origin origin = 10;                       // optional origin (replay/realtime/archive)
+}
+
+// Book changes (delta-based)
+message BookChangeRecord {
+  string exchange = 1;
+  string symbol = 2;
+  google.protobuf.Timestamp event_ts = 3;
+  google.protobuf.Timestamp ingest_ts = 4;
+  Side side = 5;
+  Action action = 6;
+  int64 price_e8 = 7;
+  int64 qty_e8 = 8;                         // 0 for delete in some venues
+  int32 level = 9;                           // optional level index
+  int64 sequence = 10;                       // optional sequence
+  Origin origin = 11;
+}
+
+// Snapshots (top-N)
+message BookSnapshotRecord {
+  string exchange = 1;
+  string symbol = 2;
+  google.protobuf.Timestamp event_ts = 3;
+  google.protobuf.Timestamp ingest_ts = 4;
+  uint32 depth = 5;
+  repeated Level bids = 6;
+  repeated Level asks = 7;
+  // Optional snapshot metadata when computed
+  uint32 grouping = 8;
+  uint32 interval_ms = 9;
+  bool remove_crossed_levels = 10;
+  int64 sequence = 11;
+  Origin origin = 12;
+  message Level { int64 price_e8 = 1; int64 qty_e8 = 2; }
+}
+
+// Separate grouped snapshot record (optional; BookSnapshotRecord also supports metadata)
+message GroupedBookSnapshotRecord {
+  string exchange = 1;
+  string symbol = 2;
+  google.protobuf.Timestamp event_ts = 3;
+  google.protobuf.Timestamp ingest_ts = 4;
+  uint32 depth = 5;
+  repeated Level bids = 6;
+  repeated Level asks = 7;
+  uint32 grouping = 8;
+  uint32 interval_ms = 9;
+  bool remove_crossed_levels = 10;
+  int64 sequence = 11;
+  Origin origin = 12;
+  message Level { int64 price_e8 = 1; int64 qty_e8 = 2; }
+}
+
+// Trade bars
+message TradeBarRecord {
+  string exchange = 1;
+  string symbol = 2;
+  google.protobuf.Timestamp event_ts = 3;  // bar start
+  google.protobuf.Timestamp end_ts = 4;    // bar end
+  google.protobuf.Timestamp ingest_ts = 5;
+  BarKind kind = 6;
+  uint64 interval = 7;                      // number of units (ticks/volume/time input)
+  uint32 interval_ms = 8;                   // materialized ms interval (0 for non-time bars)
+  int64 open_e8 = 9;
+  int64 high_e8 = 10;
+  int64 low_e8 = 11;
+  int64 close_e8 = 12;
+  int64 volume_e8 = 13;
+  uint64 trade_count = 14;
+  Origin origin = 15;
+}
+
+enum BarKind {
+  BAR_KIND_UNSPECIFIED = 0;
+  BAR_KIND_TICK = 1;
+  BAR_KIND_TIME = 2;
+  BAR_KIND_VOLUME = 3;
+}
+
+// Quote
+message QuoteRecord {
+  string exchange = 1;
+  string symbol = 2;
+  google.protobuf.Timestamp event_ts = 3;
+  google.protobuf.Timestamp ingest_ts = 4;
+  int64 bid_price_e8 = 5; int64 bid_qty_e8 = 6;
+  int64 ask_price_e8 = 7; int64 ask_qty_e8 = 8;
+  Origin origin = 9;
+}
+
+// Derivative ticker
+message DerivativeTickerRecord {
+  string exchange = 1; string symbol = 2;
+  google.protobuf.Timestamp event_ts = 3; google.protobuf.Timestamp ingest_ts = 4;
+  int64 mark_price_e8 = 5; int64 index_price_e8 = 6; int64 funding_rate_e9 = 7;
+  Origin origin = 8;
+}
+
+// Liquidation
+message LiquidationRecord {
+  string exchange = 1; string symbol = 2;
+  google.protobuf.Timestamp event_ts = 3; google.protobuf.Timestamp ingest_ts = 4;
+  Side side = 5; int64 price_e8 = 6; int64 qty_e8 = 7; string order_id = 8;
+  Origin origin = 9;
+}
+
+// Option summary
+message OptionSummaryRecord {
+  string exchange = 1; string symbol = 2;
+  google.protobuf.Timestamp event_ts = 3; google.protobuf.Timestamp ingest_ts = 4;
+  int64 iv_e6 = 5; int64 delta_e9 = 6; int64 gamma_e9 = 7; int64 theta_e9 = 8; int64 vega_e9 = 9; int64 oi = 10;
+  Origin origin = 11;
+}
+
+// Book ticker (top-of-book summary)
+message BookTickerRecord {
+  string exchange = 1; string symbol = 2;
+  google.protobuf.Timestamp event_ts = 3; google.protobuf.Timestamp ingest_ts = 4;
+  int64 best_bid_price_e8 = 5; int64 best_bid_qty_e8 = 6; int64 best_ask_price_e8 = 7; int64 best_ask_qty_e8 = 8;
+  Origin origin = 9;
+}
+
+// Mirror Bronze Origin enum for silver layer
+enum Origin {
+  ORIGIN_UNSPECIFIED = 0;
+  ORIGIN_REALTIME = 1;
+  ORIGIN_REPLAY = 2;
+  ORIGIN_ARCHIVE = 3;
+}

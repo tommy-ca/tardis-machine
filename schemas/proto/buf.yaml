@@ -1,0 +1,19 @@
+version: v1
+
+# Optional: set a module name if pushing to Buf registry later
+# name: your-org/crypto-lakehouse-schemas
+
+deps:
+  - buf.build/google/protobuf
+
+lint:
+  use:
+    - STANDARD
+  except:
+    # Allow lack of comments for now to keep changes minimal
+    - COMMENTS
+
+breaking:
+  use:
+    - FILE
+

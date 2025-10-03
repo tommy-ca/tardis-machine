@@ -17,7 +17,11 @@
     "prepare": "npm run build",
     "format": "prettier --write .",
     "check-format": "prettier --check .",
-    "benchmark": "node ./benchmark.js"
+    "benchmark": "node ./benchmark.js",
+    "buf:generate": "buf generate schemas/proto --template buf.gen.yaml",
+    "buf:lint": "buf lint schemas/proto",
+    "buf:format": "buf format -w schemas/proto",
+    "buf:breaking": "buf breaking --against '.git#branch=main' --path schemas/proto"
   },
   "bin": {
     "tardis-machine": "./bin/tardis-machine.js"
@@ -56,6 +60,7 @@
   ],
   "license": "MPL-2.0",
   "dependencies": {
+    "@bufbuild/protobuf": "^2.9.0",
     "debug": "^4.4.1",
     "find-my-way": "^9.3.0",
     "is-docker": "^2.2.1",
@@ -64,6 +69,8 @@
     "yargs": "^17.5.1"
   },
   "devDependencies": {
+    "@bufbuild/buf": "^1.57.2",
+    "@bufbuild/protoc-gen-es": "^2.9.0",
     "@types/debug": "^4.1.12",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.1.0",
@@ -78,6 +85,7 @@
     "node-fetch": "^2.6.1",
     "prettier": "^3.6.2",
     "split2": "^4.2.0",
+    "protobufjs": "^7.5.4",
     "ts-jest": "^29.4.0",
     "typescript": "^5.9.2",
     "ws": "^8.18.3"

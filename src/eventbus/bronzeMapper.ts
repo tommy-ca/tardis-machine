@@ -55,6 +55,14 @@ const defaultKeyBuilder: KeyBuilder = (event, payloadCase) => {
   return `${event.exchange}|${symbol}|${payloadCase}`
 }
 
+type NormalizedQuote = NormalizedData & {
+  type: 'quote'
+  bidPrice?: number
+  bidAmount?: number
+  askPrice?: number
+  askAmount?: number
+}
+
 export class BronzeNormalizedEventEncoder implements NormalizedEventEncoder {
   constructor(private readonly keyBuilder: KeyBuilder = defaultKeyBuilder) {}
 
@@ -86,6 +94,8 @@ function buildEvents(message: NormalizedMessage, meta: PublishMeta): EventRecord
       return buildBookChangeEvents(typed as NormalizedBookChange, meta)
     case 'book_snapshot':
       return [buildBookSnapshotEvent(typed as NormalizedBookSnapshot, meta)]
+    case 'quote':
+      return [buildQuoteEvent(typed as NormalizedQuote, meta)]
     case 'derivative_ticker':
       return [buildDerivativeTickerEvent(typed as NormalizedDerivativeTicker, meta)]
     case 'liquidation':
@@ -297,6 +307,26 @@ function buildBookTickerEvent(message: NormalizedBookTicker, meta: PublishMeta):
   return {
     event,
     payloadCase: 'bookTicker',
+    dataType: message.type
+  }
+}
+
+function buildQuoteEvent(message: NormalizedQuote, meta: PublishMeta): EventRecord {
+  const event = createBaseEvent(message, meta)
+  event.payload = {
+    case: 'quote',
+    value: create(QuoteSchema, {
+      bidPriceStr: numberToOptionalString(message.bidPrice),
+      bidQtyStr: numberToOptionalString(message.bidAmount),
+      askPriceStr: numberToOptionalString(message.askPrice),
+      askQtyStr: numberToOptionalString(message.askAmount),
+      eventTs: dateToTimestamp(message.timestamp)
+    }) as Quote
+  }
+
+  return {
+    event,
+    payloadCase: 'quote',
     dataType: message.type
   }
 }

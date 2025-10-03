@@ -16,7 +16,8 @@ import type {
   BookTicker as NormalizedBookTicker,
   DerivativeTicker as NormalizedDerivativeTicker,
   Liquidation as NormalizedLiquidation,
-  Disconnect
+  Disconnect,
+  NormalizedData
 } from 'tardis-dev'
 import type { ControlErrorMessage } from '../../src/eventbus/types'
 
@@ -27,6 +28,14 @@ const baseMeta = {
   source: 'unit-test',
   origin: Origin.REPLAY,
   ingestTimestamp: ingest
+}
+
+type NormalizedQuote = NormalizedData & {
+  type: 'quote'
+  bidPrice?: number
+  bidAmount?: number
+  askPrice?: number
+  askAmount?: number
 }
 
 describe('BronzeNormalizedEventEncoder', () => {
@@ -187,6 +196,30 @@ describe('BronzeNormalizedEventEncoder', () => {
       throw new Error('expected bookTicker payload')
     }
     expect(decoded.payload.value.bestAskPriceStr).toBe('2500.5')
+  })
+
+  test('encodes quote payload', () => {
+    const quote: NormalizedQuote = {
+      type: 'quote',
+      symbol: 'ETHUSD',
+      exchange: 'bitmex',
+      bidPrice: 2500,
+      bidAmount: 9,
+      askPrice: 2500.5,
+      askAmount: 5,
+      timestamp: new Date('2024-01-01T00:00:02.000Z'),
+      localTimestamp: new Date('2024-01-01T00:00:02.050Z')
+    }
+
+    const [event] = encoder.encode(quote, baseMeta)
+    const decoded = fromBinary(NormalizedEventSchema, event.binary)
+    expect(event.payloadCase).toBe('quote')
+    expect(decoded.payload.case).toBe('quote')
+    if (decoded.payload.case !== 'quote') {
+      throw new Error('expected quote payload')
+    }
+    expect(decoded.payload.value.bidPriceStr).toBe('2500')
+    expect(decoded.payload.value.askQtyStr).toBe('5')
   })
 
   test('encodes derivative ticker', () => {

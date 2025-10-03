@@ -9,3 +9,4 @@
 - [x] Expose Kafka batch tuning CLI options
 - [x] Backfill tests for Kafka config parsing
 - [x] Document Kafka batch tuning usage
+- [x] Support quote payload publishing

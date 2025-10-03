@@ -44,6 +44,36 @@ const argv = yargs
     describe: 'Enable debug logs.',
     default: false
   })
+  .option('kafka-brokers', {
+    type: 'string',
+    describe: 'Comma separated Kafka broker list for normalized event publishing'
+  })
+  .option('kafka-topic', {
+    type: 'string',
+    describe: 'Kafka topic name for normalized events'
+  })
+  .option('kafka-client-id', {
+    type: 'string',
+    describe: 'Kafka client id used by tardis-machine publisher'
+  })
+  .option('kafka-ssl', {
+    type: 'boolean',
+    describe: 'Enable SSL when connecting to Kafka brokers',
+    default: false
+  })
+  .option('kafka-sasl-mechanism', {
+    type: 'string',
+    choices: ['plain', 'scram-sha-256', 'scram-sha-512'],
+    describe: 'Kafka SASL mechanism'
+  })
+  .option('kafka-sasl-username', {
+    type: 'string',
+    describe: 'Kafka SASL username'
+  })
+  .option('kafka-sasl-password', {
+    type: 'string',
+    describe: 'Kafka SASL password'
+  })
 
   .help()
   .version()
@@ -63,10 +93,13 @@ if (enableDebug) {
 const { TardisMachine } = require('../dist')
 
 async function start() {
+  const eventBusConfig = buildEventBusConfig(argv)
+
   const machine = new TardisMachine({
     apiKey: argv['api-key'],
     cacheDir: argv['cache-dir'],
-    clearCache: argv['clear-cache']
+    clearCache: argv['clear-cache'],
+    eventBus: eventBusConfig
   })
   let suffix = ''
 
@@ -99,6 +132,46 @@ async function start() {
   }
 
   console.log(`See https://docs.tardis.dev/api/tardis-machine for more information.`)
+}
+
+function buildEventBusConfig(argv) {
+  const brokersRaw = argv['kafka-brokers']
+  const topic = argv['kafka-topic']
+
+  if (!brokersRaw || !topic) {
+    return undefined
+  }
+
+  const brokers = brokersRaw
+    .split(',')
+    .map((broker) => broker.trim())
+    .filter(Boolean)
+
+  if (brokers.length === 0) {
+    throw new Error('Invalid kafka-brokers value. Provide at least one broker URL.')
+  }
+
+  const config = {
+    provider: 'kafka',
+    brokers,
+    topic,
+    clientId: argv['kafka-client-id'] || 'tardis-machine-publisher',
+    ssl: Boolean(argv['kafka-ssl'])
+  }
+
+  const mechanism = argv['kafka-sasl-mechanism']
+  if (mechanism) {
+    if (!argv['kafka-sasl-username'] || !argv['kafka-sasl-password']) {
+      throw new Error('Kafka SASL username and password must be provided when sasl mechanism is set.')
+    }
+    config.sasl = {
+      mechanism,
+      username: argv['kafka-sasl-username'],
+      password: argv['kafka-sasl-password']
+    }
+  }
+
+  return config
 }
 
 start()

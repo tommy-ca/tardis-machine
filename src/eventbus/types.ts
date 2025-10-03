@@ -32,10 +32,15 @@ export interface NormalizedEventEncoder {
 }
 
 export interface NormalizedEventSink {
+  start(): Promise<void>
   publish(message: NormalizedMessage, meta: PublishMeta): Promise<void>
   flush(): Promise<void>
   close(): Promise<void>
 }
+
+export type PublishInjection = Pick<PublishMeta, 'origin' | 'requestId' | 'sessionId' | 'extraMeta'>
+
+export type PublishFn = (message: NormalizedMessage, meta: PublishInjection) => void
 
 export type KafkaEventBusConfig = {
   brokers: string[]
@@ -59,4 +64,3 @@ export type EventBusConfig =
         provider: 'kafka'
       } & KafkaEventBusConfig
     )
-

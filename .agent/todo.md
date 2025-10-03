@@ -1,5 +1,5 @@
 - [x] Set up Buf TypeScript generation pipeline
-- [ ] Implement Kafka event bus publisher abstraction
-- [ ] Integrate publisher into normalized replay/streaming flows
-- [ ] Cover publishing with integration tests
-- [ ] Update CLI/docs for event bus configuration
+- [x] Implement Kafka event bus publisher abstraction
+- [x] Integrate publisher into normalized replay/streaming flows
+- [x] Cover publishing with integration tests
+- [x] Update CLI/docs for event bus configuration

@@ -1,10 +1,12 @@
 import findMyWay from 'find-my-way'
 import http from 'http'
 import { clearCache, init } from 'tardis-dev'
-import { App, DISABLED, TemplatedApp, WebSocket } from 'uWebSockets.js'
-import { replayHttp, replayNormalizedHttp, healthCheck } from './http'
-import { replayNormalizedWS, replayWS, streamNormalizedWS } from './ws'
+import { App, DISABLED, TemplatedApp } from 'uWebSockets.js'
+import { replayHttp, createReplayNormalizedHttpHandler, healthCheck } from './http'
+import { createReplayNormalizedWSHandler, replayWS, createStreamNormalizedWSHandler } from './ws'
 import { debug } from './debug'
+import { KafkaEventBus } from './eventbus'
+import type { EventBusConfig, NormalizedEventSink, NormalizedMessage, PublishFn, PublishInjection, PublishMeta } from './eventbus/types'
 
 const pkg = require('../package.json')
 
@@ -12,6 +14,9 @@ export class TardisMachine {
   private readonly _httpServer: http.Server
   private readonly _wsServer: TemplatedApp
   private _eventLoopTimerId: NodeJS.Timeout | undefined = undefined
+  private readonly _eventBus?: NormalizedEventSink
+  private readonly _publishNormalized?: PublishFn
+  private readonly _sourceTag = `tardis-machine/${pkg.version}`
 
   constructor(private readonly options: Options) {
     init({
@@ -22,6 +27,11 @@ export class TardisMachine {
 
     const router = findMyWay({ ignoreTrailingSlash: true })
 
+    if (options.eventBus) {
+      this._eventBus = this._createEventBus(options.eventBus)
+      this._publishNormalized = this._createPublishFunction(this._eventBus)
+    }
+
     this._httpServer = http.createServer((req, res) => {
       router.lookup(req, res)
     })
@@ -30,13 +40,13 @@ export class TardisMachine {
     this._httpServer.timeout = 0
 
     router.on('GET', '/replay', replayHttp)
-    router.on('GET', '/replay-normalized', replayNormalizedHttp)
+    router.on('GET', '/replay-normalized', createReplayNormalizedHttpHandler(this._publishNormalized))
     router.on('GET', '/health-check', healthCheck)
 
     const wsRoutes = {
       '/ws-replay': replayWS,
-      '/ws-replay-normalized': replayNormalizedWS,
-      '/ws-stream-normalized': streamNormalizedWS
+      '/ws-replay-normalized': createReplayNormalizedWSHandler(this._publishNormalized),
+      '/ws-stream-normalized': createStreamNormalizedWSHandler(this._publishNormalized)
     } as any
 
     this._wsServer = App().ws('/*', {
@@ -82,6 +92,10 @@ export class TardisMachine {
   }
 
   public async start(port: number) {
+    if (this._eventBus) {
+      await this._eventBus.start()
+    }
+
     let start = process.hrtime()
     const interval = 500
 
@@ -131,6 +145,38 @@ export class TardisMachine {
     if (this._eventLoopTimerId !== undefined) {
       clearInterval(this._eventLoopTimerId)
     }
+
+    if (this._eventBus) {
+      await this._eventBus.close()
+    }
+  }
+
+  private _createEventBus(config: EventBusConfig): NormalizedEventSink {
+    if (config.provider === 'kafka') {
+      return new KafkaEventBus(config)
+    }
+
+    throw new Error(`Unsupported event bus provider: ${config.provider}`)
+  }
+
+  private _createPublishFunction(bus: NormalizedEventSink): PublishFn {
+    return (message: NormalizedMessage, meta: PublishInjection) => {
+      const publishMeta: PublishMeta = {
+        source: this._sourceTag,
+        origin: meta.origin,
+        ingestTimestamp: new Date(),
+        requestId: meta.requestId,
+        sessionId: meta.sessionId,
+        extraMeta: {
+          app_version: pkg.version,
+          ...meta.extraMeta
+        }
+      }
+
+      bus.publish(message, publishMeta).catch((error) => {
+        debug('Event bus publish error: %o', error)
+      })
+    }
   }
 }
 
@@ -138,4 +184,5 @@ type Options = {
   apiKey?: string
   cacheDir: string
   clearCache?: boolean
+  eventBus?: EventBusConfig
 }

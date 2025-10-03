@@ -1,30 +1,36 @@
 import qs from 'querystring'
 import { combine, compute, Exchange, streamNormalized } from 'tardis-dev'
-import { HttpRequest, WebSocket } from 'uWebSockets.js'
+import { HttpRequest } from 'uWebSockets.js'
+import { randomUUID } from 'crypto'
 import { debug } from '../debug'
 import { constructDataTypeFilter, getComputables, getNormalizers, StreamNormalizedRequestOptions, wait } from '../helpers'
+import { Origin } from '../generated/lakehouse/bronze/v1/normalized_event_pb'
+import type { PublishFn } from '../eventbus/types'
 
-export async function streamNormalizedWS(ws: any, req: HttpRequest) {
-  let messages: AsyncIterableIterator<any> | undefined
+export function createStreamNormalizedWSHandler(publishNormalized?: PublishFn) {
+  return async function streamNormalizedWS(ws: any, req: HttpRequest) {
+    let messages: AsyncIterableIterator<any> | undefined
 
-  try {
-    const startTimestamp = new Date().getTime()
-    const parsedQuery = qs.decode(req.getQuery())
-    const optionsString = parsedQuery['options'] as string
-    const streamNormalizedOptions = JSON.parse(optionsString) as StreamNormalizedRequestOptions
+    try {
+      const startTimestamp = new Date().getTime()
+      const parsedQuery = qs.decode(req.getQuery())
+      const optionsString = parsedQuery['options'] as string
+      const streamNormalizedOptions = JSON.parse(optionsString) as StreamNormalizedRequestOptions
 
-    debug('WebSocket /ws-stream-normalized started, options: %o', streamNormalizedOptions)
+      debug('WebSocket /ws-stream-normalized started, options: %o', streamNormalizedOptions)
 
-    const options = Array.isArray(streamNormalizedOptions) ? streamNormalizedOptions : [streamNormalizedOptions]
-    let subSequentErrorsCount: { [key in Exchange]?: number } = {}
+      const options = Array.isArray(streamNormalizedOptions) ? streamNormalizedOptions : [streamNormalizedOptions]
+      let subSequentErrorsCount: { [key in Exchange]?: number } = {}
 
-    let retries = 0
-    let bufferedAmount = 0
+      let retries = 0
+      let bufferedAmount = 0
+      const requestId = randomUUID()
+      const sessionId = randomUUID()
 
-    const messagesIterables = options.map((option) => {
-      // let's map from provided options to options and normalizers that needs to be added for dataTypes provided in options
-      const messages = streamNormalized(
-        {
+      const messagesIterables = options.map((option) => {
+        // let's map from provided options to options and normalizers that needs to be added for dataTypes provided in options
+        const messages = streamNormalized(
+          {
           ...option,
           withDisconnectMessages: true,
           onError: (error) => {
@@ -106,6 +112,18 @@ export async function streamNormalizedWS(ws: any, req: HttpRequest) {
       if (message.type !== 'disconnect') {
         subSequentErrorsCount[exchange] = 0
       }
+
+      if (publishNormalized && message.type !== 'error') {
+        publishSafe(publishNormalized, message, {
+          origin: Origin.REALTIME,
+          requestId,
+          sessionId,
+          extraMeta: {
+            transport: 'ws',
+            route: '/ws-stream-normalized'
+          }
+        })
+      }
     }
 
     while (ws.getBufferedAmount() > 0) {
@@ -133,5 +151,14 @@ export async function streamNormalizedWS(ws: any, req: HttpRequest) {
     if (messages !== undefined) {
       messages!.return!()
     }
+  }
+  }
+}
+
+function publishSafe(publish: PublishFn, message: any, meta: Parameters<PublishFn>[1]) {
+  try {
+    publish(message, meta)
+  } catch (error) {
+    debug('Failed to enqueue normalized event for publishing %o', error)
   }
 }

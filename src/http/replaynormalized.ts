@@ -2,45 +2,60 @@ import { once } from 'events'
 import { IncomingMessage, OutgoingMessage, ServerResponse } from 'http'
 import { combine, compute, replayNormalized } from 'tardis-dev'
 import url from 'url'
+import { randomUUID } from 'crypto'
 import { debug } from '../debug'
 import { constructDataTypeFilter, getComputables, getNormalizers, ReplayNormalizedRequestOptions } from '../helpers'
+import { Origin } from '../generated/lakehouse/bronze/v1/normalized_event_pb'
+import type { PublishFn, NormalizedMessage } from '../eventbus/types'
 
-export const replayNormalizedHttp = async (req: IncomingMessage, res: ServerResponse) => {
-  try {
-    const startTimestamp = new Date().getTime()
-    const parsedQuery = url.parse(req.url!, true).query
-    const optionsString = parsedQuery['options'] as string
-    const replayNormalizedOptions = JSON.parse(optionsString) as ReplayNormalizedRequestOptions
+export const createReplayNormalizedHttpHandler = (publishNormalized?: PublishFn) =>
+  async (req: IncomingMessage, res: ServerResponse) => {
+    try {
+      const startTimestamp = new Date().getTime()
+      const parsedQuery = url.parse(req.url!, true).query
+      const optionsString = parsedQuery['options'] as string
+      const replayNormalizedOptions = JSON.parse(optionsString) as ReplayNormalizedRequestOptions
 
-    debug('GET /replay-normalized request started, options: %o', replayNormalizedOptions)
+      debug('GET /replay-normalized request started, options: %o', replayNormalizedOptions)
 
-    const streamedMessagesCount = await writeMessagesToResponse(res, replayNormalizedOptions)
-    const endTimestamp = new Date().getTime()
+      const requestId = randomUUID()
+      const streamedMessagesCount = await writeMessagesToResponse(
+        res,
+        replayNormalizedOptions,
+        publishNormalized,
+        requestId
+      )
+      const endTimestamp = new Date().getTime()
 
-    debug(
-      'GET /replay-normalized request finished, options: %o, time: %d seconds, total messages count: %d',
-      replayNormalizedOptions,
-      (endTimestamp - startTimestamp) / 1000,
-      streamedMessagesCount
-    )
-  } catch (e: any) {
-    const errorInfo = {
-      responseText: e.responseText,
-      message: e.message,
-      url: e.url
-    }
+      debug(
+        'GET /replay-normalized request finished, options: %o, time: %d seconds, total messages count: %d',
+        replayNormalizedOptions,
+        (endTimestamp - startTimestamp) / 1000,
+        streamedMessagesCount
+      )
+    } catch (e: any) {
+      const errorInfo = {
+        responseText: e.responseText,
+        message: e.message,
+        url: e.url
+      }
 
-    debug('GET /replay-normalized request error: %o', e)
-    console.error('GET /replay-normalized request error:', e)
+      debug('GET /replay-normalized request error: %o', e)
+      console.error('GET /replay-normalized request error:', e)
 
-    if (!res.finished) {
-      res.statusCode = e.status || 500
-      res.end(JSON.stringify(errorInfo))
+      if (!res.finished) {
+        res.statusCode = e.status || 500
+        res.end(JSON.stringify(errorInfo))
+      }
     }
   }
-}
 
-async function writeMessagesToResponse(res: OutgoingMessage, options: ReplayNormalizedRequestOptions) {
+async function writeMessagesToResponse(
+  res: OutgoingMessage,
+  options: ReplayNormalizedRequestOptions,
+  publishNormalized: PublishFn | undefined,
+  requestId: string
+) {
   const BATCH_SIZE = 32
 
   res.setHeader('Content-Type', 'application/x-json-stream')
@@ -51,9 +66,7 @@ async function writeMessagesToResponse(res: OutgoingMessage, options: ReplayNorm
   const replayNormalizedOptions = Array.isArray(options) ? options : [options]
 
   const messagesIterables = replayNormalizedOptions.map((option) => {
-    // let's map from provided options to options and normalizers that needs to be added for dataTypes provided in options
     const messages = replayNormalized(option, ...getNormalizers(option.dataTypes))
-    // separately check if any computables are needed for given dataTypes
     const computables = getComputables(option.dataTypes)
 
     if (computables.length > 0) {
@@ -64,18 +77,25 @@ async function writeMessagesToResponse(res: OutgoingMessage, options: ReplayNorm
   })
 
   const filterByDataType = constructDataTypeFilter(replayNormalizedOptions)
-
   const messages = messagesIterables.length === 1 ? messagesIterables[0] : combine(...messagesIterables)
 
   for await (const message of messages) {
-    // filter out messages not explicitly requested via options.dataTypes
-    // eg.: return only book_snapshots when someone asked only for those
-    // as by default also book_changes are returned as well
     if (filterByDataType(message) === false) {
       continue
     }
 
     totalMessagesCount++
+
+    if (publishNormalized) {
+      publishSafe(publishNormalized, message, {
+        origin: Origin.REPLAY,
+        requestId,
+        extraMeta: {
+          transport: 'http',
+          route: '/replay-normalized'
+        }
+      })
+    }
 
     buffers.push(JSON.stringify(message))
 
@@ -97,4 +117,12 @@ async function writeMessagesToResponse(res: OutgoingMessage, options: ReplayNorm
   res.end('')
 
   return totalMessagesCount
+}
+
+function publishSafe(publish: PublishFn, message: NormalizedMessage, meta: Parameters<PublishFn>[1]) {
+  try {
+    publish(message, meta)
+  } catch (error) {
+    debug('Failed to enqueue normalized event for publishing %o', error)
+  }
 }

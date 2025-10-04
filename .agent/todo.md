@@ -1,12 +1,5 @@
-- [x] Set up Buf TypeScript generation pipeline
-- [x] Implement Kafka event bus publisher abstraction
-- [x] Integrate publisher into normalized replay/streaming flows
-- [x] Cover publishing with integration tests
-- [x] Update CLI/docs for event bus configuration
-- [x] Enable configurable topic routing for bronze events
-- [x] Document schema maintenance workflow
-- [x] Land bronze/silver proto regression tests
-- [x] Expose Kafka batch tuning CLI options
-- [x] Backfill tests for Kafka config parsing
-- [x] Document Kafka batch tuning usage
-- [x] Support quote payload publishing
+# TODO
+
+- [x] Add E2E coverage for Kafka publishing via TardisMachine.
+- [ ] Verify documentation and generated artifacts stay in sync with new features.
+- [ ] Document Kafka Testcontainers prerequisites for local runners.

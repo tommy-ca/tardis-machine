@@ -35,6 +35,7 @@ describe('KafkaEventBus', () => {
 
       const admin = kafka.admin()
       await admin.connect()
+      await waitForKafkaController(admin)
       await admin.createTopics({ topics: allTopics.map((topic) => ({ topic, numPartitions: 1 })) })
       await admin.disconnect()
     } catch (error) {
@@ -93,31 +94,12 @@ describe('KafkaEventBus', () => {
     await bus.publish(bookChange, baseMeta)
     await bus.flush()
 
-    const consumer = kafka.consumer({ groupId: `bronze-test-${Date.now()}` })
-    await consumer.connect()
-    await consumer.subscribe({ topic: baseTopic, fromBeginning: true })
-
-    const received: NormalizedEvent[] = []
-    await new Promise<void>((resolve, reject) => {
-      consumer
-        .run({
-          eachMessage: async ({ message }) => {
-            if (!message.value) {
-              return
-            }
-            const event = fromBinary(NormalizedEventSchema, message.value)
-            received.push(event)
-            if (received.length >= 4) {
-              await consumer.stop()
-              resolve()
-            }
-          }
-        })
-        .catch(reject)
-    })
-
-    await consumer.disconnect()
-    await bus.close()
+    let received: NormalizedEvent[] = []
+    try {
+      received = await consumeEvents(kafka, baseTopic, 4)
+    } finally {
+      await bus.close().catch(() => undefined)
+    }
 
     expect(received).toHaveLength(4)
     const tradeEvent = received.find((evt) => evt.payload.case === 'trade')
@@ -181,7 +163,7 @@ describe('KafkaEventBus', () => {
       consumeEvents(kafka, routingTopics.bookChange, 3)
     ])
 
-    await bus.close()
+    await bus.close().catch(() => undefined)
 
     expect(tradeEvents).toHaveLength(1)
     expect(tradeEvents[0]?.payload.case).toBe('trade')
@@ -195,37 +177,98 @@ describe('KafkaEventBus', () => {
 let shouldSkip = false
 
 async function startKafkaContainer() {
-  const container = new KafkaContainer('confluentinc/cp-kafka:7.5.3')
-  return Promise.race<StartedKafkaContainer>([
-    container.start(),
-    new Promise((_, reject) => setTimeout(() => reject(new Error('kafka container startup timeout')), startTimeoutMs))
-  ])
+  const container = new KafkaContainer('confluentinc/cp-kafka:7.5.3').withStartupTimeout(startTimeoutMs)
+  return container.start()
 }
 
-async function consumeEvents(kafka: Kafka, topic: string, expectedCount: number) {
+async function consumeEvents(
+  kafka: Kafka,
+  topic: string,
+  expectedCount: number,
+  timeoutMs = 120000
+) {
   const consumer = kafka.consumer({ groupId: `bronze-test-${topic}-${Date.now()}` })
   await consumer.connect()
   await consumer.subscribe({ topic, fromBeginning: true })
 
-  const received: NormalizedEvent[] = []
-  await new Promise<void>((resolve, reject) => {
+  try {
+    return await collectKafkaEvents(consumer, expectedCount, timeoutMs)
+  } finally {
+    await consumer.disconnect().catch(() => undefined)
+  }
+}
+
+async function collectKafkaEvents(
+  consumer: ReturnType<Kafka['consumer']>,
+  expectedCount: number,
+  timeoutMs: number
+): Promise<NormalizedEvent[]> {
+  const events: NormalizedEvent[] = []
+  let completed = false
+
+  return new Promise<NormalizedEvent[]>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      if (completed) {
+        return
+      }
+      completed = true
+      reject(
+        new Error(
+          `Timed out after ${timeoutMs}ms waiting for ${expectedCount} Kafka events (received ${events.length})`
+        )
+      )
+    }, timeoutMs)
+
     consumer
       .run({
         eachMessage: async ({ message }) => {
-          if (!message.value) {
+          if (completed || !message.value) {
             return
           }
-          const event = fromBinary(NormalizedEventSchema, message.value)
-          received.push(event)
-          if (received.length >= expectedCount) {
-            await consumer.stop()
-            resolve()
+
+          try {
+            events.push(fromBinary(NormalizedEventSchema, message.value))
+          } catch (error) {
+            completed = true
+            clearTimeout(timer)
+            reject(error as Error)
+            return
+          }
+
+          if (events.length >= expectedCount) {
+            completed = true
+            clearTimeout(timer)
+            resolve(events)
           }
         }
       })
-      .catch(reject)
+      .catch((error) => {
+        if (completed) {
+          return
+        }
+        completed = true
+        clearTimeout(timer)
+        reject(error)
+      })
+  }).finally(async () => {
+    await consumer.stop().catch(() => undefined)
   })
+}
 
-  await consumer.disconnect()
-  return received
+async function waitForKafkaController(
+  admin: ReturnType<Kafka['admin']>,
+  timeoutMs = 60000
+) {
+  const start = Date.now()
+  while (true) {
+    try {
+      await admin.describeCluster()
+      return
+    } catch (error) {
+      if (Date.now() - start >= timeoutMs) {
+        throw error
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+  }
 }

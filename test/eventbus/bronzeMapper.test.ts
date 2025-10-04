@@ -38,6 +38,18 @@ type NormalizedQuote = NormalizedData & {
   askAmount?: number
 }
 
+type NormalizedGroupedBookSnapshot = NormalizedData & {
+  type: 'grouped_book_snapshot'
+  depth: number
+  grouping: number
+  intervalMs?: number
+  interval?: number
+  removeCrossedLevels?: boolean
+  sequence?: number
+  bids: { price: number; amount: number }[]
+  asks: { price: number; amount: number }[]
+}
+
 describe('BronzeNormalizedEventEncoder', () => {
   test('encodes trade payload', () => {
     const trade: NormalizedTrade = {
@@ -140,6 +152,43 @@ describe('BronzeNormalizedEventEncoder', () => {
     expect(snapshotPayload.depth).toBe(5)
     expect(snapshotPayload.bids.length).toBe(2)
     expect(decoded.meta.data_name).toBe('book_snapshot_5_1s')
+  })
+
+  test('encodes grouped book snapshot payload', () => {
+    const snapshot: NormalizedGroupedBookSnapshot = {
+      type: 'grouped_book_snapshot',
+      symbol: 'BTCUSD',
+      exchange: 'bitmex',
+      depth: 3,
+      grouping: 25,
+      intervalMs: 1000,
+      removeCrossedLevels: false,
+      sequence: 12345,
+      bids: [
+        { price: 25000, amount: 1.5 },
+        { price: 24999.5, amount: 0.75 }
+      ],
+      asks: [{ price: 25000.5, amount: 2 }],
+      timestamp: new Date('2024-01-01T00:00:15.000Z'),
+      localTimestamp: new Date('2024-01-01T00:00:15.005Z')
+    }
+
+    const events = encoder.encode(snapshot, baseMeta)
+    expect(events).toHaveLength(1)
+
+    const decoded = fromBinary(NormalizedEventSchema, events[0].binary)
+    expect(decoded.payload.case).toBe('groupedBookSnapshot')
+    if (decoded.payload.case !== 'groupedBookSnapshot') {
+      throw new Error('expected groupedBookSnapshot payload')
+    }
+
+    const payload = decoded.payload.value
+    expect(payload.grouping).toBe(25)
+    expect(payload.intervalMs).toBe(1000)
+    expect(payload.removeCrossedLevels).toBe(false)
+    expect(payload.sequence).toBe(BigInt(12345))
+    expect(payload.bids[0]?.priceStr).toBe('25000')
+    expect(decoded.meta.data_type).toBe('grouped_book_snapshot')
   })
 
   test('encodes trade bar with timestamps', () => {

@@ -63,6 +63,23 @@ type NormalizedQuote = NormalizedData & {
   askAmount?: number
 }
 
+type SnapshotMetadata = {
+  grouping?: number
+  interval?: number
+  intervalMs?: number
+  removeCrossedLevels?: boolean
+  sequence?: number | bigint | string | null
+}
+
+type NormalizedBookSnapshotWithMetadata = NormalizedBookSnapshot & SnapshotMetadata
+
+type NormalizedGroupedBookSnapshot = NormalizedData & SnapshotMetadata & {
+  type: 'grouped_book_snapshot'
+  depth: number
+  bids: Array<Optional<{ price: number; amount: number }>>
+  asks: Array<Optional<{ price: number; amount: number }>>
+}
+
 export class BronzeNormalizedEventEncoder implements NormalizedEventEncoder {
   constructor(private readonly keyBuilder: KeyBuilder = defaultKeyBuilder) {}
 
@@ -94,6 +111,8 @@ function buildEvents(message: NormalizedMessage, meta: PublishMeta): EventRecord
       return buildBookChangeEvents(typed as NormalizedBookChange, meta)
     case 'book_snapshot':
       return [buildBookSnapshotEvent(typed as NormalizedBookSnapshot, meta)]
+    case 'grouped_book_snapshot':
+      return [buildGroupedBookSnapshotEvent(typed as NormalizedGroupedBookSnapshot, meta)]
     case 'quote':
       return [buildQuoteEvent(typed as NormalizedQuote, meta)]
     case 'derivative_ticker':
@@ -194,40 +213,74 @@ function buildBookChange(
   }
 }
 
-function buildBookSnapshotEvent(message: NormalizedBookSnapshot, meta: PublishMeta): EventRecord {
+function buildBookSnapshotEvent(
+  message: NormalizedBookSnapshotWithMetadata,
+  meta: PublishMeta
+): EventRecord {
+  const payloadCase = message.grouping ? 'groupedBookSnapshot' : 'bookSnapshot'
+  return buildSnapshotEvent(message, meta, payloadCase)
+}
+
+function buildGroupedBookSnapshotEvent(
+  message: NormalizedGroupedBookSnapshot,
+  meta: PublishMeta
+): EventRecord {
+  return buildSnapshotEvent(message, meta, 'groupedBookSnapshot')
+}
+
+function buildSnapshotEvent(
+  message: NormalizedBookSnapshotWithMetadata | NormalizedGroupedBookSnapshot,
+  meta: PublishMeta,
+  payloadCase: 'bookSnapshot' | 'groupedBookSnapshot'
+): EventRecord {
   const event = createBaseEvent(message, meta)
-  const bids = message.bids
-    .filter((level): level is Optional<{ price: number; amount: number }> => !!level)
-    .map((level) => ({
-      priceStr: level.price !== undefined ? decimalToString(level.price) : '',
-      qtyStr: level.amount !== undefined ? decimalToString(level.amount) : ''
-    }))
-  const asks = message.asks
-    .filter((level): level is Optional<{ price: number; amount: number }> => !!level)
-    .map((level) => ({
-      priceStr: level.price !== undefined ? decimalToString(level.price) : '',
-      qtyStr: level.amount !== undefined ? decimalToString(level.amount) : ''
-    }))
 
-  const snapshot = create(message.grouping ? GroupedBookSnapshotSchema : BookSnapshotSchema, {
-    depth: message.depth,
-    bids,
-    asks,
-    eventTs: dateToTimestamp(message.timestamp),
-    grouping: message.grouping,
-    intervalMs: message.interval,
-    removeCrossedLevels: true
-  }) as BookSnapshot | GroupedBookSnapshot
+  const snapshot = create(
+    payloadCase === 'groupedBookSnapshot' ? GroupedBookSnapshotSchema : BookSnapshotSchema,
+    {
+      depth: message.depth,
+      bids: mapSnapshotLevels(message.bids),
+      asks: mapSnapshotLevels(message.asks),
+      eventTs: dateToTimestamp(message.timestamp),
+      grouping: message.grouping,
+      intervalMs: resolveIntervalMs(message),
+      removeCrossedLevels: message.removeCrossedLevels ?? true,
+      sequence: optionalBigInt(message.sequence)
+    }
+  ) as BookSnapshot | GroupedBookSnapshot
 
-  event.payload = message.grouping
-    ? { case: 'groupedBookSnapshot', value: snapshot as GroupedBookSnapshot }
-    : { case: 'bookSnapshot', value: snapshot as BookSnapshot }
+  if (payloadCase === 'groupedBookSnapshot') {
+    event.payload = { case: 'groupedBookSnapshot', value: snapshot as GroupedBookSnapshot }
+  } else {
+    event.payload = { case: 'bookSnapshot', value: snapshot as BookSnapshot }
+  }
 
   return {
     event,
-    payloadCase: message.grouping ? 'groupedBookSnapshot' : 'bookSnapshot',
+    payloadCase,
     dataType: message.type
   }
+}
+
+function mapSnapshotLevels(
+  levels: Array<Optional<{ price: number; amount: number }> | undefined>
+): Array<{ priceStr: string; qtyStr: string }> {
+  return levels
+    .filter((level): level is Optional<{ price: number; amount: number }> => !!level)
+    .map((level) => ({
+      priceStr: level.price !== undefined ? decimalToString(level.price) : '',
+      qtyStr: level.amount !== undefined ? decimalToString(level.amount) : ''
+    }))
+}
+
+function resolveIntervalMs(message: SnapshotMetadata): number | undefined {
+  if (typeof message.intervalMs === 'number') {
+    return message.intervalMs
+  }
+  if (typeof message.interval === 'number') {
+    return message.interval
+  }
+  return undefined
 }
 
 function buildDerivativeTickerEvent(message: NormalizedDerivativeTicker, meta: PublishMeta): EventRecord {
@@ -355,6 +408,37 @@ function buildTradeBarEvent(message: NormalizedTradeBar, meta: PublishMeta): Eve
     payloadCase: 'tradeBar',
     dataType: message.type
   }
+}
+
+function optionalBigInt(value: number | bigint | string | null | undefined): bigint | undefined {
+  if (value === undefined || value === null) {
+    return undefined
+  }
+
+  if (typeof value === 'bigint') {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      return undefined
+    }
+    return BigInt(Math.trunc(value))
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (trimmed === '') {
+      return undefined
+    }
+    try {
+      return BigInt(trimmed)
+    } catch (error) {
+      return undefined
+    }
+  }
+
+  return undefined
 }
 
 function buildDisconnectEvent(message: Disconnect, meta: PublishMeta): EventRecord {

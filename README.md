@@ -56,3 +56,11 @@
 - Include real-time `quote` payloads alongside trades, book snapshots, and other normalized events.
 - Additional flags like `--kafka-client-id`, `--kafka-ssl`, and SASL options remain available for secure deployments.
 - Tune publishing throughput via `--kafka-max-batch-size` (events per batch) and `--kafka-max-batch-delay-ms` (max milliseconds to wait before flushing).
+
+### Keeping Schemas and Builds in Sync
+
+Normalized event schemas live under `schemas/proto`, and generated TypeScript bindings are emitted into `src/generated`. Whenever schemas change, run `npm run buf:generate` to refresh the Buf-generated sources and `npm run build` to update the compiled `dist/` artifacts that power the CLI entry point.
+
+### Kafka Integration Test Prerequisites
+
+Kafka publishing is covered by integration tests in `test/eventbus`. These rely on Testcontainers and require a local Docker daemon with at least 2 CPU cores, 4 GB of memory, and the ability to pull the `confluentinc/cp-kafka:7.5.3` image. Ensure Docker is running before invoking `npm test`; otherwise Kafka suites will be skipped after a timeout.

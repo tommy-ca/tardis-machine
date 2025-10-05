@@ -63,7 +63,8 @@ function parseTopicRouting(raw: unknown): KafkaEventBusConfig['topicByPayloadCas
     throw new Error('kafka-topic-routing must be a string of payloadCase:topic entries separated by commas.')
   }
 
-  const map: Record<string, string> = {}
+  const map: Partial<Record<BronzePayloadCase, string>> = {}
+  const invalidPayloadCases = new Set<string>()
 
   const pairs = raw
     .split(',')
@@ -75,11 +76,23 @@ function parseTopicRouting(raw: unknown): KafkaEventBusConfig['topicByPayloadCas
     if (!payloadCase || !mappedTopic) {
       throw new Error(`Invalid kafka-topic-routing entry "${pair}". Expected format payloadCase:topicName.`)
     }
-    map[payloadCase] = mappedTopic
+
+    if (!ALLOWED_PAYLOAD_CASES.has(payloadCase as BronzePayloadCase)) {
+      invalidPayloadCases.add(payloadCase)
+      continue
+    }
+
+    map[payloadCase as BronzePayloadCase] = mappedTopic
   }
 
   if (Object.keys(map).length === 0) {
     throw new Error('kafka-topic-routing must define at least one payloadCase mapping.')
+  }
+
+  if (invalidPayloadCases.size > 0) {
+    throw new Error(
+      `Unknown payload case(s) for kafka-topic-routing: ${Array.from(invalidPayloadCases).join(', ')}.`
+    )
   }
 
   return map

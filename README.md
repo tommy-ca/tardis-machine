@@ -52,7 +52,7 @@
 ## Event Bus Publishing
 
 - Publish normalized market data encoded with Buf-managed Protobufs to Kafka by supplying `--kafka-brokers` and `--kafka-topic` flags.
-- Use `--kafka-topic-routing` to route specific payload cases (e.g. `trade`, `bookChange`) to dedicated topics via a comma separated `payloadCase:topic` list.
+- Use `--kafka-topic-routing` to route specific payload cases (e.g. `trade`, `bookChange`) to dedicated topics via a comma separated `payloadCase:topic` list. Payload case names must match the normalized Bronze cases (`trade`, `bookChange`, `bookSnapshot`, `groupedBookSnapshot`, `quote`, `derivativeTicker`, `liquidation`, `optionSummary`, `bookTicker`, `tradeBar`, `error`, `disconnect`).
 - Include real-time `quote` payloads alongside trades, book snapshots, and other normalized events.
 - Reduce downstream load by specifying `--kafka-include-payloads` with a comma separated payload case allow-list (others are dropped before batching).
 - Additional flags like `--kafka-client-id`, `--kafka-ssl`, and SASL options remain available for secure deployments.

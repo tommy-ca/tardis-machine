@@ -171,6 +171,16 @@ describe('parseKafkaEventBusConfig', () => {
     ).toThrow('Unknown payload case(s) for kafka-include-payloads: candles.')
   })
 
+  test('rejects unknown payload cases in topic routing', () => {
+    expect(() =>
+      parseKafkaEventBusConfig({
+        'kafka-brokers': 'localhost:9092',
+        'kafka-topic': 'bronze.events',
+        'kafka-topic-routing': 'trade:bronze.trade, candles:bronze.candles'
+      })
+    ).toThrow('Unknown payload case(s) for kafka-topic-routing: candles.')
+  })
+
   test('rejects invalid kafka ack levels', () => {
     expect(() =>
       parseKafkaEventBusConfig({

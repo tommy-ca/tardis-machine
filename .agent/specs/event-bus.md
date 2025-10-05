@@ -10,6 +10,7 @@
 - Emit events for normalized HTTP replay, normalized WebSocket replay, and normalized real-time streaming flows.
 - Permit routing to multiple topics based on payload type while sharing a base configuration.
 - Support operator-defined allow lists so only selected Bronze payload cases are published when desired.
+- Reject misconfigured Kafka topic routing entries where payload case names do not match supported Bronze payloads.
 - Capture ingest metadata (producer id, timestamps) required by schemas.
 - Provide backpressure handling so slow brokers do not block core HTTP/WS responses indefinitely.
 - Deliver at-least-once publishing semantics; retry transient Kafka errors with bounded backoff.

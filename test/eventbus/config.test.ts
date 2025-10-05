@@ -103,6 +103,24 @@ describe('parseKafkaEventBusConfig', () => {
     expect(none).toMatchObject({ acks: 0 })
   })
 
+  test('parses kafka ssl booleans from strings', () => {
+    const enabled = parseKafkaEventBusConfig({
+      'kafka-brokers': 'localhost:9092',
+      'kafka-topic': 'bronze.events',
+      'kafka-ssl': 'true'
+    })
+
+    expect(enabled).toMatchObject({ ssl: true })
+
+    const disabled = parseKafkaEventBusConfig({
+      'kafka-brokers': 'localhost:9092',
+      'kafka-topic': 'bronze.events',
+      'kafka-ssl': 'false'
+    })
+
+    expect(disabled).toMatchObject({ ssl: false })
+  })
+
   test('parses kafka compression strategy', () => {
     const config = parseKafkaEventBusConfig({
       'kafka-brokers': 'localhost:9092',
@@ -171,6 +189,15 @@ describe('parseKafkaEventBusConfig', () => {
         'kafka-compression': 'brotli'
       })
     ).toThrow('kafka-compression must be one of none,gzip,snappy,lz4,zstd.')
+  })
+
+  test('rejects blank kafka topic strings', () => {
+    expect(() =>
+      parseKafkaEventBusConfig({
+        'kafka-brokers': 'localhost:9092',
+        'kafka-topic': '   '
+      })
+    ).toThrow('kafka-topic must be a non-empty string.')
   })
 
   test('rejects unknown payload case names', () => {

@@ -10,5 +10,5 @@
 - [x] Add configurable Kafka key template support for partition keys.
 - [x] Expose Kafka ack/idempotent configuration knobs.
 - [x] Document Kafka ack/idempotent tuning guidance.
-- [ ] Harden Kafka config parsing for boolean env values.
-- [ ] Add regression tests covering blank topic inputs.
+- [x] Harden Kafka config parsing for boolean env values.
+- [x] Add regression tests covering blank topic inputs.

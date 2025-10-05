@@ -225,22 +225,34 @@ function parsePositiveInteger(value: unknown, optionName: string): number | unde
 
 export function parseKafkaEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
   const brokersRaw = argv['kafka-brokers']
-  const brokers = parseKafkaBrokers(brokersRaw)
-  const topic = argv['kafka-topic']
+  const topicRaw = argv['kafka-topic']
 
-  if (!brokersRaw || !topic) {
+  if (!brokersRaw || !topicRaw) {
     return undefined
   }
 
+  const topic = typeof topicRaw === 'string' ? topicRaw.trim() : ''
+  if (topic === '') {
+    throw new Error('kafka-topic must be a non-empty string.')
+  }
+
+  const brokers = parseKafkaBrokers(brokersRaw)
   if (brokers.length === 0) {
     throw new Error('Invalid kafka-brokers value. Provide at least one broker URL.')
   }
 
+  const clientIdRaw = argv['kafka-client-id']
+  const clientId = typeof clientIdRaw === 'string' ? clientIdRaw.trim() : clientIdRaw
+
   const kafkaConfig: KafkaEventBusConfig = {
     brokers,
     topic,
-    clientId: argv['kafka-client-id'] || 'tardis-machine-publisher',
-    ssl: Boolean(argv['kafka-ssl'])
+    clientId: clientId || 'tardis-machine-publisher'
+  }
+
+  const ssl = parseBooleanOption(argv['kafka-ssl'], 'kafka-ssl')
+  if (ssl !== undefined) {
+    kafkaConfig.ssl = ssl
   }
 
   const topicRouting = parseTopicRouting(argv['kafka-topic-routing'])

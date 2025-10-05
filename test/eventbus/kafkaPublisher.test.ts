@@ -297,6 +297,58 @@ describe('KafkaEventBus', () => {
     expect(offsets).toHaveLength(1)
     expect(Number(offsets[0].high)).toBe(1)
   })
+
+  test('flush drains all buffered batches', async () => {
+    if (shouldSkip) {
+      return
+    }
+
+    const flushTopic = `${baseTopic}.flush.${Date.now()}`
+    const admin = kafka.admin()
+    await admin.connect()
+    await waitForKafkaController(admin)
+    await admin.createTopics({ topics: [{ topic: flushTopic, numPartitions: 1 }] })
+    await admin.disconnect()
+
+    const bus = new KafkaEventBus({
+      brokers,
+      topic: flushTopic,
+      clientId: 'bronze-producer-drain',
+      maxBatchSize: 2,
+      maxBatchDelayMs: 50
+    })
+
+    await bus.start()
+
+    const bookChange: NormalizedBookChange = {
+      type: 'book_change',
+      symbol: 'BTCUSD',
+      exchange: 'bitmex',
+      isSnapshot: false,
+      bids: [
+        { price: 31000.5, amount: 1.5 },
+        { price: 31000.25, amount: 0.75 },
+        { price: 31000, amount: 0 }
+      ],
+      asks: [
+        { price: 31001, amount: 2 },
+        { price: 31001.25, amount: 0.5 }
+      ],
+      timestamp: new Date('2024-01-01T00:05:01.250Z'),
+      localTimestamp: new Date('2024-01-01T00:05:01.300Z')
+    }
+
+    try {
+      await bus.publish(bookChange, baseMeta)
+      await bus.flush()
+
+      const events = await consumeEvents(kafka, flushTopic, 5, 10000)
+      expect(events).toHaveLength(5)
+      expect(events.every((event) => event.payload.case === 'bookChange')).toBe(true)
+    } finally {
+      await bus.close().catch(() => undefined)
+    }
+  })
 })
 
 let shouldSkip = false

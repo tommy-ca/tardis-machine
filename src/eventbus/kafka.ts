@@ -89,15 +89,41 @@ export class KafkaEventBus implements NormalizedEventSink {
     }
 
     const batchSize = this.config.maxBatchSize ?? DEFAULT_BATCH_SIZE
-    const batch = this.buffer.splice(0, batchSize)
+    const batches: BronzeEvent[][] = []
+
+    while (this.buffer.length > 0) {
+      const chunk = this.buffer.splice(0, batchSize)
+      if (chunk.length > 0) {
+        batches.push(chunk)
+      }
+    }
 
     this.sendingPromise = this.sendingPromise
-      .then(() => this.sendBatch(batch))
-        .catch((error) => {
-          log('Failed to send Kafka batch: %o', error)
-          // try again after short delay
-          queueMicrotask(() => this.scheduleFlush())
-        })
+      .then(async () => {
+        for (let index = 0; index < batches.length; index++) {
+          const batch = batches[index]
+          if (batch.length === 0) {
+            continue
+          }
+
+          try {
+            await this.sendBatch(batch)
+          } catch (error) {
+            for (let remainingIndex = batches.length - 1; remainingIndex > index; remainingIndex--) {
+              const remainingBatch = batches[remainingIndex]
+              if (remainingBatch.length > 0) {
+                this.buffer.unshift(...remainingBatch)
+              }
+            }
+            throw error
+          }
+        }
+      })
+      .catch((error) => {
+        log('Failed to send Kafka batch: %o', error)
+        // try again after short delay
+        queueMicrotask(() => this.scheduleFlush())
+      })
   }
 
   private async sendBatch(batch: BronzeEvent[]): Promise<void> {

@@ -8,3 +8,5 @@
 - [x] Add Kafka close-drain regression coverage.
 - [x] Document Kafka maintenance checklist (brokers, batching, headers).
 - [x] Add configurable Kafka key template support for partition keys.
+- [x] Expose Kafka ack/idempotent configuration knobs.
+- [x] Document Kafka ack/idempotent tuning guidance.

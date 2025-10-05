@@ -17,6 +17,15 @@ const ALLOWED_PAYLOAD_CASES: ReadonlySet<BronzePayloadCase> = new Set([
   'disconnect'
 ])
 
+const ACK_VALUE_MAP: Record<string, -1 | 0 | 1> = {
+  all: -1,
+  '-1': -1,
+  '1': 1,
+  leader: 1,
+  '0': 0,
+  none: 0
+}
+
 function parseKafkaBrokers(raw: unknown): string[] {
   if (typeof raw !== 'string') {
     return []
@@ -104,6 +113,52 @@ function parseIncludePayloadCases(raw: unknown): BronzePayloadCase[] | undefined
   }
 
   return cases
+}
+
+function parseBooleanOption(value: unknown, optionName: string): boolean | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined
+  }
+
+  if (typeof value === 'boolean') {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === 'true' || normalized === '1') {
+      return true
+    }
+    if (normalized === 'false' || normalized === '0') {
+      return false
+    }
+  }
+
+  throw new Error(`${optionName} must be a boolean value.`)
+}
+
+function parseAcks(raw: unknown): KafkaEventBusConfig['acks'] | undefined {
+  if (raw === undefined || raw === null || raw === '') {
+    return undefined
+  }
+
+  if (typeof raw === 'number') {
+    if (raw === -1 || raw === 0 || raw === 1) {
+      return raw
+    }
+    throw new Error('kafka-acks must be one of all,leader,none,1,0,-1.')
+  }
+
+  if (typeof raw === 'string') {
+    const normalized = raw.trim().toLowerCase()
+    const mapped = ACK_VALUE_MAP[normalized]
+    if (mapped !== undefined) {
+      return mapped
+    }
+    throw new Error('kafka-acks must be one of all,leader,none,1,0,-1.')
+  }
+
+  throw new Error('kafka-acks must be one of all,leader,none,1,0,-1.')
 }
 
 function parseSasl(argv: Record<string, any>): KafkaEventBusConfig['sasl'] | undefined {
@@ -212,6 +267,16 @@ export function parseKafkaEventBusConfig(argv: Record<string, any>): EventBusCon
   const compression = parseCompression(argv['kafka-compression'])
   if (compression) {
     kafkaConfig.compression = compression
+  }
+
+  const acks = parseAcks(argv['kafka-acks'])
+  if (acks !== undefined) {
+    kafkaConfig.acks = acks
+  }
+
+  const idempotent = parseBooleanOption(argv['kafka-idempotent'], 'kafka-idempotent')
+  if (idempotent !== undefined) {
+    kafkaConfig.idempotent = idempotent
   }
 
   return {

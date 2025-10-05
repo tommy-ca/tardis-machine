@@ -57,6 +57,7 @@
 - Reduce downstream load by specifying `--kafka-include-payloads` with a comma separated payload case allow-list (others are dropped before batching).
 - Additional flags like `--kafka-client-id`, `--kafka-ssl`, and SASL options remain available for secure deployments.
 - Shape Kafka partitioning keys with `--kafka-key-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{payloadCase}}`, or `{{meta.request_id}}`.
+- Dial delivery guarantees with `--kafka-acks` (`all`, `leader`, `none`) and enable idempotent producers via `--kafka-idempotent` when coordinating with transactional sinks.
 - Tune publishing throughput via `--kafka-max-batch-size` (events per batch) and `--kafka-max-batch-delay-ms` (max milliseconds to wait before flushing).
 - Select compression with `--kafka-compression` (`none`, `gzip`, `snappy`, `lz4`, `zstd`) to balance throughput and broker resource usage.
 
@@ -71,6 +72,7 @@ Kafka publishing is covered by integration tests in `test/eventbus`. These rely 
 ### Kafka Maintenance Checklist
 
 - Verify `--kafka-brokers` reflects the current cluster endpoints before each deployment; stale broker URIs are the most common cause of failed connects.
+- Confirm `--kafka-acks` and `--kafka-idempotent` match broker durability targets (idempotence requires Kafka >= 0.11 with `acks=all`).
 - Review batching knobs regularly: `--kafka-max-batch-size` should stay below broker `message.max.bytes`, and `--kafka-max-batch-delay-ms` must align with downstream latency budgets.
 - Confirm header contracts after schema updates by consuming a sample message and validating Buf-decoded payloads alongside the emitted `payloadCase` and `meta.*` headers.
 - Track retries via application logs; repeated "Kafka send attempt" warnings indicate sustained pressure and should trigger broker-side health checks.

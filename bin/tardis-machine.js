@@ -91,6 +91,14 @@ const argv = yargs
     choices: ['none', 'gzip', 'snappy', 'lz4', 'zstd'],
     describe: 'Compression codec applied to Kafka batches'
   })
+  .option('kafka-acks', {
+    type: 'string',
+    describe: 'Ack level for Kafka sends (all, leader, none, 1, 0, -1)'
+  })
+  .option('kafka-idempotent', {
+    type: 'boolean',
+    describe: 'Enable Kafka idempotent producer semantics'
+  })
   .option('kafka-sasl-mechanism', {
     type: 'string',
     choices: ['plain', 'scram-sha-256', 'scram-sha-512'],

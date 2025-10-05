@@ -28,6 +28,7 @@ export class KafkaEventBus implements NormalizedEventSink {
   private closed = false
   private readonly compression?: CompressionTypes
   private readonly allowedPayloadCases?: Set<BronzePayloadCase>
+  private readonly acks?: -1 | 0 | 1
 
   constructor(private readonly config: KafkaEventBusConfig) {
     const keyBuilder = config.keyTemplate ? compileKeyBuilder(config.keyTemplate) : undefined
@@ -39,8 +40,12 @@ export class KafkaEventBus implements NormalizedEventSink {
       sasl: mapSasl(config.sasl),
       logLevel: logLevel.NOTHING
     })
-    this.producer = this.kafka.producer({ allowAutoTopicCreation: true })
+    this.producer = this.kafka.producer({
+      allowAutoTopicCreation: true,
+      idempotent: config.idempotent
+    })
     this.compression = mapCompression(config.compression)
+    this.acks = config.acks
     if (config.includePayloadCases) {
       this.allowedPayloadCases = new Set(config.includePayloadCases)
     }
@@ -143,7 +148,8 @@ export class KafkaEventBus implements NormalizedEventSink {
               value: Buffer.from(event.binary),
               headers: this.buildHeaders(event)
             })),
-            compression: this.compression
+            compression: this.compression,
+            acks: this.acks
           })
         }
         return

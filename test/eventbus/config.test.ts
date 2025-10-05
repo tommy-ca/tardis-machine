@@ -73,6 +73,36 @@ describe('parseKafkaEventBusConfig', () => {
     })
   })
 
+  test('parses kafka ack level and idempotent flag', () => {
+    const config = parseKafkaEventBusConfig({
+      'kafka-brokers': 'localhost:9092',
+      'kafka-topic': 'bronze.events',
+      'kafka-acks': 'all',
+      'kafka-idempotent': true
+    })
+
+    expect(config).toMatchObject({
+      acks: -1,
+      idempotent: true
+    })
+
+    const leader = parseKafkaEventBusConfig({
+      'kafka-brokers': 'localhost:9092',
+      'kafka-topic': 'bronze.events',
+      'kafka-acks': 'leader'
+    })
+
+    expect(leader).toMatchObject({ acks: 1 })
+
+    const none = parseKafkaEventBusConfig({
+      'kafka-brokers': 'localhost:9092',
+      'kafka-topic': 'bronze.events',
+      'kafka-acks': 'none'
+    })
+
+    expect(none).toMatchObject({ acks: 0 })
+  })
+
   test('parses kafka compression strategy', () => {
     const config = parseKafkaEventBusConfig({
       'kafka-brokers': 'localhost:9092',
@@ -139,6 +169,16 @@ describe('parseKafkaEventBusConfig', () => {
         'kafka-include-payloads': 'trade, candles'
       })
     ).toThrow('Unknown payload case(s) for kafka-include-payloads: candles.')
+  })
+
+  test('rejects invalid kafka ack levels', () => {
+    expect(() =>
+      parseKafkaEventBusConfig({
+        'kafka-brokers': 'localhost:9092',
+        'kafka-topic': 'bronze.events',
+        'kafka-acks': 'maybe'
+      })
+    ).toThrow('kafka-acks must be one of all,leader,none,1,0,-1.')
   })
 
   test('rejects unknown key template placeholders', () => {

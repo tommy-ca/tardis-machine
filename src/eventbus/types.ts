@@ -87,6 +87,10 @@ export type KafkaEventBusConfig = {
   compression?: 'none' | 'gzip' | 'snappy' | 'lz4' | 'zstd'
   /** Template for constructing Kafka record keys */
   keyTemplate?: string
+  /** Ack level passed to Kafka producer sends */
+  acks?: -1 | 0 | 1
+  /** Enable Kafka idempotent producer semantics */
+  idempotent?: boolean
 }
 
 export type EventBusConfig =

@@ -344,6 +344,54 @@ describe('KafkaEventBus', () => {
     expect(Number(offsets[0].high)).toBe(1)
   })
 
+  test('supports idempotent producers with custom ack level', async () => {
+    if (shouldSkip) {
+      return
+    }
+
+    const idempotentTopic = `${baseTopic}.idempotent.${Date.now()}`
+    const admin = kafka.admin()
+    await admin.connect()
+    await waitForKafkaController(admin)
+    await admin.createTopics({ topics: [{ topic: idempotentTopic, numPartitions: 1 }] })
+    await admin.disconnect()
+
+    const bus = new KafkaEventBus({
+      brokers,
+      topic: idempotentTopic,
+      clientId: 'bronze-producer-idempotent',
+      maxBatchSize: 1,
+      maxBatchDelayMs: 5,
+      idempotent: true,
+      acks: -1
+    })
+
+    await bus.start()
+
+    const trade: NormalizedTrade = {
+      type: 'trade',
+      symbol: 'BTCUSD',
+      exchange: 'bitmex',
+      id: 't-idempotent-1',
+      price: 33300,
+      amount: 0.3,
+      side: 'buy',
+      timestamp: new Date('2024-01-01T00:06:01.000Z'),
+      localTimestamp: new Date('2024-01-01T00:06:01.050Z')
+    }
+
+    try {
+      await bus.publish(trade, baseMeta)
+      await bus.flush()
+
+      const events = await consumeEvents(kafka, idempotentTopic, 1, 60000)
+      expect(events).toHaveLength(1)
+      expect(events[0]?.payload.case).toBe('trade')
+    } finally {
+      await bus.close().catch(() => undefined)
+    }
+  })
+
   test('flush drains all buffered batches', async () => {
     if (shouldSkip) {
       return

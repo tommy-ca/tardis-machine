@@ -66,3 +66,11 @@ Normalized event schemas live under `schemas/proto`, and generated TypeScript bi
 ### Kafka Integration Test Prerequisites
 
 Kafka publishing is covered by integration tests in `test/eventbus`. These rely on Testcontainers and require a local Docker daemon with at least 2 CPU cores, 4 GB of memory, and the ability to pull the `confluentinc/cp-kafka:7.5.3` image. Ensure Docker is running before invoking `npm test`; otherwise Kafka suites will be skipped after a timeout.
+
+### Kafka Maintenance Checklist
+
+- Verify `--kafka-brokers` reflects the current cluster endpoints before each deployment; stale broker URIs are the most common cause of failed connects.
+- Review batching knobs regularly: `--kafka-max-batch-size` should stay below broker `message.max.bytes`, and `--kafka-max-batch-delay-ms` must align with downstream latency budgets.
+- Confirm header contracts after schema updates by consuming a sample message and validating Buf-decoded payloads alongside the emitted `payloadCase` and `meta.*` headers.
+- Track retries via application logs; repeated "Kafka send attempt" warnings indicate sustained pressure and should trigger broker-side health checks.
+- Re-run `npm run buf:generate` and rebuild whenever `schemas/proto` changes to keep binary payloads matching the deployed Buf schema version.

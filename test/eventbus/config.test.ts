@@ -61,6 +61,16 @@ describe('parseKafkaEventBusConfig', () => {
     expect(config).toMatchObject({ metaHeadersPrefix: 'meta.' })
   })
 
+  test('parses kafka compression strategy', () => {
+    const config = parseKafkaEventBusConfig({
+      'kafka-brokers': 'localhost:9092',
+      'kafka-topic': 'bronze.events',
+      'kafka-compression': 'gzip'
+    })
+
+    expect(config).toMatchObject({ compression: 'gzip' })
+  })
+
   test('rejects empty meta headers prefix', () => {
     expect(() =>
       parseKafkaEventBusConfig({
@@ -87,6 +97,16 @@ describe('parseKafkaEventBusConfig', () => {
         'kafka-max-batch-delay-ms': -1
       })
     ).toThrow('kafka-max-batch-delay-ms must be a positive integer.')
+  })
+
+  test('rejects unknown compression strategy', () => {
+    expect(() =>
+      parseKafkaEventBusConfig({
+        'kafka-brokers': 'localhost:9092',
+        'kafka-topic': 'bronze.events',
+        'kafka-compression': 'brotli'
+      })
+    ).toThrow('kafka-compression must be one of none,gzip,snappy,lz4,zstd.')
   })
 
   test('throws on invalid topic routing entry', () => {

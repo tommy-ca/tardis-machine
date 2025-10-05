@@ -12,6 +12,7 @@
 - Capture ingest metadata (producer id, timestamps) required by schemas.
 - Provide backpressure handling so slow brokers do not block core HTTP/WS responses indefinitely.
 - Deliver at-least-once publishing semantics; retry transient Kafka errors with bounded backoff.
+- Allow specifying Kafka compression codecs to balance throughput vs CPU usage.
 
 ## Non-Functional Requirements
 - Preserve existing API performance characteristics; publishing must be asynchronous relative to response streaming.
@@ -24,6 +25,7 @@
 - Extend `TardisMachine` constructor options to accept an `eventBus` configuration object.
 - Introduce an internal publisher abstraction so additional backends (e.g., AWS Kinesis) can be added later.
 - Kafka implementation should use `kafkajs` for Node.js with configurable client/batch options.
+- Expose compression tuning via CLI env/flags (e.g. `--kafka-compression`).
 - Publish WS control errors as Bronze `ControlError` payloads so downstream systems observe retry behavior.
 
 ## Schema Management

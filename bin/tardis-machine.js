@@ -78,6 +78,11 @@ const argv = yargs
     type: 'number',
     describe: 'Maximum milliseconds events can wait before forced flush'
   })
+  .option('kafka-compression', {
+    type: 'string',
+    choices: ['none', 'gzip', 'snappy', 'lz4', 'zstd'],
+    describe: 'Compression codec applied to Kafka batches'
+  })
   .option('kafka-sasl-mechanism', {
     type: 'string',
     choices: ['plain', 'scram-sha-256', 'scram-sha-512'],

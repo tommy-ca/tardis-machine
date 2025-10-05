@@ -1,5 +1,7 @@
 import type { EventBusConfig, KafkaEventBusConfig } from './types'
 
+const ALLOWED_COMPRESSION = new Set(['none', 'gzip', 'snappy', 'lz4', 'zstd'])
+
 function parseKafkaBrokers(raw: unknown): string[] {
   if (typeof raw !== 'string') {
     return []
@@ -9,6 +11,23 @@ function parseKafkaBrokers(raw: unknown): string[] {
     .split(',')
     .map((broker) => broker.trim())
     .filter(Boolean)
+}
+
+function parseCompression(raw: unknown): KafkaEventBusConfig['compression'] | undefined {
+  if (raw === undefined || raw === null || raw === '') {
+    return undefined
+  }
+
+  if (typeof raw !== 'string') {
+    throw new Error('kafka-compression must be one of none,gzip,snappy,lz4,zstd.')
+  }
+
+  const value = raw.trim().toLowerCase()
+  if (!ALLOWED_COMPRESSION.has(value)) {
+    throw new Error('kafka-compression must be one of none,gzip,snappy,lz4,zstd.')
+  }
+
+  return value as KafkaEventBusConfig['compression']
 }
 
 function parseTopicRouting(raw: unknown): KafkaEventBusConfig['topicByPayloadCase'] | undefined {
@@ -125,6 +144,11 @@ export function parseKafkaEventBusConfig(argv: Record<string, any>): EventBusCon
   )
   if (maxBatchDelayMs !== undefined) {
     kafkaConfig.maxBatchDelayMs = maxBatchDelayMs
+  }
+
+  const compression = parseCompression(argv['kafka-compression'])
+  if (compression) {
+    kafkaConfig.compression = compression
   }
 
   return {

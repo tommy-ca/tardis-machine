@@ -56,6 +56,7 @@
 - Include real-time `quote` payloads alongside trades, book snapshots, and other normalized events.
 - Additional flags like `--kafka-client-id`, `--kafka-ssl`, and SASL options remain available for secure deployments.
 - Tune publishing throughput via `--kafka-max-batch-size` (events per batch) and `--kafka-max-batch-delay-ms` (max milliseconds to wait before flushing).
+- Select compression with `--kafka-compression` (`none`, `gzip`, `snappy`, `lz4`, `zstd`) to balance throughput and broker resource usage.
 
 ### Keeping Schemas and Builds in Sync
 

@@ -60,7 +60,8 @@ describe('KafkaEventBus', () => {
       topic: baseTopic,
       clientId: 'bronze-producer',
       maxBatchSize: 2,
-      maxBatchDelayMs: 20
+      maxBatchDelayMs: 20,
+      compression: 'gzip'
     })
 
     await bus.start()

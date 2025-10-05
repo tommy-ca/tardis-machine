@@ -5,3 +5,4 @@
 - Emphasize at-least-once semantics; retry batches on transient failures and requeue on hard failures.
 - Support topic overrides per payload case and pass through source metadata (request/session identifiers, transport).
 - Provide tunables for batching (`maxBatchSize`, `maxBatchDelayMs`) and secure connection options (SSL + SASL).
+- Enable configurable Kafka compression codecs to optimize transport costs.

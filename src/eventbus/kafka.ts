@@ -1,4 +1,4 @@
-import { Kafka, logLevel, Producer, SASLOptions } from 'kafkajs'
+import { Kafka, logLevel, Producer, SASLOptions, CompressionTypes } from 'kafkajs'
 import { BronzeNormalizedEventEncoder } from './bronzeMapper'
 import type {
   BronzeEvent,
@@ -25,6 +25,7 @@ export class KafkaEventBus implements NormalizedEventSink {
   private flushTimer?: NodeJS.Timeout
   private sendingPromise: Promise<void> = Promise.resolve()
   private closed = false
+  private readonly compression?: CompressionTypes
 
   constructor(private readonly config: KafkaEventBusConfig) {
     this.kafka = new Kafka({
@@ -35,6 +36,7 @@ export class KafkaEventBus implements NormalizedEventSink {
       logLevel: logLevel.NOTHING
     })
     this.producer = this.kafka.producer({ allowAutoTopicCreation: true })
+    this.compression = mapCompression(config.compression)
   }
 
   async start() {
@@ -107,7 +109,8 @@ export class KafkaEventBus implements NormalizedEventSink {
               key: event.key,
               value: Buffer.from(event.binary),
               headers: this.buildHeaders(event)
-            }))
+            })),
+            compression: this.compression
           })
         }
         return
@@ -209,6 +212,25 @@ function mapSasl(config?: KafkaEventBusConfig['sasl']): SASLOptions | undefined 
         username: config.username,
         password: config.password
       }
+    default:
+      return undefined
+  }
+}
+
+function mapCompression(config?: KafkaEventBusConfig['compression']): CompressionTypes | undefined {
+  switch (config) {
+    case undefined:
+      return undefined
+    case 'none':
+      return CompressionTypes.None
+    case 'gzip':
+      return CompressionTypes.GZIP
+    case 'snappy':
+      return CompressionTypes.Snappy
+    case 'lz4':
+      return CompressionTypes.LZ4
+    case 'zstd':
+      return CompressionTypes.ZSTD
     default:
       return undefined
   }

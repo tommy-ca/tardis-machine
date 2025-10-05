@@ -81,6 +81,8 @@ export type KafkaEventBusConfig = {
   maxBatchSize?: number
   /** Maximum milliseconds events can wait before forced flush */
   maxBatchDelayMs?: number
+  /** Compression strategy applied to Kafka batches */
+  compression?: 'none' | 'gzip' | 'snappy' | 'lz4' | 'zstd'
 }
 
 export type EventBusConfig =

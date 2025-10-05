@@ -68,6 +68,8 @@ export type KafkaEventBusConfig = {
   topic: string
   /** Optional map for routing payload cases to dedicated topics */
   topicByPayloadCase?: Partial<Record<BronzePayloadCase, string>>
+  /** Optional allow-list of payload cases to publish */
+  includePayloadCases?: BronzePayloadCase[]
   clientId?: string
   ssl?: boolean
   sasl?: {

@@ -9,6 +9,7 @@
 - Support Bronze layer envelope (`lakehouse.bronze.v1.NormalizedEvent`) for outgoing messages.
 - Emit events for normalized HTTP replay, normalized WebSocket replay, and normalized real-time streaming flows.
 - Permit routing to multiple topics based on payload type while sharing a base configuration.
+- Support operator-defined allow lists so only selected Bronze payload cases are published when desired.
 - Capture ingest metadata (producer id, timestamps) required by schemas.
 - Provide backpressure handling so slow brokers do not block core HTTP/WS responses indefinitely.
 - Deliver at-least-once publishing semantics; retry transient Kafka errors with bounded backoff.
@@ -44,3 +45,4 @@
 - HTTP `/replay-normalized` and WS `/ws-replay-normalized`, `/ws-stream-normalized` pipe normalized messages into the publisher with request/session metadata.
 - CLI exposes `--kafka-*` options (brokers, topic, topic routing, client id, SSL, SASL) to enable publishing.
 - Publishing is optional; when Kafka options are missing, the server behaves exactly as before.
+- Payload filtering allow-lists via `--kafka-include-payloads` drop unlisted cases before they reach batching logic, minimizing broker load.

@@ -230,6 +230,73 @@ describe('KafkaEventBus', () => {
     expect(headers['meta.session_id']).toBe('sess-1')
     expect(headers['meta.transport']).toBe('websocket')
   })
+
+  test('filters events by allowed payload cases', async () => {
+    if (shouldSkip) {
+      return
+    }
+
+    const filterTopic = `${baseTopic}.filter.${Date.now()}`
+    const admin = kafka.admin()
+    await admin.connect()
+    await waitForKafkaController(admin)
+    await admin.createTopics({ topics: [{ topic: filterTopic, numPartitions: 1 }] })
+    await admin.disconnect()
+
+    const bus = new KafkaEventBus({
+      brokers,
+      topic: filterTopic,
+      clientId: 'bronze-producer-filter',
+      maxBatchSize: 4,
+      maxBatchDelayMs: 10,
+      includePayloadCases: ['trade']
+    })
+
+    await bus.start()
+
+    const trade: NormalizedTrade = {
+      type: 'trade',
+      symbol: 'BTCUSD',
+      exchange: 'bitmex',
+      id: 't-filter-1',
+      price: 31250.25,
+      amount: 0.5,
+      side: 'buy',
+      timestamp: new Date('2024-01-01T00:03:01.000Z'),
+      localTimestamp: new Date('2024-01-01T00:03:01.050Z')
+    }
+
+    const bookChange: NormalizedBookChange = {
+      type: 'book_change',
+      symbol: 'BTCUSD',
+      exchange: 'bitmex',
+      isSnapshot: false,
+      bids: [{ price: 31249.5, amount: 1.2 }],
+      asks: [{ price: 31250.5, amount: 1.1 }],
+      timestamp: new Date('2024-01-01T00:03:01.250Z'),
+      localTimestamp: new Date('2024-01-01T00:03:01.300Z')
+    }
+
+    try {
+      await bus.publish(trade, baseMeta)
+      await bus.publish(bookChange, baseMeta)
+      await bus.flush()
+    } finally {
+      await bus.close().catch(() => undefined)
+    }
+
+    const events = await consumeEvents(kafka, filterTopic, 1, 60000)
+    expect(events).toHaveLength(1)
+    expect(events[0]?.payload.case).toBe('trade')
+
+    const offsetsAdmin = kafka.admin()
+    await offsetsAdmin.connect()
+    const offsets = await offsetsAdmin.fetchTopicOffsets(filterTopic)
+    await offsetsAdmin.disconnect()
+
+    expect(offsets).toHaveLength(1)
+    expect(Number(offsets[0].high)).toBe(1)
+  })
 })
 
 let shouldSkip = false

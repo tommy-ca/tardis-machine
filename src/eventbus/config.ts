@@ -1,6 +1,20 @@
-import type { EventBusConfig, KafkaEventBusConfig } from './types'
+import type { BronzePayloadCase, EventBusConfig, KafkaEventBusConfig } from './types'
 
 const ALLOWED_COMPRESSION = new Set(['none', 'gzip', 'snappy', 'lz4', 'zstd'])
+const ALLOWED_PAYLOAD_CASES: ReadonlySet<BronzePayloadCase> = new Set([
+  'trade',
+  'bookChange',
+  'bookSnapshot',
+  'groupedBookSnapshot',
+  'quote',
+  'derivativeTicker',
+  'liquidation',
+  'optionSummary',
+  'bookTicker',
+  'tradeBar',
+  'error',
+  'disconnect'
+])
 
 function parseKafkaBrokers(raw: unknown): string[] {
   if (typeof raw !== 'string') {
@@ -61,6 +75,36 @@ function parseTopicRouting(raw: unknown): KafkaEventBusConfig['topicByPayloadCas
   return map
 }
 
+function parseIncludePayloadCases(raw: unknown): BronzePayloadCase[] | undefined {
+  if (raw === undefined || raw === null || raw === '') {
+    return undefined
+  }
+
+  if (typeof raw !== 'string') {
+    throw new Error('kafka-include-payloads must be a comma separated string list of payload cases.')
+  }
+
+  const cases = Array.from(
+    new Set(
+      raw
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )
+  ) as BronzePayloadCase[]
+
+  if (cases.length === 0) {
+    throw new Error('kafka-include-payloads must list at least one payload case.')
+  }
+
+  const invalid = cases.filter((payloadCase) => !ALLOWED_PAYLOAD_CASES.has(payloadCase))
+  if (invalid.length > 0) {
+    throw new Error(`Unknown payload case(s) for kafka-include-payloads: ${invalid.join(', ')}.`)
+  }
+
+  return cases
+}
+
 function parseSasl(argv: Record<string, any>): KafkaEventBusConfig['sasl'] | undefined {
   const mechanism = argv['kafka-sasl-mechanism']
   if (!mechanism) {
@@ -118,6 +162,11 @@ export function parseKafkaEventBusConfig(argv: Record<string, any>): EventBusCon
   const topicRouting = parseTopicRouting(argv['kafka-topic-routing'])
   if (topicRouting) {
     kafkaConfig.topicByPayloadCase = topicRouting
+  }
+
+  const includePayloadCases = parseIncludePayloadCases(argv['kafka-include-payloads'])
+  if (includePayloadCases) {
+    kafkaConfig.includePayloadCases = includePayloadCases
   }
 
   const metaHeadersPrefix = argv['kafka-meta-headers-prefix']

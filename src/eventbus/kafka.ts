@@ -26,6 +26,7 @@ export class KafkaEventBus implements NormalizedEventSink {
   private sendingPromise: Promise<void> = Promise.resolve()
   private closed = false
   private readonly compression?: CompressionTypes
+  private readonly allowedPayloadCases?: Set<BronzePayloadCase>
 
   constructor(private readonly config: KafkaEventBusConfig) {
     this.kafka = new Kafka({
@@ -37,6 +38,9 @@ export class KafkaEventBus implements NormalizedEventSink {
     })
     this.producer = this.kafka.producer({ allowAutoTopicCreation: true })
     this.compression = mapCompression(config.compression)
+    if (config.includePayloadCases) {
+      this.allowedPayloadCases = new Set(config.includePayloadCases)
+    }
   }
 
   async start() {
@@ -48,7 +52,7 @@ export class KafkaEventBus implements NormalizedEventSink {
       return
     }
 
-    const events = this.encoder.encode(message, meta)
+    const events = this.filterEvents(this.encoder.encode(message, meta))
     if (events.length === 0) {
       return
     }
@@ -167,6 +171,14 @@ export class KafkaEventBus implements NormalizedEventSink {
   private resolveTopic(payloadCase: BronzePayloadCase): string {
     const { topicByPayloadCase, topic } = this.config
     return topicByPayloadCase?.[payloadCase] ?? topic
+  }
+
+  private filterEvents(events: BronzeEvent[]): BronzeEvent[] {
+    if (!this.allowedPayloadCases) {
+      return events
+    }
+
+    return events.filter((event) => this.allowedPayloadCases!.has(event.payloadCase))
   }
 
   private buildHeaders(event: BronzeEvent): Record<string, Buffer> {

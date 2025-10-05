@@ -71,6 +71,16 @@ describe('parseKafkaEventBusConfig', () => {
     expect(config).toMatchObject({ compression: 'gzip' })
   })
 
+  test('parses allowed payload cases list', () => {
+    const config = parseKafkaEventBusConfig({
+      'kafka-brokers': 'localhost:9092',
+      'kafka-topic': 'bronze.events',
+      'kafka-include-payloads': 'trade, bookChange, trade'
+    })
+
+    expect(config).toMatchObject({ includePayloadCases: ['trade', 'bookChange'] })
+  })
+
   test('rejects empty meta headers prefix', () => {
     expect(() =>
       parseKafkaEventBusConfig({
@@ -107,6 +117,16 @@ describe('parseKafkaEventBusConfig', () => {
         'kafka-compression': 'brotli'
       })
     ).toThrow('kafka-compression must be one of none,gzip,snappy,lz4,zstd.')
+  })
+
+  test('rejects unknown payload case names', () => {
+    expect(() =>
+      parseKafkaEventBusConfig({
+        'kafka-brokers': 'localhost:9092',
+        'kafka-topic': 'bronze.events',
+        'kafka-include-payloads': 'trade, candles'
+      })
+    ).toThrow('Unknown payload case(s) for kafka-include-payloads: candles.')
   })
 
   test('throws on invalid topic routing entry', () => {

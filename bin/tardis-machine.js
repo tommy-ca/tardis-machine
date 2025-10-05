@@ -53,6 +53,10 @@ const argv = yargs
     type: 'string',
     describe: 'Kafka topic name for normalized events'
   })
+  .option('kafka-include-payloads', {
+    type: 'string',
+    describe: 'Comma separated payload cases to publish (others dropped)'
+  })
   .option('kafka-topic-routing', {
     type: 'string',
     describe: 'Comma separated payloadCase:topic pairs overriding the base topic'

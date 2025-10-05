@@ -6,3 +6,4 @@
 - Support topic overrides per payload case and pass through source metadata (request/session identifiers, transport).
 - Provide tunables for batching (`maxBatchSize`, `maxBatchDelayMs`) and secure connection options (SSL + SASL).
 - Enable configurable Kafka compression codecs to optimize transport costs.
+- Allow operators to define static Kafka headers for consistent deployment metadata.

@@ -12,3 +12,4 @@
 - [x] Document Kafka ack/idempotent tuning guidance.
 - [x] Harden Kafka config parsing for boolean env values.
 - [x] Add regression tests covering blank topic inputs.
+- [x] Add Kafka static header publishing capability.

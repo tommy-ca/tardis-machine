@@ -131,6 +131,22 @@ describe('parseKafkaEventBusConfig', () => {
     expect(config).toMatchObject({ compression: 'gzip' })
   })
 
+  test('parses kafka static headers', () => {
+    const config = parseKafkaEventBusConfig({
+      'kafka-brokers': 'localhost:9092',
+      'kafka-topic': 'bronze.events',
+      'kafka-static-headers': 'env:prod, region:us-east-1,trace-id:abc123 '
+    })
+
+    expect(config).toMatchObject({
+      staticHeaders: {
+        env: 'prod',
+        region: 'us-east-1',
+        'trace-id': 'abc123'
+      }
+    })
+  })
+
   test('parses allowed payload cases list', () => {
     const config = parseKafkaEventBusConfig({
       'kafka-brokers': 'localhost:9092',
@@ -243,6 +259,24 @@ describe('parseKafkaEventBusConfig', () => {
         'kafka-acks': 'maybe'
       })
     ).toThrow('kafka-acks must be one of all,leader,none,1,0,-1.')
+  })
+
+  test('rejects invalid kafka static header entries', () => {
+    expect(() =>
+      parseKafkaEventBusConfig({
+        'kafka-brokers': 'localhost:9092',
+        'kafka-topic': 'bronze.events',
+        'kafka-static-headers': 'env'
+      })
+    ).toThrow('kafka-static-headers entries must be key:value pairs.')
+
+    expect(() =>
+      parseKafkaEventBusConfig({
+        'kafka-brokers': 'localhost:9092',
+        'kafka-topic': 'bronze.events',
+        'kafka-static-headers': 'payloadCase:overwritten'
+      })
+    ).toThrow('kafka-static-headers cannot override reserved header "payloadCase".')
   })
 
   test('rejects unknown key template placeholders', () => {

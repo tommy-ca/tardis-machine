@@ -74,6 +74,10 @@ const argv = yargs
     type: 'string',
     describe: 'Prefix applied when emitting normalized meta as Kafka headers'
   })
+  .option('kafka-static-headers', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static Kafka headers'
+  })
   .option('kafka-key-template', {
     type: 'string',
     describe: 'Template for Kafka record keys, e.g. {{exchange}}/{{payloadCase}}/{{symbol}}'

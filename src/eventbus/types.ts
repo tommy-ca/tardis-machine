@@ -79,6 +79,8 @@ export type KafkaEventBusConfig = {
   }
   /** Prefix applied when emitting normalized meta as Kafka headers */
   metaHeadersPrefix?: string
+  /** Static Kafka headers applied to every message */
+  staticHeaders?: Record<string, string>
   /** Maximum number of Bronze events to send per Kafka batch */
   maxBatchSize?: number
   /** Maximum milliseconds events can wait before forced flush */

@@ -60,6 +60,7 @@
 - Dial delivery guarantees with `--kafka-acks` (`all`, `leader`, `none`) and enable idempotent producers via `--kafka-idempotent` when coordinating with transactional sinks.
 - Tune publishing throughput via `--kafka-max-batch-size` (events per batch) and `--kafka-max-batch-delay-ms` (max milliseconds to wait before flushing).
 - Select compression with `--kafka-compression` (`none`, `gzip`, `snappy`, `lz4`, `zstd`) to balance throughput and broker resource usage.
+- Attach deployment metadata with `--kafka-static-headers`, supplying comma separated `key:value` pairs that become constant Kafka headers on every record.
 
 ### Keeping Schemas and Builds in Sync
 

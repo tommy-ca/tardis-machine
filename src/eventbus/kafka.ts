@@ -27,6 +27,7 @@ export class KafkaEventBus implements NormalizedEventSink {
   private sendingPromise: Promise<void> = Promise.resolve()
   private closed = false
   private readonly compression?: CompressionTypes
+  private readonly staticHeaders?: Array<[string, Buffer]>
   private readonly allowedPayloadCases?: Set<BronzePayloadCase>
   private readonly acks?: -1 | 0 | 1
 
@@ -45,6 +46,12 @@ export class KafkaEventBus implements NormalizedEventSink {
       idempotent: config.idempotent
     })
     this.compression = mapCompression(config.compression)
+    if (config.staticHeaders) {
+      this.staticHeaders = Object.entries(config.staticHeaders).map(([key, value]) => [
+        key,
+        Buffer.from(value)
+      ])
+    }
     this.acks = config.acks
     if (config.includePayloadCases) {
       this.allowedPayloadCases = new Set(config.includePayloadCases)
@@ -220,6 +227,12 @@ export class KafkaEventBus implements NormalizedEventSink {
     const headers: Record<string, Buffer> = {
       payloadCase: Buffer.from(event.payloadCase),
       dataType: Buffer.from(event.dataType)
+    }
+
+    if (this.staticHeaders) {
+      for (const [key, value] of this.staticHeaders) {
+        headers[key] = value
+      }
     }
 
     const prefix = this.config.metaHeadersPrefix

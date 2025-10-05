@@ -15,6 +15,7 @@
 - Provide backpressure handling so slow brokers do not block core HTTP/WS responses indefinitely.
 - Deliver at-least-once publishing semantics; retry transient Kafka errors with bounded backoff.
 - Allow specifying Kafka compression codecs to balance throughput vs CPU usage.
+- Support static Kafka headers so operators can stamp deployment metadata on every record.
 
 ## Non-Functional Requirements
 - Preserve existing API performance characteristics; publishing must be asynchronous relative to response streaming.
@@ -44,6 +45,7 @@
 - `KafkaEventBus` batches bronze events using Buf-generated codecs, retrying transient send failures with exponential backoff.
 - Topic routing allows mapping Bronze payload cases to dedicated Kafka topics while keeping a base fallback topic.
 - Kafka key templates let operators control partition keys by using placeholders for exchange, symbol, payload case, and normalized meta entries.
+- Static header maps configured via `--kafka-static-headers` become constant Kafka headers on every published record.
 - HTTP `/replay-normalized` and WS `/ws-replay-normalized`, `/ws-stream-normalized` pipe normalized messages into the publisher with request/session metadata.
 - CLI exposes `--kafka-*` options (brokers, topic, topic routing, client id, SSL, SASL) to enable publishing.
 - Publishing is optional; when Kafka options are missing, the server behaves exactly as before.

@@ -13,7 +13,8 @@ const routingTopics = {
   bookChange: `${baseTopic}.books`
 }
 const metaHeadersTopic = `${baseTopic}.meta`
-const allTopics = [baseTopic, routingTopics.trade, routingTopics.bookChange, metaHeadersTopic]
+const staticHeadersTopic = `${baseTopic}.static`
+const allTopics = [baseTopic, routingTopics.trade, routingTopics.bookChange, metaHeadersTopic, staticHeadersTopic]
 const startTimeoutMs = 180000
 
 const baseMeta = {
@@ -229,6 +230,51 @@ describe('KafkaEventBus', () => {
     expect(headers['meta.request_id']).toBe('req-headers')
     expect(headers['meta.session_id']).toBe('sess-1')
     expect(headers['meta.transport']).toBe('websocket')
+  })
+
+  test('publishes configured static headers', async () => {
+    if (shouldSkip) {
+      return
+    }
+
+    const bus = new KafkaEventBus({
+      brokers,
+      topic: staticHeadersTopic,
+      clientId: 'bronze-producer-static-headers',
+      maxBatchSize: 1,
+      maxBatchDelayMs: 5,
+      staticHeaders: {
+        environment: 'production',
+        'x-region': 'us-east-1'
+      }
+    })
+
+    await bus.start()
+
+    const trade: NormalizedTrade = {
+      type: 'trade',
+      symbol: 'ATOMUSD',
+      exchange: 'bitmex',
+      id: 't-static-1',
+      price: 14.5,
+      amount: 100,
+      side: 'buy',
+      timestamp: new Date('2024-01-01T00:02:05.000Z'),
+      localTimestamp: new Date('2024-01-01T00:02:05.050Z')
+    }
+
+    await bus.publish(trade, baseMeta)
+    await bus.flush()
+
+    const records = await consumeRecords(kafka, staticHeadersTopic, 1)
+
+    await bus.close().catch(() => undefined)
+
+    expect(records).toHaveLength(1)
+    const { headers } = records[0]
+    expect(headers['payloadCase']).toBe('trade')
+    expect(headers['environment']).toBe('production')
+    expect(headers['x-region']).toBe('us-east-1')
   })
 
   test('applies custom key template to kafka messages', async () => {

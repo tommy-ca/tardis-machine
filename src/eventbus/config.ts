@@ -28,6 +28,8 @@ const ACK_VALUE_MAP: Record<string, -1 | 0 | 1> = {
   none: 0
 }
 
+const RESERVED_STATIC_HEADER_KEYS = new Set(['payloadCase', 'dataType'])
+
 function parseKafkaBrokers(raw: unknown): string[] {
   if (typeof raw !== 'string') {
     return []
@@ -141,6 +143,52 @@ function parseIncludePayloadCases(raw: unknown): BronzePayloadCase[] | undefined
   }
 
   return Array.from(normalizedCases)
+}
+
+function parseStaticHeaders(raw: unknown): Record<string, string> | undefined {
+  if (raw === undefined || raw === null || raw === '') {
+    return undefined
+  }
+
+  if (typeof raw !== 'string') {
+    throw new Error('kafka-static-headers must be a comma separated string list of key:value pairs.')
+  }
+
+  const entries = raw
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+
+  if (entries.length === 0) {
+    throw new Error('kafka-static-headers must list at least one key:value pair.')
+  }
+
+  const headers: Record<string, string> = {}
+  for (const entry of entries) {
+    const separatorIndex = entry.indexOf(':')
+    if (separatorIndex <= 0 || separatorIndex === entry.length - 1) {
+      throw new Error('kafka-static-headers entries must be key:value pairs.')
+    }
+
+    const key = entry.slice(0, separatorIndex).trim()
+    const value = entry.slice(separatorIndex + 1).trim()
+
+    if (!key || !value) {
+      throw new Error('kafka-static-headers entries must be key:value pairs.')
+    }
+
+    if (RESERVED_STATIC_HEADER_KEYS.has(key)) {
+      throw new Error(`kafka-static-headers cannot override reserved header "${key}".`)
+    }
+
+    if (headers[key] !== undefined) {
+      throw new Error(`Duplicate kafka-static-headers key "${key}".`)
+    }
+
+    headers[key] = value
+  }
+
+  return headers
 }
 
 function parseBooleanOption(value: unknown, optionName: string): boolean | undefined {
@@ -271,6 +319,11 @@ export function parseKafkaEventBusConfig(argv: Record<string, any>): EventBusCon
       throw new Error('kafka-meta-headers-prefix must be a non-empty string.')
     }
     kafkaConfig.metaHeadersPrefix = metaHeadersPrefix.trim()
+  }
+
+  const staticHeaders = parseStaticHeaders(argv['kafka-static-headers'])
+  if (staticHeaders) {
+    kafkaConfig.staticHeaders = staticHeaders
   }
 
   const keyTemplateRaw = argv['kafka-key-template']

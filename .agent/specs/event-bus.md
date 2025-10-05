@@ -42,6 +42,7 @@
 ## Implementation Notes (2025-10-03)
 - `KafkaEventBus` batches bronze events using Buf-generated codecs, retrying transient send failures with exponential backoff.
 - Topic routing allows mapping Bronze payload cases to dedicated Kafka topics while keeping a base fallback topic.
+- Kafka key templates let operators control partition keys by using placeholders for exchange, symbol, payload case, and normalized meta entries.
 - HTTP `/replay-normalized` and WS `/ws-replay-normalized`, `/ws-stream-normalized` pipe normalized messages into the publisher with request/session metadata.
 - CLI exposes `--kafka-*` options (brokers, topic, topic routing, client id, SSL, SASL) to enable publishing.
 - Publishing is optional; when Kafka options are missing, the server behaves exactly as before.

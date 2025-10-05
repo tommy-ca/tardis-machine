@@ -48,9 +48,9 @@ type EventRecord = {
   dataType: string
 }
 
-export type KeyBuilder = (event: NormalizedEvent, payloadCase: BronzePayloadCase) => string
+export type KeyBuilder = (event: NormalizedEvent, payloadCase: BronzePayloadCase, dataType: string) => string
 
-const defaultKeyBuilder: KeyBuilder = (event, payloadCase) => {
+const defaultKeyBuilder: KeyBuilder = (event, payloadCase, _dataType) => {
   const symbol = event.symbol ?? ''
   return `${event.exchange}|${symbol}|${payloadCase}`
 }
@@ -86,7 +86,7 @@ export class BronzeNormalizedEventEncoder implements NormalizedEventEncoder {
   encode(message: NormalizedMessage, meta: PublishMeta): BronzeEvent[] {
     const records = buildEvents(message, meta)
     return records.map(({ event, payloadCase, dataType }) => ({
-      key: this.keyBuilder(event, payloadCase),
+      key: this.keyBuilder(event, payloadCase, dataType),
       payloadCase,
       dataType,
       meta: event.meta,

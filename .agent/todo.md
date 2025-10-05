@@ -7,3 +7,4 @@
 - [x] Update documentation for event bus capabilities.
 - [x] Add Kafka close-drain regression coverage.
 - [x] Document Kafka maintenance checklist (brokers, batching, headers).
+- [x] Add configurable Kafka key template support for partition keys.

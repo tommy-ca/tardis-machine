@@ -1,5 +1,6 @@
 import { fromBinary } from '@bufbuild/protobuf'
 import { BronzeNormalizedEventEncoder } from '../../src/eventbus/bronzeMapper'
+import { compileKeyBuilder } from '../../src/eventbus/keyTemplate'
 import {
   NormalizedEventSchema,
   Origin,
@@ -365,5 +366,29 @@ describe('BronzeNormalizedEventEncoder', () => {
     expect(decoded.payload.value.subsequentErrors).toBe(3)
     expect(decoded.payload.value.code).toBe(ErrorCode.WS_CONNECT)
     expect(decoded.meta.data_type).toBe('error')
+  })
+
+  test('supports custom key templates', () => {
+    const keyBuilder = compileKeyBuilder('{{exchange}}/{{payloadCase}}/{{meta.request_id}}')
+    const customEncoder = new BronzeNormalizedEventEncoder(keyBuilder)
+
+    const trade: NormalizedTrade = {
+      type: 'trade',
+      symbol: 'BTCUSD',
+      exchange: 'bitmex',
+      id: 'k-1',
+      price: 40250,
+      amount: 0.5,
+      side: 'sell',
+      timestamp: new Date('2024-01-01T00:00:02.000Z'),
+      localTimestamp: new Date('2024-01-01T00:00:02.250Z')
+    }
+
+    const [event] = customEncoder.encode(trade, {
+      ...baseMeta,
+      requestId: 'req-key'
+    })
+
+    expect(event.key).toBe('bitmex/trade/req-key')
   })
 })

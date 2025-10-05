@@ -1,4 +1,5 @@
 import type { BronzePayloadCase, EventBusConfig, KafkaEventBusConfig } from './types'
+import { compileKeyBuilder } from './keyTemplate'
 
 const ALLOWED_COMPRESSION = new Set(['none', 'gzip', 'snappy', 'lz4', 'zstd'])
 const ALLOWED_PAYLOAD_CASES: ReadonlySet<BronzePayloadCase> = new Set([
@@ -175,6 +176,19 @@ export function parseKafkaEventBusConfig(argv: Record<string, any>): EventBusCon
       throw new Error('kafka-meta-headers-prefix must be a non-empty string.')
     }
     kafkaConfig.metaHeadersPrefix = metaHeadersPrefix.trim()
+  }
+
+  const keyTemplateRaw = argv['kafka-key-template']
+  if (keyTemplateRaw !== undefined) {
+    if (typeof keyTemplateRaw !== 'string') {
+      throw new Error('kafka-key-template must be a non-empty string.')
+    }
+    const keyTemplate = keyTemplateRaw.trim()
+    if (keyTemplate === '') {
+      throw new Error('kafka-key-template must be a non-empty string.')
+    }
+    compileKeyBuilder(keyTemplate)
+    kafkaConfig.keyTemplate = keyTemplate
   }
 
   const sasl = parseSasl(argv)

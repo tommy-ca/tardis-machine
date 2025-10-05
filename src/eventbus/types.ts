@@ -85,6 +85,8 @@ export type KafkaEventBusConfig = {
   maxBatchDelayMs?: number
   /** Compression strategy applied to Kafka batches */
   compression?: 'none' | 'gzip' | 'snappy' | 'lz4' | 'zstd'
+  /** Template for constructing Kafka record keys */
+  keyTemplate?: string
 }
 
 export type EventBusConfig =

@@ -61,6 +61,18 @@ describe('parseKafkaEventBusConfig', () => {
     expect(config).toMatchObject({ metaHeadersPrefix: 'meta.' })
   })
 
+  test('parses kafka key template string', () => {
+    const config = parseKafkaEventBusConfig({
+      'kafka-brokers': 'localhost:9092',
+      'kafka-topic': 'bronze.events',
+      'kafka-key-template': '{{exchange}}.{{payloadCase}}.{{symbol}}'
+    })
+
+    expect(config).toMatchObject({
+      keyTemplate: '{{exchange}}.{{payloadCase}}.{{symbol}}'
+    })
+  })
+
   test('parses kafka compression strategy', () => {
     const config = parseKafkaEventBusConfig({
       'kafka-brokers': 'localhost:9092',
@@ -127,6 +139,16 @@ describe('parseKafkaEventBusConfig', () => {
         'kafka-include-payloads': 'trade, candles'
       })
     ).toThrow('Unknown payload case(s) for kafka-include-payloads: candles.')
+  })
+
+  test('rejects unknown key template placeholders', () => {
+    expect(() =>
+      parseKafkaEventBusConfig({
+        'kafka-brokers': 'localhost:9092',
+        'kafka-topic': 'bronze.events',
+        'kafka-key-template': '{{unknown}}'
+      })
+    ).toThrow('Unknown kafka-key-template placeholder "{{unknown}}".')
   })
 
   test('throws on invalid topic routing entry', () => {

@@ -74,6 +74,10 @@ const argv = yargs
     type: 'string',
     describe: 'Prefix applied when emitting normalized meta as Kafka headers'
   })
+  .option('kafka-key-template', {
+    type: 'string',
+    describe: 'Template for Kafka record keys, e.g. {{exchange}}/{{payloadCase}}/{{symbol}}'
+  })
   .option('kafka-max-batch-size', {
     type: 'number',
     describe: 'Maximum number of bronze events per Kafka batch'

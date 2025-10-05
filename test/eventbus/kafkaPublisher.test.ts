@@ -231,6 +231,52 @@ describe('KafkaEventBus', () => {
     expect(headers['meta.transport']).toBe('websocket')
   })
 
+  test('applies custom key template to kafka messages', async () => {
+    if (shouldSkip) {
+      return
+    }
+
+    const keyTopic = `${baseTopic}.keys.${Date.now()}`
+    const admin = kafka.admin()
+    await admin.connect()
+    await waitForKafkaController(admin)
+    await admin.createTopics({ topics: [{ topic: keyTopic, numPartitions: 1 }] })
+    await admin.disconnect()
+
+    const bus = new KafkaEventBus({
+      brokers,
+      topic: keyTopic,
+      clientId: 'bronze-producer-keys',
+      maxBatchSize: 2,
+      maxBatchDelayMs: 10,
+      keyTemplate: '{{exchange}}/{{payloadCase}}/{{symbol}}'
+    })
+
+    await bus.start()
+
+    const trade: NormalizedTrade = {
+      type: 'trade',
+      symbol: 'BTCUSD',
+      exchange: 'bitmex',
+      id: 't-key-1',
+      price: 33000,
+      amount: 1,
+      side: 'buy',
+      timestamp: new Date('2024-01-01T00:04:01.000Z'),
+      localTimestamp: new Date('2024-01-01T00:04:01.050Z')
+    }
+
+    await bus.publish(trade, baseMeta)
+    await bus.flush()
+
+    const records = await consumeRecords(kafka, keyTopic, 1)
+
+    await bus.close().catch(() => undefined)
+
+    expect(records).toHaveLength(1)
+    expect(records[0]?.key).toBe('bitmex/trade/BTCUSD')
+  })
+
   test('filters events by allowed payload cases', async () => {
     if (shouldSkip) {
       return
@@ -436,6 +482,7 @@ async function consumeRecords(
 type KafkaRecord = {
   event: NormalizedEvent
   headers: Record<string, string>
+  key: string
 }
 
 async function collectKafkaEvents(
@@ -477,7 +524,11 @@ async function collectKafkaRecords(
 
           try {
             const event = fromBinary(NormalizedEventSchema, message.value)
-            records.push({ event, headers: normalizeHeaders(message.headers) })
+            records.push({
+              event,
+              headers: normalizeHeaders(message.headers),
+              key: normalizeKey(message.key)
+            })
           } catch (error) {
             completed = true
             clearTimeout(timer)
@@ -513,6 +564,14 @@ function normalizeHeaders(headers: IHeaders | undefined): Record<string, string>
   return Object.fromEntries(
     Object.entries(headers).map(([key, value]) => [key, headerValueToString(value)])
   )
+}
+
+function normalizeKey(key: Buffer | null | undefined): string {
+  if (!key) {
+    return ''
+  }
+
+  return key.toString('utf8')
 }
 
 function headerValueToString(value: IHeaders[string]): string {

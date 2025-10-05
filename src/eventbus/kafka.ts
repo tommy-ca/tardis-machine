@@ -1,5 +1,6 @@
 import { Kafka, logLevel, Producer, SASLOptions, CompressionTypes } from 'kafkajs'
 import { BronzeNormalizedEventEncoder } from './bronzeMapper'
+import { compileKeyBuilder } from './keyTemplate'
 import type {
   BronzeEvent,
   BronzePayloadCase,
@@ -18,7 +19,7 @@ const DEFAULT_BATCH_DELAY_MS = 25
 const MAX_RETRY_ATTEMPTS = 3
 
 export class KafkaEventBus implements NormalizedEventSink {
-  private readonly encoder = new BronzeNormalizedEventEncoder()
+  private readonly encoder: BronzeNormalizedEventEncoder
   private readonly kafka: Kafka
   private readonly producer: Producer
   private readonly buffer: BronzeEvent[] = []
@@ -29,6 +30,8 @@ export class KafkaEventBus implements NormalizedEventSink {
   private readonly allowedPayloadCases?: Set<BronzePayloadCase>
 
   constructor(private readonly config: KafkaEventBusConfig) {
+    const keyBuilder = config.keyTemplate ? compileKeyBuilder(config.keyTemplate) : undefined
+    this.encoder = new BronzeNormalizedEventEncoder(keyBuilder)
     this.kafka = new Kafka({
       clientId: config.clientId ?? 'tardis-machine',
       brokers: config.brokers,

@@ -1,7 +1,7 @@
 # TODO
 
-- [x] Add E2E coverage for Kafka publishing via TardisMachine.
-- [x] Verify documentation and generated artifacts stay in sync with new features.
-- [x] Document Kafka Testcontainers prerequisites for local runners.
-- [x] Support configurable Kafka compression for bronze publishers.
-- [x] Allow Kafka publishers to filter payload cases via CLI configuration.
+- [ ] Implement Kafka publishing for normalized events.
+- [ ] Generate Buf-based TypeScript codecs under src/generated.
+- [ ] Wire CLI and config for Kafka options with defaults disabled.
+- [ ] Add integration test verifying Kafka publish using Testcontainers.
+- [ ] Update documentation for event bus capabilities.

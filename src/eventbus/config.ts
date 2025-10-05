@@ -101,6 +101,14 @@ export function parseKafkaEventBusConfig(argv: Record<string, any>): EventBusCon
     kafkaConfig.topicByPayloadCase = topicRouting
   }
 
+  const metaHeadersPrefix = argv['kafka-meta-headers-prefix']
+  if (metaHeadersPrefix !== undefined) {
+    if (typeof metaHeadersPrefix !== 'string' || metaHeadersPrefix.trim() === '') {
+      throw new Error('kafka-meta-headers-prefix must be a non-empty string.')
+    }
+    kafkaConfig.metaHeadersPrefix = metaHeadersPrefix.trim()
+  }
+
   const sasl = parseSasl(argv)
   if (sasl) {
     kafkaConfig.sasl = sasl

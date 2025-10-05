@@ -51,6 +51,26 @@ describe('parseKafkaEventBusConfig', () => {
     })
   })
 
+  test('parses meta headers prefix when provided', () => {
+    const config = parseKafkaEventBusConfig({
+      'kafka-brokers': 'localhost:9092',
+      'kafka-topic': 'bronze.events',
+      'kafka-meta-headers-prefix': 'meta.'
+    })
+
+    expect(config).toMatchObject({ metaHeadersPrefix: 'meta.' })
+  })
+
+  test('rejects empty meta headers prefix', () => {
+    expect(() =>
+      parseKafkaEventBusConfig({
+        'kafka-brokers': 'localhost:9092',
+        'kafka-topic': 'bronze.events',
+        'kafka-meta-headers-prefix': '   '
+      })
+    ).toThrow('kafka-meta-headers-prefix must be a non-empty string.')
+  })
+
   test('rejects non-positive batch tuning values', () => {
     expect(() =>
       parseKafkaEventBusConfig({

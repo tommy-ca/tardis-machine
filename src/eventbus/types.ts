@@ -40,6 +40,8 @@ export type BronzeEvent = {
   payloadCase: BronzePayloadCase
   /** Human readable description of payload case */
   dataType: string
+  /** Flattened metadata map propagated to headers */
+  meta: Record<string, string>
   /** Encoded Binary payload ready for transport */
   binary: Uint8Array
 }
@@ -73,6 +75,8 @@ export type KafkaEventBusConfig = {
     username: string
     password: string
   }
+  /** Prefix applied when emitting normalized meta as Kafka headers */
+  metaHeadersPrefix?: string
   /** Maximum number of Bronze events to send per Kafka batch */
   maxBatchSize?: number
   /** Maximum milliseconds events can wait before forced flush */

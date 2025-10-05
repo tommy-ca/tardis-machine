@@ -89,6 +89,7 @@ export class BronzeNormalizedEventEncoder implements NormalizedEventEncoder {
       key: this.keyBuilder(event, payloadCase),
       payloadCase,
       dataType,
+      meta: event.meta,
       binary: toBinary(NormalizedEventSchema, event)
     }))
   }

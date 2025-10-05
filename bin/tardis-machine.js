@@ -66,6 +66,10 @@ const argv = yargs
     describe: 'Enable SSL when connecting to Kafka brokers',
     default: false
   })
+  .option('kafka-meta-headers-prefix', {
+    type: 'string',
+    describe: 'Prefix applied when emitting normalized meta as Kafka headers'
+  })
   .option('kafka-max-batch-size', {
     type: 'number',
     describe: 'Maximum number of bronze events per Kafka batch'

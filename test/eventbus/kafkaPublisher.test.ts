@@ -1,4 +1,4 @@
-import { Kafka } from 'kafkajs'
+import { Kafka, type IHeaders } from 'kafkajs'
 import { KafkaContainer, StartedKafkaContainer } from '@testcontainers/kafka'
 import { fromBinary } from '@bufbuild/protobuf'
 import { KafkaEventBus } from '../../src/eventbus/kafka'
@@ -12,7 +12,8 @@ const routingTopics = {
   trade: `${baseTopic}.trades`,
   bookChange: `${baseTopic}.books`
 }
-const allTopics = [baseTopic, routingTopics.trade, routingTopics.bookChange]
+const metaHeadersTopic = `${baseTopic}.meta`
+const allTopics = [baseTopic, routingTopics.trade, routingTopics.bookChange, metaHeadersTopic]
 const startTimeoutMs = 180000
 
 const baseMeta = {
@@ -116,7 +117,7 @@ describe('KafkaEventBus', () => {
 
     const bus = new KafkaEventBus({
       brokers,
-      topic: baseTopic,
+      topic: metaHeadersTopic,
       topicByPayloadCase: {
         trade: routingTopics.trade,
         bookChange: routingTopics.bookChange
@@ -172,6 +173,62 @@ describe('KafkaEventBus', () => {
     expect(bookChangeEvents).toHaveLength(3)
     expect(bookChangeEvents.every((event) => event.payload.case === 'bookChange')).toBe(true)
   })
+
+  test('publishes normalized meta as kafka headers', async () => {
+    if (shouldSkip) {
+      return
+    }
+
+    const bus = new KafkaEventBus({
+      brokers,
+      topic: metaHeadersTopic,
+      clientId: 'bronze-producer-meta-headers',
+      maxBatchSize: 1,
+      maxBatchDelayMs: 5,
+      metaHeadersPrefix: 'meta.'
+    })
+
+    await bus.start()
+
+    const trade: NormalizedTrade = {
+      type: 'trade',
+      symbol: 'SOLUSD',
+      exchange: 'bitmex',
+      id: 't-meta-1',
+      price: 150.125,
+      amount: 10,
+      side: 'buy',
+      timestamp: new Date('2024-01-01T00:02:01.000Z'),
+      localTimestamp: new Date('2024-01-01T00:02:01.100Z')
+    }
+
+    const meta = {
+      ...baseMeta,
+      requestId: 'req-headers',
+      sessionId: 'sess-1',
+      extraMeta: {
+        transport: 'websocket'
+      }
+    } as const
+
+    expect(meta.requestId).toBe('req-headers')
+
+    await bus.publish(trade, meta)
+    await bus.flush()
+
+    const records = await consumeRecords(kafka, metaHeadersTopic, 1)
+    await bus.close().catch(() => undefined)
+
+    expect(records).toHaveLength(1)
+    const { headers, event } = records[0]
+    expect(event.meta.request_id).toBe('req-headers')
+    expect(event.meta.session_id).toBe('sess-1')
+    expect(event.meta.transport).toBe('websocket')
+    expect(headers['payloadCase']).toBe('trade')
+    expect(headers['meta.request_id']).toBe('req-headers')
+    expect(headers['meta.session_id']).toBe('sess-1')
+    expect(headers['meta.transport']).toBe('websocket')
+  })
 })
 
 let shouldSkip = false
@@ -198,15 +255,46 @@ async function consumeEvents(
   }
 }
 
+async function consumeRecords(
+  kafka: Kafka,
+  topic: string,
+  expectedCount: number,
+  timeoutMs = 120000
+): Promise<KafkaRecord[]> {
+  const consumer = kafka.consumer({ groupId: `bronze-test-${topic}-${Date.now()}` })
+  await consumer.connect()
+  await consumer.subscribe({ topic, fromBeginning: true })
+
+  try {
+    return await collectKafkaRecords(consumer, expectedCount, timeoutMs)
+  } finally {
+    await consumer.disconnect().catch(() => undefined)
+  }
+}
+
+type KafkaRecord = {
+  event: NormalizedEvent
+  headers: Record<string, string>
+}
+
 async function collectKafkaEvents(
   consumer: ReturnType<Kafka['consumer']>,
   expectedCount: number,
   timeoutMs: number
 ): Promise<NormalizedEvent[]> {
-  const events: NormalizedEvent[] = []
+  const records = await collectKafkaRecords(consumer, expectedCount, timeoutMs)
+  return records.map((record) => record.event)
+}
+
+async function collectKafkaRecords(
+  consumer: ReturnType<Kafka['consumer']>,
+  expectedCount: number,
+  timeoutMs: number
+): Promise<KafkaRecord[]> {
+  const records: KafkaRecord[] = []
   let completed = false
 
-  return new Promise<NormalizedEvent[]>((resolve, reject) => {
+  return new Promise<KafkaRecord[]>((resolve, reject) => {
     const timer = setTimeout(() => {
       if (completed) {
         return
@@ -214,7 +302,7 @@ async function collectKafkaEvents(
       completed = true
       reject(
         new Error(
-          `Timed out after ${timeoutMs}ms waiting for ${expectedCount} Kafka events (received ${events.length})`
+          `Timed out after ${timeoutMs}ms waiting for ${expectedCount} Kafka events (received ${records.length})`
         )
       )
     }, timeoutMs)
@@ -227,7 +315,8 @@ async function collectKafkaEvents(
           }
 
           try {
-            events.push(fromBinary(NormalizedEventSchema, message.value))
+            const event = fromBinary(NormalizedEventSchema, message.value)
+            records.push({ event, headers: normalizeHeaders(message.headers) })
           } catch (error) {
             completed = true
             clearTimeout(timer)
@@ -235,10 +324,10 @@ async function collectKafkaEvents(
             return
           }
 
-          if (events.length >= expectedCount) {
+          if (records.length >= expectedCount) {
             completed = true
             clearTimeout(timer)
-            resolve(events)
+            resolve(records)
           }
         }
       })
@@ -253,6 +342,32 @@ async function collectKafkaEvents(
   }).finally(async () => {
     await consumer.stop().catch(() => undefined)
   })
+}
+
+function normalizeHeaders(headers: IHeaders | undefined): Record<string, string> {
+  if (!headers) {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(headers).map(([key, value]) => [key, headerValueToString(value)])
+  )
+}
+
+function headerValueToString(value: IHeaders[string]): string {
+  if (value === undefined) {
+    return ''
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => headerValueToString(entry as IHeaders[string])).join(',')
+  }
+
+  if (typeof value === 'string') {
+    return value
+  }
+
+  return value.toString()
 }
 
 async function waitForKafkaController(

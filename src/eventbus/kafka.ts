@@ -106,10 +106,7 @@ export class KafkaEventBus implements NormalizedEventSink {
             messages: events.map((event) => ({
               key: event.key,
               value: Buffer.from(event.binary),
-              headers: {
-                payloadCase: Buffer.from(event.payloadCase),
-                dataType: Buffer.from(event.dataType)
-              }
+              headers: this.buildHeaders(event)
             }))
           })
         }
@@ -167,6 +164,24 @@ export class KafkaEventBus implements NormalizedEventSink {
   private resolveTopic(payloadCase: BronzePayloadCase): string {
     const { topicByPayloadCase, topic } = this.config
     return topicByPayloadCase?.[payloadCase] ?? topic
+  }
+
+  private buildHeaders(event: BronzeEvent): Record<string, Buffer> {
+    const headers: Record<string, Buffer> = {
+      payloadCase: Buffer.from(event.payloadCase),
+      dataType: Buffer.from(event.dataType)
+    }
+
+    const prefix = this.config.metaHeadersPrefix
+    if (!prefix) {
+      return headers
+    }
+
+    for (const [key, value] of Object.entries(event.meta)) {
+      headers[`${prefix}${key}`] = Buffer.from(value)
+    }
+
+    return headers
   }
 }
 

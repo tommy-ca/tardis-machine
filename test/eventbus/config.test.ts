@@ -123,6 +123,18 @@ describe('parseKafkaEventBusConfig', () => {
     expect(config).toMatchObject({ includePayloadCases: ['trade', 'bookChange'] })
   })
 
+  test('accepts snake_case payload names in include list', () => {
+    const config = parseKafkaEventBusConfig({
+      'kafka-brokers': 'localhost:9092',
+      'kafka-topic': 'bronze.events',
+      'kafka-include-payloads': 'book_change, TRADE_BAR, quote'
+    })
+
+    expect(config).toMatchObject({
+      includePayloadCases: ['bookChange', 'tradeBar', 'quote']
+    })
+  })
+
   test('rejects empty meta headers prefix', () => {
     expect(() =>
       parseKafkaEventBusConfig({
@@ -179,6 +191,21 @@ describe('parseKafkaEventBusConfig', () => {
         'kafka-topic-routing': 'trade:bronze.trade, candles:bronze.candles'
       })
     ).toThrow('Unknown payload case(s) for kafka-topic-routing: candles.')
+  })
+
+  test('accepts snake_case payload names in topic routing', () => {
+    const config = parseKafkaEventBusConfig({
+      'kafka-brokers': 'localhost:9092',
+      'kafka-topic': 'bronze.events',
+      'kafka-topic-routing': 'book_snapshot:bronze.snapshots, grouped_book_snapshot:bronze.grouped'
+    })
+
+    expect(config).toMatchObject({
+      topicByPayloadCase: {
+        bookSnapshot: 'bronze.snapshots',
+        groupedBookSnapshot: 'bronze.grouped'
+      }
+    })
   })
 
   test('rejects invalid kafka ack levels', () => {

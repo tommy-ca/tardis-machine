@@ -17,6 +17,8 @@ const ALLOWED_PAYLOAD_CASES: ReadonlySet<BronzePayloadCase> = new Set([
   'disconnect'
 ])
 
+const NORMALIZED_PAYLOAD_CASE_LOOKUP = buildPayloadCaseLookup(ALLOWED_PAYLOAD_CASES)
+
 const ACK_VALUE_MAP: Record<string, -1 | 0 | 1> = {
   all: -1,
   '-1': -1,
@@ -77,12 +79,14 @@ function parseTopicRouting(raw: unknown): KafkaEventBusConfig['topicByPayloadCas
       throw new Error(`Invalid kafka-topic-routing entry "${pair}". Expected format payloadCase:topicName.`)
     }
 
-    if (!ALLOWED_PAYLOAD_CASES.has(payloadCase as BronzePayloadCase)) {
+    const normalizedPayloadCase = normalizePayloadCase(payloadCase)
+
+    if (!normalizedPayloadCase) {
       invalidPayloadCases.add(payloadCase)
       continue
     }
 
-    map[payloadCase as BronzePayloadCase] = mappedTopic
+    map[normalizedPayloadCase] = mappedTopic
   }
 
   if (Object.keys(map).length === 0) {
@@ -107,25 +111,36 @@ function parseIncludePayloadCases(raw: unknown): BronzePayloadCase[] | undefined
     throw new Error('kafka-include-payloads must be a comma separated string list of payload cases.')
   }
 
-  const cases = Array.from(
+  const uniqueInputs = Array.from(
     new Set(
       raw
         .split(',')
         .map((value) => value.trim())
         .filter(Boolean)
     )
-  ) as BronzePayloadCase[]
+  )
 
-  if (cases.length === 0) {
+  if (uniqueInputs.length === 0) {
     throw new Error('kafka-include-payloads must list at least one payload case.')
   }
 
-  const invalid = cases.filter((payloadCase) => !ALLOWED_PAYLOAD_CASES.has(payloadCase))
+  const normalizedCases = new Set<BronzePayloadCase>()
+  const invalid: string[] = []
+
+  for (const entry of uniqueInputs) {
+    const normalized = normalizePayloadCase(entry)
+    if (!normalized) {
+      invalid.push(entry)
+      continue
+    }
+    normalizedCases.add(normalized)
+  }
+
   if (invalid.length > 0) {
     throw new Error(`Unknown payload case(s) for kafka-include-payloads: ${invalid.join(', ')}.`)
   }
 
-  return cases
+  return Array.from(normalizedCases)
 }
 
 function parseBooleanOption(value: unknown, optionName: string): boolean | undefined {
@@ -296,6 +311,30 @@ export function parseKafkaEventBusConfig(argv: Record<string, any>): EventBusCon
     provider: 'kafka',
     ...kafkaConfig
   }
+}
+
+function buildPayloadCaseLookup(
+  cases: ReadonlySet<BronzePayloadCase>
+): Map<string, BronzePayloadCase> {
+  const lookup = new Map<string, BronzePayloadCase>()
+  for (const payloadCase of cases) {
+    lookup.set(toPayloadCaseKey(payloadCase), payloadCase)
+  }
+  return lookup
+}
+
+function normalizePayloadCase(raw: string): BronzePayloadCase | undefined {
+  if (!raw) {
+    return undefined
+  }
+
+  return NORMALIZED_PAYLOAD_CASE_LOOKUP.get(toPayloadCaseKey(raw))
+}
+
+function toPayloadCaseKey(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]/gi, '')
 }
 
 export type { KafkaEventBusConfig }

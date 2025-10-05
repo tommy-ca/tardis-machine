@@ -349,6 +349,47 @@ describe('KafkaEventBus', () => {
       await bus.close().catch(() => undefined)
     }
   })
+
+  test('close flushes buffered batches before disconnect', async () => {
+    if (shouldSkip) {
+      return
+    }
+
+    const closeTopic = `${baseTopic}.close.${Date.now()}`
+    const admin = kafka.admin()
+    await admin.connect()
+    await waitForKafkaController(admin)
+    await admin.createTopics({ topics: [{ topic: closeTopic, numPartitions: 1 }] })
+    await admin.disconnect()
+
+    const bus = new KafkaEventBus({
+      brokers,
+      topic: closeTopic,
+      clientId: 'bronze-producer-close',
+      maxBatchSize: 16,
+      maxBatchDelayMs: 100
+    })
+
+    await bus.start()
+
+    const bookChange: NormalizedBookChange = {
+      type: 'book_change',
+      symbol: 'BTCUSD',
+      exchange: 'bitmex',
+      isSnapshot: false,
+      bids: [{ price: 31200.5, amount: 0.25 }],
+      asks: [{ price: 31201, amount: 0.5 }],
+      timestamp: new Date('2024-01-01T00:06:01.250Z'),
+      localTimestamp: new Date('2024-01-01T00:06:01.300Z')
+    }
+
+    await bus.publish(bookChange, baseMeta)
+    await bus.close()
+
+    const events = await consumeEvents(kafka, closeTopic, 1, 60000)
+    expect(events).toHaveLength(1)
+    expect(events[0]?.payload.case).toBe('bookChange')
+  })
 })
 
 let shouldSkip = false

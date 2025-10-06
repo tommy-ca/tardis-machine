@@ -1112,20 +1112,20 @@ describe('parsePulsarEventBusConfig', () => {
 describe('parseAzureEventHubsEventBusConfig', () => {
   test('returns undefined when azure connection string or event hub name missing', () => {
     expect(parseAzureEventHubsEventBusConfig({})).toBeUndefined()
-    expect(parseAzureEventHubsEventBusConfig({ 'azure-connection-string': 'Endpoint=sb://...' })).toBeUndefined()
-    expect(parseAzureEventHubsEventBusConfig({ 'azure-event-hub-name': 'events' })).toBeUndefined()
+    expect(parseAzureEventHubsEventBusConfig({ 'event-hubs-connection-string': 'Endpoint=sb://...' })).toBeUndefined()
+    expect(parseAzureEventHubsEventBusConfig({ 'event-hubs-event-hub-name': 'events' })).toBeUndefined()
   })
 
   test('builds azure config with routing and properties', () => {
     const config = parseAzureEventHubsEventBusConfig({
-      'azure-connection-string': 'Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=key;SharedAccessKey=value',
-      'azure-event-hub-name': 'bronze.events',
-      'azure-event-hub-routing': 'trade:bronze.trade,bookChange:bronze.books',
-      'azure-include-payloads': 'trade,bookChange',
-      'azure-static-properties': 'env:prod,region:us-east-1',
-      'azure-partition-key-template': '{{exchange}}.{{payloadCase}}.{{symbol}}',
-      'azure-max-batch-size': 50,
-      'azure-max-batch-delay-ms': 25
+      'event-hubs-connection-string': 'Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=key;SharedAccessKey=value',
+      'event-hubs-event-hub-name': 'bronze.events',
+      'event-hubs-event-hub-routing': 'trade:bronze.trade,bookChange:bronze.books',
+      'event-hubs-include-payloads': 'trade,bookChange',
+      'event-hubs-static-properties': 'env:prod,region:us-east-1',
+      'event-hubs-partition-key-template': '{{exchange}}.{{payloadCase}}.{{symbol}}',
+      'event-hubs-max-batch-size': 50,
+      'event-hubs-max-batch-delay-ms': 25
     })
 
     expect(config).toEqual({
@@ -1149,10 +1149,10 @@ describe('parseAzureEventHubsEventBusConfig', () => {
 
   test('applies batch tuning options when provided', () => {
     const config = parseAzureEventHubsEventBusConfig({
-      'azure-connection-string': 'Endpoint=sb://...',
-      'azure-event-hub-name': 'bronze.events',
-      'azure-max-batch-size': 75,
-      'azure-max-batch-delay-ms': 100
+      'event-hubs-connection-string': 'Endpoint=sb://...',
+      'event-hubs-event-hub-name': 'bronze.events',
+      'event-hubs-max-batch-size': 75,
+      'event-hubs-max-batch-delay-ms': 100
     })
 
     expect(config).toMatchObject({
@@ -1163,9 +1163,9 @@ describe('parseAzureEventHubsEventBusConfig', () => {
 
   test('parses azure partition key template string', () => {
     const config = parseAzureEventHubsEventBusConfig({
-      'azure-connection-string': 'Endpoint=sb://...',
-      'azure-event-hub-name': 'bronze.events',
-      'azure-partition-key-template': '{{exchange}}.{{payloadCase}}.{{symbol}}'
+      'event-hubs-connection-string': 'Endpoint=sb://...',
+      'event-hubs-event-hub-name': 'bronze.events',
+      'event-hubs-partition-key-template': '{{exchange}}.{{payloadCase}}.{{symbol}}'
     })
 
     expect(config).toMatchObject({
@@ -1175,9 +1175,9 @@ describe('parseAzureEventHubsEventBusConfig', () => {
 
   test('parses azure static properties', () => {
     const config = parseAzureEventHubsEventBusConfig({
-      'azure-connection-string': 'Endpoint=sb://...',
-      'azure-event-hub-name': 'bronze.events',
-      'azure-static-properties': 'env:prod, region:us-east-1,trace-id:abc123 '
+      'event-hubs-connection-string': 'Endpoint=sb://...',
+      'event-hubs-event-hub-name': 'bronze.events',
+      'event-hubs-static-properties': 'env:prod, region:us-east-1,trace-id:abc123 '
     })
 
     expect(config).toMatchObject({
@@ -1191,9 +1191,9 @@ describe('parseAzureEventHubsEventBusConfig', () => {
 
   test('parses allowed payload cases list', () => {
     const config = parseAzureEventHubsEventBusConfig({
-      'azure-connection-string': 'Endpoint=sb://...',
-      'azure-event-hub-name': 'bronze.events',
-      'azure-include-payloads': 'trade, bookChange, trade'
+      'event-hubs-connection-string': 'Endpoint=sb://...',
+      'event-hubs-event-hub-name': 'bronze.events',
+      'event-hubs-include-payloads': 'trade, bookChange, trade'
     })
 
     expect(config).toMatchObject({ includePayloadCases: ['trade', 'bookChange'] })
@@ -1201,9 +1201,9 @@ describe('parseAzureEventHubsEventBusConfig', () => {
 
   test('accepts snake_case payload names in include list', () => {
     const config = parseAzureEventHubsEventBusConfig({
-      'azure-connection-string': 'Endpoint=sb://...',
-      'azure-event-hub-name': 'bronze.events',
-      'azure-include-payloads': 'book_change'
+      'event-hubs-connection-string': 'Endpoint=sb://...',
+      'event-hubs-event-hub-name': 'bronze.events',
+      'event-hubs-include-payloads': 'book_change'
     })
 
     expect(config).toMatchObject({ includePayloadCases: ['bookChange'] })
@@ -1212,49 +1212,49 @@ describe('parseAzureEventHubsEventBusConfig', () => {
   test('rejects unknown payload case names', () => {
     expect(() =>
       parseAzureEventHubsEventBusConfig({
-        'azure-connection-string': 'Endpoint=sb://...',
-        'azure-event-hub-name': 'bronze.events',
-        'azure-include-payloads': 'trade, candles'
+        'event-hubs-connection-string': 'Endpoint=sb://...',
+        'event-hubs-event-hub-name': 'bronze.events',
+        'event-hubs-include-payloads': 'trade, candles'
       })
-    ).toThrow('Unknown payload case(s) for azure-include-payloads: candles.')
+    ).toThrow('Unknown payload case(s) for event-hubs-include-payloads: candles.')
   })
 
   test('rejects unknown payload cases in event hub routing', () => {
     expect(() =>
       parseAzureEventHubsEventBusConfig({
-        'azure-connection-string': 'Endpoint=sb://...',
-        'azure-event-hub-name': 'bronze.events',
-        'azure-event-hub-routing': 'trade:bronze.trade,candles:bronze.candles'
+        'event-hubs-connection-string': 'Endpoint=sb://...',
+        'event-hubs-event-hub-name': 'bronze.events',
+        'event-hubs-event-hub-routing': 'trade:bronze.trade,candles:bronze.candles'
       })
-    ).toThrow('Unknown payload case(s) for azure-event-hub-routing: candles.')
+    ).toThrow('Unknown payload case(s) for event-hubs-event-hub-routing: candles.')
   })
 
   test('throws on invalid event hub routing entry', () => {
     expect(() =>
       parseAzureEventHubsEventBusConfig({
-        'azure-connection-string': 'Endpoint=sb://...',
-        'azure-event-hub-name': 'bronze.events',
-        'azure-event-hub-routing': 'trade-only'
+        'event-hubs-connection-string': 'Endpoint=sb://...',
+        'event-hubs-event-hub-name': 'bronze.events',
+        'event-hubs-event-hub-routing': 'trade-only'
       })
-    ).toThrow('Invalid azure-event-hub-routing entry "trade-only". Expected format payloadCase:eventHubName.')
+    ).toThrow('Invalid event-hubs-event-hub-routing entry "trade-only". Expected format payloadCase:eventHubName.')
   })
 
   test('rejects blank connection string', () => {
     expect(() =>
       parseAzureEventHubsEventBusConfig({
-        'azure-connection-string': '   ',
-        'azure-event-hub-name': 'bronze.events'
+        'event-hubs-connection-string': '   ',
+        'event-hubs-event-hub-name': 'bronze.events'
       })
-    ).toThrow('azure-connection-string must be a non-empty string.')
+    ).toThrow('event-hubs-connection-string must be a non-empty string.')
   })
 
   test('rejects blank event hub name', () => {
     expect(() =>
       parseAzureEventHubsEventBusConfig({
-        'azure-connection-string': 'Endpoint=sb://...',
-        'azure-event-hub-name': '   '
+        'event-hubs-connection-string': 'Endpoint=sb://...',
+        'event-hubs-event-hub-name': '   '
       })
-    ).toThrow('azure-event-hub-name must be a non-empty string.')
+    ).toThrow('event-hubs-event-hub-name must be a non-empty string.')
   })
 })
 

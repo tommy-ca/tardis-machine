@@ -22,7 +22,7 @@ const {
   parseSilverKinesisEventBusConfig,
   parseSilverNatsEventBusConfig,
   parseSilverRedisEventBusConfig,
-  parseAzureEventBusConfig,
+  parseAzureEventHubsEventBusConfig,
   parseSilverAzureEventBusConfig
 } = require('../dist/eventbus/config')
 
@@ -540,35 +540,35 @@ const argv = yargs
     describe: 'Compression type for Pulsar messages'
   })
 
-  .option('azure-connection-string', {
+  .option('event-hubs-connection-string', {
     type: 'string',
     describe: 'Azure Event Hubs connection string for normalized event publishing'
   })
-  .option('azure-event-hub-name', {
+  .option('event-hubs-event-hub-name', {
     type: 'string',
     describe: 'Azure Event Hub name for normalized events'
   })
-  .option('azure-include-payloads', {
+  .option('event-hubs-include-payloads', {
     type: 'string',
     describe: 'Comma separated payload cases to publish (others dropped)'
   })
-  .option('azure-event-hub-routing', {
+  .option('event-hubs-event-hub-routing', {
     type: 'string',
     describe: 'Comma separated payloadCase:eventHubName pairs overriding the base event hub'
   })
-  .option('azure-static-properties', {
+  .option('event-hubs-static-properties', {
     type: 'string',
     describe: 'Comma separated key:value pairs applied as static Event Hubs properties'
   })
-  .option('azure-partition-key-template', {
+  .option('event-hubs-partition-key-template', {
     type: 'string',
     describe: 'Template for Event Hubs partition keys, e.g. {{exchange}}/{{payloadCase}}/{{symbol}}'
   })
-  .option('azure-max-batch-size', {
+  .option('event-hubs-max-batch-size', {
     type: 'number',
     describe: 'Maximum number of bronze events per Event Hubs batch'
   })
-  .option('azure-max-batch-delay-ms', {
+  .option('event-hubs-max-batch-delay-ms', {
     type: 'number',
     describe: 'Maximum milliseconds events can wait before forced flush'
   })
@@ -689,35 +689,35 @@ const argv = yargs
     describe: 'Maximum milliseconds events can wait before forced flush for silver'
   })
 
-  .option('azure-silver-connection-string', {
+  .option('event-hubs-silver-connection-string', {
     type: 'string',
     describe: 'Azure Event Hubs connection string for silver event publishing'
   })
-  .option('azure-silver-event-hub-name', {
+  .option('event-hubs-silver-event-hub-name', {
     type: 'string',
     describe: 'Azure Event Hub name for silver events'
   })
-  .option('azure-silver-include-records', {
+  .option('event-hubs-silver-include-records', {
     type: 'string',
     describe: 'Comma separated record types to publish for silver (others dropped)'
   })
-  .option('azure-silver-event-hub-routing', {
+  .option('event-hubs-silver-event-hub-routing', {
     type: 'string',
     describe: 'Comma separated recordType:eventHubName pairs overriding the base event hub for silver'
   })
-  .option('azure-silver-static-properties', {
+  .option('event-hubs-silver-static-properties', {
     type: 'string',
     describe: 'Comma separated key:value pairs applied as static Event Hubs properties for silver'
   })
-  .option('azure-silver-partition-key-template', {
+  .option('event-hubs-silver-partition-key-template', {
     type: 'string',
     describe: 'Template for Event Hubs partition keys for silver, e.g. {{exchange}}/{{recordType}}/{{symbol}}'
   })
-  .option('azure-silver-max-batch-size', {
+  .option('event-hubs-silver-max-batch-size', {
     type: 'number',
     describe: 'Maximum number of silver events per Event Hubs batch'
   })
-  .option('azure-silver-max-batch-delay-ms', {
+  .option('event-hubs-silver-max-batch-delay-ms', {
     type: 'number',
     describe: 'Maximum milliseconds events can wait before forced flush for silver'
   })
@@ -748,7 +748,7 @@ async function start() {
     parseRedisEventBusConfig(argv) ||
     parseSQSEventBusConfig(argv) ||
     parsePulsarEventBusConfig(argv) ||
-    parseAzureEventBusConfig(argv)
+    parseAzureEventHubsEventBusConfig(argv)
 
   const silverEventBusConfig =
     parseSilverKafkaEventBusConfig(argv) ||

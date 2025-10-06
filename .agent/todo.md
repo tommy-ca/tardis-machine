@@ -36,3 +36,8 @@
 - [x] Add regression test ensuring Redis publishing can be toggled off.
 - [x] Add CLI support for Redis event bus options.
 - [x] Add unit tests for Redis config parsing.
+- [x] Implement Silver Redis publishing for normalized events.
+- [x] Wire Silver Redis into TardisMachine event bus creation.
+- [x] Add integration test verifying Silver Redis publish using Testcontainers.
+- [x] Add CLI support for Silver Redis event bus options.
+- [x] Add unit tests for Silver Redis config parsing.

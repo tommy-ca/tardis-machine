@@ -14,7 +14,8 @@ import {
   RedisEventBus,
   SilverRabbitMQEventBus,
   SilverKinesisEventBus,
-  SilverNatsEventBus
+  SilverNatsEventBus,
+  SilverRedisEventBus
 } from './eventbus'
 import type {
   EventBusConfig,
@@ -220,6 +221,9 @@ export class TardisMachine {
     }
     if (config.provider === 'nats-silver') {
       return new SilverNatsEventBus(config)
+    }
+    if (config.provider === 'redis-silver') {
+      return new SilverRedisEventBus(config)
     }
 
     throw new Error(`Unsupported silver event bus provider: ${(config as any).provider}`)

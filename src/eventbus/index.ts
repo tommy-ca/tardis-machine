@@ -9,6 +9,7 @@ export { SilverKinesisEventBus } from './silverKinesis'
 export { NatsEventBus } from './nats'
 export { SilverNatsEventBus } from './silverNats'
 export { RedisEventBus } from './redis'
+export { SilverRedisEventBus } from './silverRedis'
 export {
   parseKafkaEventBusConfig,
   parseSilverKafkaEventBusConfig,
@@ -18,7 +19,8 @@ export {
   parseRedisEventBusConfig,
   parseSilverRabbitMQEventBusConfig,
   parseSilverKinesisEventBusConfig,
-  parseSilverNatsEventBusConfig
+  parseSilverNatsEventBusConfig,
+  parseSilverRedisEventBusConfig
 } from './config'
 export { compileKeyBuilder, compileSilverKeyBuilder } from './keyTemplate'
 export type {

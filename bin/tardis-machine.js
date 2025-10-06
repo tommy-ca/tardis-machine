@@ -16,7 +16,8 @@ const {
   parseSilverKafkaEventBusConfig,
   parseSilverRabbitMQEventBusConfig,
   parseSilverKinesisEventBusConfig,
-  parseSilverNatsEventBusConfig
+  parseSilverNatsEventBusConfig,
+  parseSilverRedisEventBusConfig
 } = require('../dist/eventbus/config')
 
 const DEFAULT_PORT = 8000
@@ -426,6 +427,39 @@ const argv = yargs
     describe: 'Maximum milliseconds events can wait before forced flush'
   })
 
+  .option('redis-silver-url', {
+    type: 'string',
+    describe: 'Redis connection URL for silver event publishing'
+  })
+  .option('redis-silver-stream', {
+    type: 'string',
+    describe: 'Redis stream name for silver events'
+  })
+  .option('redis-silver-include-records', {
+    type: 'string',
+    describe: 'Comma separated record types to publish for silver (others dropped)'
+  })
+  .option('redis-silver-stream-routing', {
+    type: 'string',
+    describe: 'Comma separated recordType:stream pairs overriding the base stream for silver'
+  })
+  .option('redis-silver-static-headers', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static Redis metadata for silver'
+  })
+  .option('redis-silver-key-template', {
+    type: 'string',
+    describe: 'Template for Redis stream keys for silver, e.g. {{exchange}}.{{recordType}}.{{symbol}}'
+  })
+  .option('redis-silver-max-batch-size', {
+    type: 'number',
+    describe: 'Maximum number of silver events per Redis batch'
+  })
+  .option('redis-silver-max-batch-delay-ms', {
+    type: 'number',
+    describe: 'Maximum milliseconds events can wait before forced flush for silver'
+  })
+
   .help()
   .version()
   .usage('$0 [options]')
@@ -455,7 +489,8 @@ async function start() {
     parseSilverKafkaEventBusConfig(argv) ||
     parseSilverRabbitMQEventBusConfig(argv) ||
     parseSilverKinesisEventBusConfig(argv) ||
-    parseSilverNatsEventBusConfig(argv)
+    parseSilverNatsEventBusConfig(argv) ||
+    parseSilverRedisEventBusConfig(argv)
 
   const machine = new TardisMachine({
     apiKey: argv['api-key'],

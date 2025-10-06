@@ -274,6 +274,23 @@ export type SilverNatsEventBusConfig = {
   pass?: string
 }
 
+export type SilverRedisEventBusConfig = {
+  url: string
+  stream: string
+  /** Optional map for routing record types to dedicated streams */
+  streamByRecordType?: Partial<Record<SilverRecordType, string>>
+  /** Optional allow-list of record types to publish */
+  includeRecordTypes?: SilverRecordType[]
+  /** Static headers applied to every message */
+  staticHeaders?: Record<string, string>
+  /** Maximum number of Silver events to send per Redis batch */
+  maxBatchSize?: number
+  /** Maximum milliseconds events can wait before forced flush */
+  maxBatchDelayMs?: number
+  /** Template for constructing Redis stream keys */
+  keyTemplate?: string
+}
+
 export type EventBusConfig =
   | ({
       provider: 'kafka'
@@ -302,3 +319,6 @@ export type EventBusConfig =
   | ({
       provider: 'nats-silver'
     } & SilverNatsEventBusConfig)
+  | ({
+      provider: 'redis-silver'
+    } & SilverRedisEventBusConfig)

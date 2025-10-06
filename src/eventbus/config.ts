@@ -10,7 +10,8 @@ import type {
   RedisEventBusConfig,
   SilverRabbitMQEventBusConfig,
   SilverKinesisEventBusConfig,
-  SilverNatsEventBusConfig
+  SilverNatsEventBusConfig,
+  SilverRedisEventBusConfig
 } from './types'
 import { compileKeyBuilder, compileSilverKeyBuilder } from './keyTemplate'
 
@@ -1355,6 +1356,109 @@ export function parseRedisEventBusConfig(argv: Record<string, any>): EventBusCon
 
   return {
     provider: 'redis',
+    ...redisConfig
+  }
+}
+
+export function parseSilverRedisEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const urlRaw = argv['redis-silver-url']
+  const streamRaw = argv['redis-silver-stream']
+
+  if (!urlRaw || !streamRaw) {
+    return undefined
+  }
+
+  const url = typeof urlRaw === 'string' ? urlRaw.trim() : ''
+  if (url === '') {
+    throw new Error('redis-silver-url must be a non-empty string.')
+  }
+
+  const stream = typeof streamRaw === 'string' ? streamRaw.trim() : ''
+  if (stream === '') {
+    throw new Error('redis-silver-stream must be a non-empty string.')
+  }
+
+  const redisConfig: SilverRedisEventBusConfig = {
+    url,
+    stream
+  }
+
+  const streamRoutingRaw = argv['redis-silver-stream-routing']
+  if (streamRoutingRaw !== undefined) {
+    if (typeof streamRoutingRaw !== 'string') {
+      throw new Error('redis-silver-stream-routing must be a string of recordType:stream entries separated by commas.')
+    }
+
+    const map: Partial<Record<SilverRecordType, string>> = {}
+    const invalidRecordTypes = new Set<string>()
+
+    const pairs = streamRoutingRaw
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    for (const pair of pairs) {
+      const [recordType, mappedStream] = pair.split(':').map((part) => part?.trim())
+      if (!recordType || !mappedStream) {
+        throw new Error(`Invalid redis-silver-stream-routing entry "${pair}". Expected format recordType:stream.`)
+      }
+
+      const normalizedRecordType = normalizeSilverRecordType(recordType)
+
+      if (!normalizedRecordType) {
+        invalidRecordTypes.add(recordType)
+        continue
+      }
+
+      map[normalizedRecordType] = mappedStream
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('redis-silver-stream-routing must define at least one recordType mapping.')
+    }
+
+    if (invalidRecordTypes.size > 0) {
+      throw new Error(`Unknown record type(s) for redis-silver-stream-routing: ${Array.from(invalidRecordTypes).join(', ')}.`)
+    }
+
+    redisConfig.streamByRecordType = map
+  }
+
+  const includeRecordTypes = parseIncludeSilverRecordTypes(argv['redis-silver-include-records'], 'redis-silver')
+  if (includeRecordTypes) {
+    redisConfig.includeRecordTypes = includeRecordTypes
+  }
+
+  const staticHeaders = parseStaticHeaders(argv['redis-silver-static-headers'], 'redis-silver')
+  if (staticHeaders) {
+    redisConfig.staticHeaders = staticHeaders
+  }
+
+  const keyTemplateRaw = argv['redis-silver-key-template']
+  if (keyTemplateRaw !== undefined) {
+    if (typeof keyTemplateRaw !== 'string') {
+      throw new Error('redis-silver-key-template must be a non-empty string.')
+    }
+    const keyTemplate = keyTemplateRaw.trim()
+    if (keyTemplate === '') {
+      throw new Error('redis-silver-key-template must be a non-empty string.')
+    }
+    compileSilverKeyBuilder(keyTemplate)
+    redisConfig.keyTemplate = keyTemplate
+  }
+
+  const maxBatchSize = parsePositiveInteger(argv['redis-silver-max-batch-size'], 'redis-silver-max-batch-size')
+  if (maxBatchSize !== undefined) {
+    redisConfig.maxBatchSize = maxBatchSize
+  }
+
+  const maxBatchDelayMs = parsePositiveInteger(argv['redis-silver-max-batch-delay-ms'], 'redis-silver-max-batch-delay-ms')
+  if (maxBatchDelayMs !== undefined) {
+    redisConfig.maxBatchDelayMs = maxBatchDelayMs
+  }
+
+  return {
+    provider: 'redis-silver',
     ...redisConfig
   }
 }

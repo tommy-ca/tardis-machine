@@ -14,6 +14,7 @@ const {
   parseNatsEventBusConfig,
   parseRedisEventBusConfig,
   parseSQSEventBusConfig,
+  parsePulsarEventBusConfig,
   parseSilverKafkaEventBusConfig,
   parseSilverRabbitMQEventBusConfig,
   parseSilverKinesisEventBusConfig,
@@ -481,6 +482,48 @@ const argv = yargs
     describe: 'Maximum milliseconds events can wait before forced flush'
   })
 
+  .option('pulsar-service-url', {
+    type: 'string',
+    describe: 'Pulsar service URL for normalized event publishing'
+  })
+  .option('pulsar-topic', {
+    type: 'string',
+    describe: 'Pulsar topic name for normalized events'
+  })
+  .option('pulsar-include-payloads', {
+    type: 'string',
+    describe: 'Comma separated payload cases to publish (others dropped)'
+  })
+  .option('pulsar-topic-routing', {
+    type: 'string',
+    describe: 'Comma separated payloadCase:topic pairs overriding the base topic'
+  })
+  .option('pulsar-token', {
+    type: 'string',
+    describe: 'Pulsar authentication token'
+  })
+  .option('pulsar-static-properties', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static Pulsar properties'
+  })
+  .option('pulsar-key-template', {
+    type: 'string',
+    describe: 'Template for Pulsar message keys, e.g. {{exchange}}/{{payloadCase}}/{{symbol}}'
+  })
+  .option('pulsar-max-batch-size', {
+    type: 'number',
+    describe: 'Maximum number of bronze events per Pulsar batch'
+  })
+  .option('pulsar-max-batch-delay-ms', {
+    type: 'number',
+    describe: 'Maximum milliseconds events can wait before forced flush'
+  })
+  .option('pulsar-compression-type', {
+    type: 'string',
+    choices: ['NONE', 'LZ4', 'ZLIB', 'ZSTD', 'SNAPPY'],
+    describe: 'Compression type for Pulsar messages'
+  })
+
   .option('redis-silver-url', {
     type: 'string',
     describe: 'Redis connection URL for silver event publishing'
@@ -538,7 +581,8 @@ async function start() {
     parseKinesisEventBusConfig(argv) ||
     parseNatsEventBusConfig(argv) ||
     parseRedisEventBusConfig(argv) ||
-    parseSQSEventBusConfig(argv)
+    parseSQSEventBusConfig(argv) ||
+    parsePulsarEventBusConfig(argv)
 
   const silverEventBusConfig =
     parseSilverKafkaEventBusConfig(argv) ||

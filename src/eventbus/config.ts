@@ -9,6 +9,7 @@ import type {
   NatsEventBusConfig,
   RedisEventBusConfig,
   SQSEventBusConfig,
+  PulsarEventBusConfig,
   SilverRabbitMQEventBusConfig,
   SilverKinesisEventBusConfig,
   SilverNatsEventBusConfig,
@@ -1608,6 +1609,133 @@ export function parseSilverRedisEventBusConfig(argv: Record<string, any>): Event
   return {
     provider: 'redis-silver',
     ...redisConfig
+  }
+}
+
+export function parsePulsarEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const serviceUrlRaw = argv['pulsar-service-url']
+  const topicRaw = argv['pulsar-topic']
+
+  if (!serviceUrlRaw || !topicRaw) {
+    return undefined
+  }
+
+  const serviceUrl = typeof serviceUrlRaw === 'string' ? serviceUrlRaw.trim() : ''
+  if (serviceUrl === '') {
+    throw new Error('pulsar-service-url must be a non-empty string.')
+  }
+
+  const topic = typeof topicRaw === 'string' ? topicRaw.trim() : ''
+  if (topic === '') {
+    throw new Error('pulsar-topic must be a non-empty string.')
+  }
+
+  const pulsarConfig: PulsarEventBusConfig = {
+    serviceUrl,
+    topic
+  }
+
+  const tokenRaw = argv['pulsar-token']
+  if (tokenRaw !== undefined) {
+    if (typeof tokenRaw !== 'string') {
+      throw new Error('pulsar-token must be a string.')
+    }
+    const token = tokenRaw.trim()
+    if (token === '') {
+      throw new Error('pulsar-token must be a non-empty string.')
+    }
+    pulsarConfig.token = token
+  }
+
+  const topicRoutingRaw = argv['pulsar-topic-routing']
+  if (topicRoutingRaw !== undefined) {
+    if (typeof topicRoutingRaw !== 'string') {
+      throw new Error('pulsar-topic-routing must be a string of payloadCase:topic entries separated by commas.')
+    }
+
+    const map: Partial<Record<BronzePayloadCase, string>> = {}
+    const invalidPayloadCases = new Set<string>()
+
+    const pairs = topicRoutingRaw
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    for (const pair of pairs) {
+      const [payloadCase, mappedTopic] = pair.split(':').map((part) => part?.trim())
+      if (!payloadCase || !mappedTopic) {
+        throw new Error(`Invalid pulsar-topic-routing entry "${pair}". Expected format payloadCase:topicName.`)
+      }
+
+      const normalizedPayloadCase = normalizePayloadCase(payloadCase)
+
+      if (!normalizedPayloadCase) {
+        invalidPayloadCases.add(payloadCase)
+        continue
+      }
+
+      map[normalizedPayloadCase] = mappedTopic
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('pulsar-topic-routing must define at least one payloadCase mapping.')
+    }
+
+    if (invalidPayloadCases.size > 0) {
+      throw new Error(`Unknown payload case(s) for pulsar-topic-routing: ${Array.from(invalidPayloadCases).join(', ')}.`)
+    }
+
+    pulsarConfig.topicByPayloadCase = map
+  }
+
+  const includePayloadCases = parseIncludePayloadCases(argv['pulsar-include-payloads'], 'pulsar')
+  if (includePayloadCases) {
+    pulsarConfig.includePayloadCases = includePayloadCases
+  }
+
+  const staticProperties = parseStaticHeaders(argv['pulsar-static-properties'], 'pulsar')
+  if (staticProperties) {
+    pulsarConfig.staticProperties = staticProperties
+  }
+
+  const keyTemplateRaw = argv['pulsar-key-template']
+  if (keyTemplateRaw !== undefined) {
+    if (typeof keyTemplateRaw !== 'string') {
+      throw new Error('pulsar-key-template must be a non-empty string.')
+    }
+    const keyTemplate = keyTemplateRaw.trim()
+    if (keyTemplate === '') {
+      throw new Error('pulsar-key-template must be a non-empty string.')
+    }
+    compileKeyBuilder(keyTemplate)
+    pulsarConfig.keyTemplate = keyTemplate
+  }
+
+  const maxBatchSize = parsePositiveInteger(argv['pulsar-max-batch-size'], 'pulsar-max-batch-size')
+  if (maxBatchSize !== undefined) {
+    pulsarConfig.maxBatchSize = maxBatchSize
+  }
+
+  const maxBatchDelayMs = parsePositiveInteger(argv['pulsar-max-batch-delay-ms'], 'pulsar-max-batch-delay-ms')
+  if (maxBatchDelayMs !== undefined) {
+    pulsarConfig.maxBatchDelayMs = maxBatchDelayMs
+  }
+
+  const compressionTypeRaw = argv['pulsar-compression-type']
+  if (compressionTypeRaw !== undefined) {
+    if (typeof compressionTypeRaw !== 'string') {
+      throw new Error('pulsar-compression-type must be a string.')
+    }
+    const compressionType = compressionTypeRaw.trim().toUpperCase()
+    if (!['NONE', 'LZ4', 'ZLIB', 'ZSTD', 'SNAPPY'].includes(compressionType)) {
+      throw new Error('pulsar-compression-type must be one of NONE,LZ4,ZLIB,ZSTD,SNAPPY.')
+    }
+    pulsarConfig.compressionType = compressionType as PulsarEventBusConfig['compressionType']
+  }
+
+  return {
+    provider: 'pulsar',
+    ...pulsarConfig
   }
 }
 

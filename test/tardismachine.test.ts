@@ -4,11 +4,11 @@ import split2 from 'split2'
 import { EXCHANGES, FilterForExchange, getExchangeDetails } from 'tardis-dev'
 import { TardisMachine } from '../src'
 
-const PORT = 8072
-const HTTP_REPLAY_DATA_FEEDS_URL = `http://localhost:${PORT}/replay`
-const HTTP_REPLAY_NORMALIZED_URL = `http://localhost:${PORT}/replay-normalized`
-const WS_REPLAY_NORMALIZED_URL = `ws://localhost:${PORT + 1}/ws-replay-normalized`
-const WS_REPLAY_URL = `ws://localhost:${PORT + 1}/ws-replay`
+let PORT: number
+let HTTP_REPLAY_DATA_FEEDS_URL: string
+let HTTP_REPLAY_NORMALIZED_URL: string
+let WS_REPLAY_NORMALIZED_URL: string
+let WS_REPLAY_URL: string
 
 const serializeOptions = (options: any) => {
   return encodeURIComponent(JSON.stringify(options))
@@ -18,7 +18,11 @@ describe('tardis-machine', () => {
 
   beforeAll(async () => {
     tardisMachine = new TardisMachine({ cacheDir: './.cache' })
-    await tardisMachine.start(PORT) // start server
+    PORT = await tardisMachine.start(0) // start server on random port
+    HTTP_REPLAY_DATA_FEEDS_URL = `http://localhost:${PORT}/replay`
+    HTTP_REPLAY_NORMALIZED_URL = `http://localhost:${PORT}/replay-normalized`
+    WS_REPLAY_NORMALIZED_URL = `ws://localhost:${PORT + 1}/ws-replay-normalized`
+    WS_REPLAY_URL = `ws://localhost:${PORT + 1}/ws-replay`
   })
 
   afterAll(async () => {
@@ -43,7 +47,7 @@ describe('tardis-machine', () => {
 
         const messagesStream = response.body!.pipe(split2()) // split response body by new lines
 
-        const messages = []
+        const messages: string[] = []
         for await (let line of messagesStream) {
           const message = JSON.parse(line)
 
@@ -71,7 +75,7 @@ describe('tardis-machine', () => {
 
           const messagesStream = response.body!.pipe(split2()) // split response body by new lines
 
-          const messages = []
+          const messages: string[] = []
           for await (let line of messagesStream) {
             const message = JSON.parse(line)
 
@@ -109,7 +113,7 @@ describe('tardis-machine', () => {
 
         const messagesStream = response.body!.pipe(split2()) // split response body by new lines
 
-        const messages = []
+        const messages: string[] = []
         for await (let line of messagesStream) {
           const message = JSON.parse(line)
 

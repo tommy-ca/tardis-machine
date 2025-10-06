@@ -30,3 +30,9 @@
 - [x] Add integration test verifying Silver Kafka publish using Testcontainers.
 - [x] Add CLI support for Silver Kafka event bus options.
 - [x] Add unit tests for Silver Kafka config parsing.
+- [x] Implement Redis publishing for normalized events.
+- [x] Wire Redis into TardisMachine event bus creation.
+- [x] Add integration test verifying Redis publish using Testcontainers.
+- [x] Add regression test ensuring Redis publishing can be toggled off.
+- [x] Add CLI support for Redis event bus options.
+- [x] Add unit tests for Redis config parsing.

@@ -173,6 +173,38 @@ export type NatsEventBusConfig = {
   pass?: string
 }
 
+export type SilverKafkaEventBusConfig = {
+  brokers: string[]
+  topic: string
+  /** Optional map for routing record types to dedicated topics */
+  topicByRecordType?: Partial<Record<SilverRecordType, string>>
+  /** Optional allow-list of record types to publish */
+  includeRecordTypes?: SilverRecordType[]
+  clientId?: string
+  ssl?: boolean
+  sasl?: {
+    mechanism: 'plain' | 'scram-sha-256' | 'scram-sha-512'
+    username: string
+    password: string
+  }
+  /** Prefix applied when emitting normalized meta as Kafka headers */
+  metaHeadersPrefix?: string
+  /** Static Kafka headers applied to every message */
+  staticHeaders?: Record<string, string>
+  /** Maximum number of Silver events to send per Kafka batch */
+  maxBatchSize?: number
+  /** Maximum milliseconds events can wait before forced flush */
+  maxBatchDelayMs?: number
+  /** Compression strategy applied to Kafka batches */
+  compression?: 'none' | 'gzip' | 'snappy' | 'lz4' | 'zstd'
+  /** Template for constructing Kafka record keys */
+  keyTemplate?: string
+  /** Ack level passed to Kafka producer sends */
+  acks?: -1 | 0 | 1
+  /** Enable Kafka idempotent producer semantics */
+  idempotent?: boolean
+}
+
 export type EventBusConfig =
   | ({
       provider: 'kafka'
@@ -186,3 +218,6 @@ export type EventBusConfig =
   | ({
       provider: 'nats'
     } & NatsEventBusConfig)
+  | ({
+      provider: 'kafka-silver'
+    } & SilverKafkaEventBusConfig)

@@ -1,9 +1,14 @@
 import type { KeyBuilder } from './bronzeMapper'
+import type { SilverKeyBuilder } from './silverMapper'
 import { Origin } from '../generated/lakehouse/bronze/v1/normalized_event_pb'
 
 type Accessor = (event: Parameters<KeyBuilder>[0], payloadCase: Parameters<KeyBuilder>[1], dataType: string) => string
 
 type Segment = string | Accessor
+
+type SilverAccessor = (record: Parameters<SilverKeyBuilder>[0], recordType: Parameters<SilverKeyBuilder>[1], dataType: string) => string
+
+type SilverSegment = string | SilverAccessor
 
 const PLACEHOLDER_PATTERN = /{{\s*([a-zA-Z0-9_.]+)\s*}}/g
 const META_PREFIX = 'meta.'
@@ -16,6 +21,14 @@ const BASE_ACCESSORS: Record<string, Accessor> = {
   dataType: (_event, _payloadCase, dataType) => dataType ?? '',
   source: (event) => event.source ?? '',
   origin: (event) => originToString(event.origin)
+}
+
+const BASE_SILVER_ACCESSORS: Record<string, SilverAccessor> = {
+  exchange: (record) => record.exchange ?? '',
+  symbol: (record) => record.symbol ?? '',
+  recordType: (_record, recordType) => recordType,
+  dataType: (_record, _recordType, dataType) => dataType ?? '',
+  origin: (record) => originToString(record.origin)
 }
 
 export function compileKeyBuilder(template: string): KeyBuilder {
@@ -33,6 +46,21 @@ export function compileKeyBuilder(template: string): KeyBuilder {
     segments.map((segment) => (typeof segment === 'string' ? segment : segment(event, payloadCase, dataType))).join('')
 }
 
+export function compileSilverKeyBuilder(template: string): SilverKeyBuilder {
+  if (typeof template !== 'string') {
+    throw new Error('kafka-silver-key-template must be a non-empty string.')
+  }
+
+  if (template.trim() === '') {
+    throw new Error('kafka-silver-key-template must be a non-empty string.')
+  }
+
+  const segments = parseSilverTemplate(template)
+
+  return (record, recordType, dataType) =>
+    segments.map((segment) => (typeof segment === 'string' ? segment : segment(record, recordType, dataType))).join('')
+}
+
 function parseTemplate(template: string): Segment[] {
   const segments: Segment[] = []
   let lastIndex = 0
@@ -47,6 +75,35 @@ function parseTemplate(template: string): Segment[] {
 
     const token = match[1].trim()
     segments.push(resolveAccessor(token))
+
+    lastIndex = match.index + match[0].length
+  }
+
+  if (lastIndex < template.length) {
+    segments.push(template.slice(lastIndex))
+  }
+
+  if (segments.length === 0) {
+    return ['']
+  }
+
+  return segments
+}
+
+function parseSilverTemplate(template: string): SilverSegment[] {
+  const segments: SilverSegment[] = []
+  let lastIndex = 0
+
+  PLACEHOLDER_PATTERN.lastIndex = 0
+
+  let match: RegExpExecArray | null
+  while ((match = PLACEHOLDER_PATTERN.exec(template)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push(template.slice(lastIndex, match.index))
+    }
+
+    const token = match[1].trim()
+    segments.push(resolveSilverAccessor(token))
 
     lastIndex = match.index + match[0].length
   }
@@ -81,6 +138,19 @@ function resolveAccessor(token: string): Accessor {
   }
 
   throw new Error(`Unknown kafka-key-template placeholder "{{${token}}}".`)
+}
+
+function resolveSilverAccessor(token: string): SilverAccessor {
+  if (!token) {
+    throw new Error('kafka-silver-key-template placeholders cannot be empty.')
+  }
+
+  const baseAccessor = BASE_SILVER_ACCESSORS[token]
+  if (baseAccessor) {
+    return baseAccessor
+  }
+
+  throw new Error(`Unknown kafka-silver-key-template placeholder "{{${token}}}".`)
 }
 
 function originToString(origin: Origin | undefined): string {

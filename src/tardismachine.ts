@@ -5,8 +5,16 @@ import { App, DISABLED, TemplatedApp } from 'uWebSockets.js'
 import { replayHttp, createReplayNormalizedHttpHandler, healthCheck } from './http'
 import { createReplayNormalizedWSHandler, replayWS, createStreamNormalizedWSHandler } from './ws'
 import { debug } from './debug'
-import { KafkaEventBus, RabbitMQEventBus, KinesisEventBus, NatsEventBus } from './eventbus'
-import type { EventBusConfig, NormalizedEventSink, NormalizedMessage, PublishFn, PublishInjection, PublishMeta } from './eventbus/types'
+import { KafkaEventBus, SilverKafkaEventBus, RabbitMQEventBus, KinesisEventBus, NatsEventBus } from './eventbus'
+import type {
+  EventBusConfig,
+  NormalizedEventSink,
+  SilverEventSink,
+  NormalizedMessage,
+  PublishFn,
+  PublishInjection,
+  PublishMeta
+} from './eventbus/types'
 
 const pkg = require('../package.json')
 
@@ -15,6 +23,7 @@ export class TardisMachine {
   private readonly _wsServer: TemplatedApp
   private _eventLoopTimerId: NodeJS.Timeout | undefined = undefined
   private readonly _eventBus?: NormalizedEventSink
+  private readonly _silverEventBus?: SilverEventSink
   private readonly _publishNormalized?: PublishFn
   private readonly _sourceTag = `tardis-machine/${pkg.version}`
 
@@ -29,8 +38,13 @@ export class TardisMachine {
 
     if (options.eventBus) {
       this._eventBus = this._createEventBus(options.eventBus)
-      this._publishNormalized = this._createPublishFunction(this._eventBus)
     }
+
+    if (options.silverEventBus) {
+      this._silverEventBus = this._createSilverEventBus(options.silverEventBus)
+    }
+
+    this._publishNormalized = this._createPublishFunction()
 
     this._httpServer = http.createServer((req, res) => {
       router.lookup(req, res)
@@ -96,6 +110,10 @@ export class TardisMachine {
       await this._eventBus.start()
     }
 
+    if (this._silverEventBus) {
+      await this._silverEventBus.start()
+    }
+
     let start = process.hrtime()
     const interval = 500
 
@@ -149,6 +167,10 @@ export class TardisMachine {
     if (this._eventBus) {
       await this._eventBus.close()
     }
+
+    if (this._silverEventBus) {
+      await this._silverEventBus.close()
+    }
   }
 
   private _createEventBus(config: EventBusConfig): NormalizedEventSink {
@@ -168,7 +190,19 @@ export class TardisMachine {
     throw new Error(`Unsupported event bus provider: ${(config as any).provider}`)
   }
 
-  private _createPublishFunction(bus: NormalizedEventSink): PublishFn {
+  private _createSilverEventBus(config: EventBusConfig): SilverEventSink {
+    if (config.provider === 'kafka-silver') {
+      return new SilverKafkaEventBus(config)
+    }
+
+    throw new Error(`Unsupported silver event bus provider: ${(config as any).provider}`)
+  }
+
+  private _createPublishFunction(): PublishFn | undefined {
+    if (!this._eventBus && !this._silverEventBus) {
+      return undefined
+    }
+
     return (message: NormalizedMessage, meta: PublishInjection) => {
       const publishMeta: PublishMeta = {
         source: this._sourceTag,
@@ -182,9 +216,17 @@ export class TardisMachine {
         }
       }
 
-      bus.publish(message, publishMeta).catch((error) => {
-        debug('Event bus publish error: %o', error)
-      })
+      if (this._eventBus) {
+        this._eventBus.publish(message, publishMeta).catch((error) => {
+          debug('Bronze event bus publish error: %o', error)
+        })
+      }
+
+      if (this._silverEventBus) {
+        this._silverEventBus.publish(message, publishMeta).catch((error) => {
+          debug('Silver event bus publish error: %o', error)
+        })
+      }
     }
   }
 }
@@ -194,4 +236,5 @@ type Options = {
   cacheDir: string
   clearCache?: boolean
   eventBus?: EventBusConfig
+  silverEventBus?: EventBusConfig
 }

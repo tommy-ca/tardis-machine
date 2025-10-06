@@ -11,6 +11,7 @@ export { SilverNatsEventBus } from './silverNats'
 export { RedisEventBus } from './redis'
 export { SilverRedisEventBus } from './silverRedis'
 export { SQSEventBus } from './sqs'
+export { PulsarEventBus } from './pulsar'
 export {
   parseKafkaEventBusConfig,
   parseSilverKafkaEventBusConfig,
@@ -36,6 +37,7 @@ export type {
   NatsEventBusConfig,
   SilverNatsEventBusConfig,
   SQSEventBusConfig,
+  PulsarEventBusConfig,
   PublishMeta,
   NormalizedEventSink,
   SilverEventSink

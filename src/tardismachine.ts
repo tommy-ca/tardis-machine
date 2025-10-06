@@ -13,6 +13,7 @@ import {
   NatsEventBus,
   RedisEventBus,
   SQSEventBus,
+  PulsarEventBus,
   SilverRabbitMQEventBus,
   SilverKinesisEventBus,
   SilverNatsEventBus,
@@ -208,6 +209,9 @@ export class TardisMachine {
     }
     if (config.provider === 'sqs') {
       return new SQSEventBus(config)
+    }
+    if (config.provider === 'pulsar') {
+      return new PulsarEventBus(config)
     }
 
     throw new Error(`Unsupported event bus provider: ${(config as any).provider}`)

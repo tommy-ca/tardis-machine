@@ -1,33 +1,33 @@
 import { Kafka, logLevel, Producer, SASLOptions, CompressionTypes } from 'kafkajs'
 import { BronzeNormalizedEventEncoder } from './bronzeMapper'
 import { compileKeyBuilder } from './keyTemplate'
-import type { BronzeEvent, BronzePayloadCase, KafkaEventBusConfig, NormalizedEventSink, NormalizedMessage, PublishMeta } from './types'
-import { wait } from '../helpers'
+import type { BronzeEvent, BronzePayloadCase, KafkaEventBusConfig, NormalizedMessage, PublishMeta } from './types'
+import { BaseBronzeEventBusPublisher, CommonBronzeConfig } from './baseBronzePublisher'
 import { debug } from '../debug'
 import * as fs from 'fs'
 import * as path from 'path'
 
 const log = debug.extend('eventbus')
 
-const DEFAULT_BATCH_SIZE = 256
-const DEFAULT_BATCH_DELAY_MS = 25
-const MAX_RETRY_ATTEMPTS = 3
-
-export class KafkaEventBus implements NormalizedEventSink {
+export class KafkaEventBus extends BaseBronzeEventBusPublisher {
   private readonly encoder: BronzeNormalizedEventEncoder
   private readonly kafka: Kafka
   private readonly producer: Producer
   private schemaId?: number
-  private readonly buffer: BronzeEvent[] = []
-  private flushTimer?: NodeJS.Timeout
-  private sendingPromise: Promise<void> = Promise.resolve()
-  private closed = false
   private readonly compression?: CompressionTypes
   private readonly staticHeaders?: Array<[string, Buffer]>
-  private readonly allowedPayloadCases?: Set<BronzePayloadCase>
   private readonly acks?: -1 | 0 | 1
+  private readonly topic: string
+  private readonly topicByPayloadCase?: Record<string, string>
+  private readonly metaHeadersPrefix?: string
 
   constructor(private readonly config: KafkaEventBusConfig) {
+    const commonConfig: CommonBronzeConfig = {
+      maxBatchSize: config.maxBatchSize,
+      maxBatchDelayMs: config.maxBatchDelayMs,
+      includePayloadCases: config.includePayloadCases
+    }
+    super(commonConfig)
     const keyBuilder = config.keyTemplate ? compileKeyBuilder(config.keyTemplate) : undefined
     this.encoder = new BronzeNormalizedEventEncoder(keyBuilder)
     this.kafka = new Kafka({
@@ -46,9 +46,9 @@ export class KafkaEventBus implements NormalizedEventSink {
       this.staticHeaders = Object.entries(config.staticHeaders).map(([key, value]) => [key, Buffer.from(value)])
     }
     this.acks = config.acks
-    if (config.includePayloadCases) {
-      this.allowedPayloadCases = new Set(config.includePayloadCases)
-    }
+    this.topic = config.topic
+    this.topicByPayloadCase = config.topicByPayloadCase
+    this.metaHeadersPrefix = config.metaHeadersPrefix
   }
 
   async start() {
@@ -82,137 +82,27 @@ export class KafkaEventBus implements NormalizedEventSink {
     }
   }
 
-  async publish(message: NormalizedMessage, meta: PublishMeta): Promise<void> {
-    if (this.closed) {
-      return
-    }
-
-    const events = this.filterEvents(this.encoder.encode(message, meta))
-    if (events.length === 0) {
-      return
-    }
-
-    this.buffer.push(...events)
-
-    if (this.buffer.length >= (this.config.maxBatchSize ?? DEFAULT_BATCH_SIZE)) {
-      this.flushImmediately()
-    } else {
-      this.scheduleFlush()
-    }
+  protected encodeEvents(message: NormalizedMessage, meta: PublishMeta): BronzeEvent[] {
+    return this.encoder.encode(message, meta)
   }
 
-  private scheduleFlush() {
-    if (this.flushTimer) {
-      return
-    }
-
-    const delay = this.config.maxBatchDelayMs ?? DEFAULT_BATCH_DELAY_MS
-    this.flushTimer = setTimeout(() => {
-      this.flushTimer = undefined
-      this.flushImmediately()
-    }, delay)
-  }
-
-  private flushImmediately() {
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer)
-      this.flushTimer = undefined
-    }
-
-    if (this.buffer.length === 0) {
-      return
-    }
-
-    const batchSize = this.config.maxBatchSize ?? DEFAULT_BATCH_SIZE
-    const batches: BronzeEvent[][] = []
-
-    while (this.buffer.length > 0) {
-      const chunk = this.buffer.splice(0, batchSize)
-      if (chunk.length > 0) {
-        batches.push(chunk)
-      }
-    }
-
-    this.sendingPromise = this.sendingPromise
-      .then(async () => {
-        for (let index = 0; index < batches.length; index++) {
-          const batch = batches[index]
-          if (batch.length === 0) {
-            continue
-          }
-
-          try {
-            await this.sendBatch(batch)
-          } catch (error) {
-            for (let remainingIndex = batches.length - 1; remainingIndex > index; remainingIndex--) {
-              const remainingBatch = batches[remainingIndex]
-              if (remainingBatch.length > 0) {
-                this.buffer.unshift(...remainingBatch)
-              }
-            }
-            throw error
-          }
-        }
+  protected async sendBatch(batch: BronzeEvent[]): Promise<void> {
+    const groups = this.groupByTopic(batch)
+    for (const [topic, events] of groups) {
+      await this.producer.send({
+        topic,
+        messages: events.map((event) => ({
+          key: event.key,
+          value: this.encodeValue(event.binary),
+          headers: this.buildHeaders(event)
+        })),
+        compression: this.compression,
+        acks: this.acks
       })
-      .catch((error) => {
-        log('Failed to send Kafka batch: %o', error)
-        // try again after short delay
-        queueMicrotask(() => this.scheduleFlush())
-      })
-  }
-
-  private async sendBatch(batch: BronzeEvent[]): Promise<void> {
-    let attempt = 0
-    while (attempt < MAX_RETRY_ATTEMPTS) {
-      attempt++
-      try {
-        const groups = this.groupByTopic(batch)
-        for (const [topic, events] of groups) {
-          await this.producer.send({
-            topic,
-            messages: events.map((event) => ({
-              key: event.key,
-              value: this.encodeValue(event.binary),
-              headers: this.buildHeaders(event)
-            })),
-            compression: this.compression,
-            acks: this.acks
-          })
-        }
-        return
-      } catch (error) {
-        log('Kafka send attempt %d failed: %o', attempt, error)
-        if (attempt >= MAX_RETRY_ATTEMPTS) {
-          // requeue events for future flush to preserve at-least-once semantics
-          this.buffer.unshift(...batch)
-          throw error
-        }
-        const backoffMs = Math.min(200 * attempt, 1000)
-        await wait(backoffMs)
-      }
     }
   }
 
-  async flush(): Promise<void> {
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer)
-      this.flushTimer = undefined
-    }
-
-    if (this.buffer.length > 0) {
-      this.flushImmediately()
-    }
-
-    await this.sendingPromise
-  }
-
-  async close(): Promise<void> {
-    if (this.closed) {
-      return
-    }
-
-    this.closed = true
-    await this.flush()
+  protected async doClose(): Promise<void> {
     await this.producer.disconnect()
   }
 
@@ -231,16 +121,7 @@ export class KafkaEventBus implements NormalizedEventSink {
   }
 
   private resolveTopic(payloadCase: BronzePayloadCase): string {
-    const { topicByPayloadCase, topic } = this.config
-    return topicByPayloadCase?.[payloadCase] ?? topic
-  }
-
-  private filterEvents(events: BronzeEvent[]): BronzeEvent[] {
-    if (!this.allowedPayloadCases) {
-      return events
-    }
-
-    return events.filter((event) => this.allowedPayloadCases!.has(event.payloadCase))
+    return this.topicByPayloadCase?.[payloadCase] ?? this.topic
   }
 
   private encodeValue(binary: Uint8Array): Buffer {
@@ -266,7 +147,7 @@ export class KafkaEventBus implements NormalizedEventSink {
       }
     }
 
-    const prefix = this.config.metaHeadersPrefix
+    const prefix = this.metaHeadersPrefix
     if (!prefix) {
       return headers
     }

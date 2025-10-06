@@ -17,6 +17,7 @@ const startTimeoutMs = 180000
 
 let container: StartedKafkaContainer
 let brokers: string[]
+let schemaRegistryUrl: string
 let kafka: Kafka
 let shouldSkip = false
 
@@ -24,6 +25,7 @@ beforeAll(async () => {
   try {
     container = await startKafkaContainer()
     brokers = [`${container.getHost()}:${container.getMappedPort(9093)}`]
+    schemaRegistryUrl = `http://${container.getHost()}:${container.getMappedPort(8081)}`
     kafka = new Kafka({ clientId: 'bronze-e2e-admin', brokers })
 
     const admin = kafka.admin()
@@ -106,6 +108,74 @@ test('publishes replay-normalized events to Kafka with Buf payloads', async () =
   expect(sample.payload.case).not.toBe('error')
 })
 
+test('publishes replay-normalized events to Kafka with schema registry', async () => {
+  if (shouldSkip) {
+    return
+  }
+
+  const machine = new TardisMachine({
+    cacheDir,
+    eventBus: {
+      provider: 'kafka',
+      brokers,
+      topic: topic + '-schema',
+      clientId: 'bronze-e2e-producer-schema',
+      maxBatchSize: 32,
+      maxBatchDelayMs: 25,
+      schemaRegistry: {
+        url: schemaRegistryUrl
+      }
+    }
+  })
+
+  await machine.start(PORT + 1)
+
+  const admin = kafka.admin()
+  await admin.connect()
+  await admin.createTopics({ topics: [{ topic: topic + '-schema', numPartitions: 1 }] })
+  await admin.disconnect()
+
+  const consumer = kafka.consumer({ groupId: `bronze-e2e-consumer-schema-${Date.now()}` })
+  await consumer.connect()
+  await consumer.subscribe({ topic: topic + '-schema', fromBeginning: true })
+
+  const eventsPromise = collectEvents(consumer, 5, 120000)
+  let events: NormalizedEvent[] = []
+
+  try {
+    const options = {
+      exchange: 'bitmex',
+      symbols: ['ETHUSD'],
+      from: '2019-06-01',
+      to: '2019-06-01 00:01',
+      dataTypes: ['trade']
+    }
+
+    const params = encodeOptions(options)
+    const response = await fetch(`${HTTP_REPLAY_NORMALIZED_URL.replace(PORT.toString(), (PORT + 1).toString())}?options=${params}`)
+    expect(response.status).toBe(200)
+    await response.text()
+
+    events = await eventsPromise
+  } finally {
+    await eventsPromise.catch(() => undefined)
+    await machine.stop().catch(() => undefined)
+    await consumer.disconnect().catch(() => undefined)
+    await rm(cacheDir, { recursive: true, force: true }).catch(() => undefined)
+  }
+
+  expect(events.length).toBeGreaterThanOrEqual(1)
+  const replayEvents = events.filter((event) => event.origin === Origin.REPLAY)
+  expect(replayEvents.length).toBeGreaterThan(0)
+
+  const sample = replayEvents[0]
+  expect(sample.meta?.transport).toBe('http')
+  expect(sample.meta?.route).toBe('/replay-normalized')
+  expect(sample.meta?.request_id).toBeDefined()
+  expect(sample.meta?.app_version).toBeDefined()
+  expect(sample.payload.case).not.toBe('error')
+})
+
 function encodeOptions(options: any): string {
   return encodeURIComponent(JSON.stringify(options))
 }
@@ -130,7 +200,9 @@ async function collectEvents(consumer: ReturnType<Kafka['consumer']>, minCount: 
             return
           }
           try {
-            events.push(fromBinary(NormalizedEventSchema, message.value))
+            const buffer = Buffer.from(message.value)
+            const binary = buffer[0] === 0 ? buffer.subarray(5) : buffer
+            events.push(fromBinary(NormalizedEventSchema, binary))
           } catch (error) {
             completed = true
             clearTimeout(timer)
@@ -159,7 +231,7 @@ async function collectEvents(consumer: ReturnType<Kafka['consumer']>, minCount: 
 }
 
 async function startKafkaContainer() {
-  const container = new KafkaContainer(kafkaImage).withStartupTimeout(startTimeoutMs)
+  const container = new KafkaContainer(kafkaImage).withExposedPorts(8081).withStartupTimeout(startTimeoutMs)
   return container.start()
 }
 

@@ -24,6 +24,7 @@ beforeAll(async () => {
     container = await startNatsContainer()
     natsUrl = `${container.getHost()}:${container.getMappedPort(4222)}`
     // Wait for NATS to be ready
+    await new Promise((resolve) => setTimeout(resolve, 2000))
     const testConn = await connect({ servers: [natsUrl] })
     await testConn.close()
   } catch (error) {

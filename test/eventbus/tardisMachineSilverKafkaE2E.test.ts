@@ -17,6 +17,7 @@ const startTimeoutMs = 180000
 
 let container: StartedKafkaContainer
 let brokers: string[]
+let schemaRegistryUrl: string
 let kafka: Kafka
 let shouldSkip = false
 
@@ -24,6 +25,7 @@ beforeAll(async () => {
   try {
     container = await startKafkaContainer()
     brokers = [`${container.getHost()}:${container.getMappedPort(9093)}`]
+    schemaRegistryUrl = `http://${container.getHost()}:${container.getMappedPort(8081)}`
     kafka = new Kafka({ clientId: 'silver-e2e-admin', brokers })
 
     const admin = kafka.admin()
@@ -113,7 +115,9 @@ test('publishes replay-normalized events to Silver Kafka with Buf payloads', asy
     // Verify at least one trade record
     const tradeMessages = messages.filter((m) => {
       try {
-        const decoded = fromBinary(TradeRecordSchema, m.value!)
+        const buffer = Buffer.from(m.value!)
+        const binary = buffer[0] === 0 ? buffer.subarray(5) : buffer
+        const decoded = fromBinary(TradeRecordSchema, binary)
         return decoded.tradeId !== ''
       } catch {
         return false
@@ -123,7 +127,113 @@ test('publishes replay-normalized events to Silver Kafka with Buf payloads', asy
     expect(tradeMessages.length).toBeGreaterThan(0)
 
     const sampleMessage = tradeMessages[0]
-    const decoded = fromBinary(TradeRecordSchema, sampleMessage.value!)
+    const buffer = Buffer.from(sampleMessage.value!)
+    const binary = buffer[0] === 0 ? buffer.subarray(5) : buffer
+    const decoded = fromBinary(TradeRecordSchema, binary)
+    expect(decoded.exchange).toBe('binance')
+    expect(decoded.symbol).toBe('btcusdt')
+    expect(decoded.origin).toBe(Origin.REPLAY)
+    expect(typeof decoded.priceE8).toBe('bigint')
+    expect(typeof decoded.qtyE8).toBe('bigint')
+
+    // Verify headers
+    const headers = sampleMessage.headers as any
+    expect(headers.recordType?.toString()).toBe('trade')
+    expect(headers.dataType?.toString()).toBe('trade')
+  } finally {
+    await server.stop()
+  }
+})
+
+test('publishes replay-normalized events to Silver Kafka with schema registry', async () => {
+  if (shouldSkip) {
+    return
+  }
+
+  const server = new TardisMachine({
+    apiKey: process.env.TARDIS_API_KEY,
+    cacheDir,
+    eventBus: undefined, // Bronze disabled
+    silverEventBus: {
+      provider: 'kafka-silver',
+      brokers,
+      topic: topic + '-schema',
+      schemaRegistry: {
+        url: schemaRegistryUrl
+      }
+    }
+  })
+
+  await server.start(PORT + 1)
+
+  const admin = kafka.admin()
+  await admin.connect()
+  await admin.createTopics({ topics: [{ topic: topic + '-schema', numPartitions: 1 }] })
+  await admin.disconnect()
+
+  try {
+    const options = {
+      exchange: 'binance',
+      symbols: ['btcusdt'],
+      dataTypes: ['trade'],
+      from: '2020-01-01',
+      to: '2020-01-01T00:05:00.000Z'
+    }
+    const params = encodeOptions(options)
+    const response = await fetch(`${HTTP_REPLAY_NORMALIZED_URL.replace(PORT.toString(), (PORT + 1).toString())}?options=${params}`)
+
+    expect(response.status).toBe(200)
+
+    // Wait for publishing to complete
+    await new Promise((resolve) => setTimeout(resolve, 5000))
+
+    const consumer = kafka.consumer({ groupId: 'silver-e2e-consumer-schema' })
+    await consumer.connect()
+    await consumer.subscribe({ topic: topic + '-schema', fromBeginning: true })
+
+    const messages: any[] = []
+    let messageCount = 0
+    const maxMessages = 10
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        consumer.disconnect().then(() => reject(new Error('Timeout waiting for messages')))
+      }, 30000)
+
+      consumer.run({
+        eachMessage: async ({ message: kafkaMessage }) => {
+          messages.push(kafkaMessage)
+          messageCount++
+
+          if (messageCount >= maxMessages) {
+            clearTimeout(timeout)
+            await consumer.disconnect()
+            resolve()
+          }
+        }
+      })
+    })
+
+    expect(messages.length).toBeGreaterThan(0)
+
+    // Verify at least one trade record
+    const tradeMessages = messages.filter((m) => {
+      try {
+        const buffer = Buffer.from(m.value!)
+        const binary = buffer[0] === 0 ? buffer.subarray(5) : buffer
+        const decoded = fromBinary(TradeRecordSchema, binary)
+        return decoded.tradeId !== ''
+      } catch {
+        return false
+      }
+    })
+
+    expect(tradeMessages.length).toBeGreaterThan(0)
+
+    const sampleMessage = tradeMessages[0]
+    const buffer = Buffer.from(sampleMessage.value!)
+    const binary = buffer[0] === 0 ? buffer.subarray(5) : buffer
+    const decoded = fromBinary(TradeRecordSchema, binary)
     expect(decoded.exchange).toBe('binance')
     expect(decoded.symbol).toBe('btcusdt')
     expect(decoded.origin).toBe(Origin.REPLAY)
@@ -140,8 +250,8 @@ test('publishes replay-normalized events to Silver Kafka with Buf payloads', asy
 })
 
 async function startKafkaContainer(): Promise<StartedKafkaContainer> {
-  const container = await new KafkaContainer(kafkaImage).withExposedPorts(9093).start()
-  return container
+  const container = new KafkaContainer(kafkaImage).withExposedPorts(8081).withStartupTimeout(startTimeoutMs)
+  return container.start()
 }
 
 async function waitForKafkaController(admin: any): Promise<void> {

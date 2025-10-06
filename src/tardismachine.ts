@@ -22,7 +22,8 @@ import {
   SilverRabbitMQEventBus,
   SilverKinesisEventBus,
   SilverNatsEventBus,
-  SilverRedisEventBus
+  SilverRedisEventBus,
+  SilverAzureEventBus
 } from './eventbus'
 import type {
   EventBusConfig,
@@ -254,6 +255,9 @@ export class TardisMachine {
     }
     if (config.provider === 'pubsub-silver') {
       return new SilverPubSubEventBus(config)
+    }
+    if (config.provider === 'azure-event-hubs-silver') {
+      return new SilverAzureEventBus(config)
     }
 
     throw new Error(`Unsupported silver event bus provider: ${(config as any).provider}`)

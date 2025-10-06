@@ -111,6 +111,7 @@ The Silver layer provides analytics-ready data with fixed scales and strong typi
 - Dial delivery guarantees with `--kafka-silver-acks` (`all`, `leader`, `none`) and enable idempotent producers via `--kafka-silver-idempotent`.
 - Tune publishing throughput via `--kafka-silver-max-batch-size` (events per batch) and `--kafka-silver-max-batch-delay-ms` (max milliseconds to wait before flushing).
 - Select compression with `--kafka-silver-compression` (`none`, `gzip`, `snappy`, `lz4`, `zstd`).
+- Use Schema Registry for schema evolution by supplying `--kafka-silver-schema-registry-url` and optional auth flags (`--kafka-silver-schema-registry-auth-username`, `--kafka-silver-schema-registry-auth-password`).
 - Attach deployment metadata with `--kafka-silver-static-headers`, supplying comma separated `key:value` pairs that become constant Kafka headers on every record.
 
 #### Silver RabbitMQ Publishing

@@ -199,6 +199,18 @@ const argv = yargs
     type: 'string',
     describe: 'Kafka SASL password for silver'
   })
+  .option('kafka-silver-schema-registry-url', {
+    type: 'string',
+    describe: 'Schema Registry URL for silver Kafka publishing'
+  })
+  .option('kafka-silver-schema-registry-auth-username', {
+    type: 'string',
+    describe: 'Schema Registry auth username for silver'
+  })
+  .option('kafka-silver-schema-registry-auth-password', {
+    type: 'string',
+    describe: 'Schema Registry auth password for silver'
+  })
 
   .option('rabbitmq-silver-url', {
     type: 'string',

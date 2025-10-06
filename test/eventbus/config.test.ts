@@ -12,7 +12,8 @@ import {
   parseSilverKafkaEventBusConfig,
   parseSilverAzureEventBusConfig,
   parseSilverPulsarEventBusConfig,
-  parseSilverSQSEventBusConfig
+  parseSilverSQSEventBusConfig,
+  parseConsoleEventBusConfig
 } from '../../src/eventbus/config'
 
 describe('parseKafkaEventBusConfig', () => {
@@ -2037,5 +2038,83 @@ describe('parseSilverPubSubEventBusConfig', () => {
         'pubsub-silver-topic': '   '
       })
     ).toThrow('pubsub-silver-topic must be a non-empty string.')
+  })
+})
+
+describe('parseConsoleEventBusConfig', () => {
+  test('returns undefined when console-enable is not set', () => {
+    expect(parseConsoleEventBusConfig({})).toBeUndefined()
+    expect(parseConsoleEventBusConfig({ 'console-prefix': '[DEBUG]' })).toBeUndefined()
+  })
+
+  test('builds console config with options', () => {
+    const config = parseConsoleEventBusConfig({
+      'console-enable': true,
+      'console-prefix': '[EVENTBUS]',
+      'console-include-payloads': 'trade,bookChange',
+      'console-key-template': '{{exchange}}/{{payloadCase}}/{{symbol}}'
+    })
+
+    expect(config).toEqual({
+      provider: 'console',
+      prefix: '[EVENTBUS]',
+      includePayloadCases: ['trade', 'bookChange'],
+      keyTemplate: '{{exchange}}/{{payloadCase}}/{{symbol}}'
+    })
+  })
+
+  test('builds minimal console config', () => {
+    const config = parseConsoleEventBusConfig({
+      'console-enable': true
+    })
+
+    expect(config).toEqual({
+      provider: 'console'
+    })
+  })
+
+  test('parses allowed payload cases list', () => {
+    const config = parseConsoleEventBusConfig({
+      'console-enable': true,
+      'console-include-payloads': 'trade, bookChange, trade'
+    })
+
+    expect(config).toMatchObject({ includePayloadCases: ['trade', 'bookChange'] })
+  })
+
+  test('accepts snake_case payload names in include list', () => {
+    const config = parseConsoleEventBusConfig({
+      'console-enable': true,
+      'console-include-payloads': 'book_change'
+    })
+
+    expect(config).toMatchObject({ includePayloadCases: ['bookChange'] })
+  })
+
+  test('rejects unknown payload case names', () => {
+    expect(() =>
+      parseConsoleEventBusConfig({
+        'console-enable': true,
+        'console-include-payloads': 'trade, candles'
+      })
+    ).toThrow('Unknown payload case(s) for console-include-payloads: candles.')
+  })
+
+  test('rejects blank console prefix strings', () => {
+    expect(() =>
+      parseConsoleEventBusConfig({
+        'console-enable': true,
+        'console-prefix': '   '
+      })
+    ).toThrow('console-prefix must be a non-empty string.')
+  })
+
+  test('rejects blank console key template strings', () => {
+    expect(() =>
+      parseConsoleEventBusConfig({
+        'console-enable': true,
+        'console-key-template': '   '
+      })
+    ).toThrow('console-key-template must be a non-empty string.')
   })
 })

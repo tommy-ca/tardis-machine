@@ -25,3 +25,8 @@
 - [x] Wire RabbitMQ into TardisMachine event bus creation.
 - [x] Add integration test verifying RabbitMQ publish using Testcontainers.
 - [x] Add regression test ensuring RabbitMQ publishing can be toggled off.
+- [x] Implement Silver Kafka publishing for normalized events.
+- [x] Wire Silver Kafka into TardisMachine event bus creation.
+- [x] Add integration test verifying Silver Kafka publish using Testcontainers.
+- [x] Add CLI support for Silver Kafka event bus options.
+- [x] Add unit tests for Silver Kafka config parsing.

@@ -23,6 +23,9 @@ beforeAll(async () => {
   try {
     container = await startRabbitMQContainer()
     amqpUrl = container.getAmqpUrl()
+    // Wait for RabbitMQ to be ready
+    const testConn = await amqp.connect(amqpUrl)
+    await testConn.close()
   } catch (error) {
     shouldSkip = true
     console.warn('Skipping tardis-machine RabbitMQ E2E test:', error)

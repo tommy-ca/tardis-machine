@@ -259,6 +259,23 @@ export type AzureEventHubsEventBusConfig = {
   partitionKeyTemplate?: string
 }
 
+export type PubSubEventBusConfig = {
+  projectId: string
+  topic: string
+  /** Optional map for routing payload cases to dedicated topics */
+  topicByPayloadCase?: Partial<Record<BronzePayloadCase, string>>
+  /** Optional allow-list of payload cases to publish */
+  includePayloadCases?: BronzePayloadCase[]
+  /** Static attributes applied to every message */
+  staticAttributes?: Record<string, string>
+  /** Maximum number of Bronze events to send per batch */
+  maxBatchSize?: number
+  /** Maximum milliseconds events can wait before forced flush */
+  maxBatchDelayMs?: number
+  /** Template for constructing ordering keys */
+  orderingKeyTemplate?: string
+}
+
 export type SilverKafkaEventBusConfig = {
   brokers: string[]
   topic: string
@@ -429,6 +446,23 @@ export type SilverAzureEventBusConfig = {
   partitionKeyTemplate?: string
 }
 
+export type SilverPubSubEventBusConfig = {
+  projectId: string
+  topic: string
+  /** Optional map for routing record types to dedicated topics */
+  topicByRecordType?: Partial<Record<SilverRecordType, string>>
+  /** Optional allow-list of record types to publish */
+  includeRecordTypes?: SilverRecordType[]
+  /** Static attributes applied to every message */
+  staticAttributes?: Record<string, string>
+  /** Maximum number of Silver events to send per batch */
+  maxBatchSize?: number
+  /** Maximum milliseconds events can wait before forced flush */
+  maxBatchDelayMs?: number
+  /** Template for constructing ordering keys */
+  orderingKeyTemplate?: string
+}
+
 export type EventBusConfig =
   | ({
       provider: 'kafka'
@@ -455,6 +489,9 @@ export type EventBusConfig =
       provider: 'azure-event-hubs'
     } & AzureEventHubsEventBusConfig)
   | ({
+      provider: 'pubsub'
+    } & PubSubEventBusConfig)
+  | ({
       provider: 'kafka-silver'
     } & SilverKafkaEventBusConfig)
   | ({
@@ -478,3 +515,6 @@ export type EventBusConfig =
   | ({
       provider: 'azure-event-hubs-silver'
     } & SilverAzureEventBusConfig)
+  | ({
+      provider: 'pubsub-silver'
+    } & SilverPubSubEventBusConfig)

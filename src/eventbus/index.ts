@@ -16,6 +16,8 @@ export { AzureEventHubsEventBus } from './azure'
 export { SilverAzureEventBus } from './silverAzure'
 export { SilverPulsarEventBus } from './silverPulsar'
 export { SilverSQSEventBus } from './silverSqs'
+export { PubSubEventBus } from './pubsub'
+export { SilverPubSubEventBus } from './silverPubsub'
 export {
   parseKafkaEventBusConfig,
   parseSilverKafkaEventBusConfig,
@@ -32,7 +34,9 @@ export {
   parseSilverRabbitMQEventBusConfig,
   parseSilverKinesisEventBusConfig,
   parseSilverNatsEventBusConfig,
-  parseSilverRedisEventBusConfig
+  parseSilverRedisEventBusConfig,
+  parsePubSubEventBusConfig,
+  parseSilverPubSubEventBusConfig
 } from './config'
 export { compileKeyBuilder, compileSilverKeyBuilder } from './keyTemplate'
 export type {
@@ -48,6 +52,8 @@ export type {
   SQSEventBusConfig,
   PulsarEventBusConfig,
   AzureEventHubsEventBusConfig,
+  PubSubEventBusConfig,
+  SilverPubSubEventBusConfig,
   SilverAzureEventBusConfig,
   PublishMeta,
   NormalizedEventSink,

@@ -15,6 +15,8 @@ import {
   SQSEventBus,
   PulsarEventBus,
   AzureEventHubsEventBus,
+  PubSubEventBus,
+  SilverPubSubEventBus,
   SilverPulsarEventBus,
   SilverSQSEventBus,
   SilverRabbitMQEventBus,
@@ -221,6 +223,9 @@ export class TardisMachine {
     if (config.provider === 'azure-event-hubs') {
       return new AzureEventHubsEventBus(config)
     }
+    if (config.provider === 'pubsub') {
+      return new PubSubEventBus(config)
+    }
 
     throw new Error(`Unsupported event bus provider: ${(config as any).provider}`)
   }
@@ -246,6 +251,9 @@ export class TardisMachine {
     }
     if (config.provider === 'sqs-silver') {
       return new SilverSQSEventBus(config)
+    }
+    if (config.provider === 'pubsub-silver') {
+      return new SilverPubSubEventBus(config)
     }
 
     throw new Error(`Unsupported silver event bus provider: ${(config as any).provider}`)

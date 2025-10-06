@@ -23,6 +23,8 @@ const {
   parseSilverNatsEventBusConfig,
   parseSilverRedisEventBusConfig,
   parseAzureEventHubsEventBusConfig,
+  parsePubSubEventBusConfig,
+  parseSilverPubSubEventBusConfig,
   parseSilverAzureEventBusConfig
 } = require('../dist/eventbus/config')
 
@@ -573,6 +575,72 @@ const argv = yargs
     describe: 'Maximum milliseconds events can wait before forced flush'
   })
 
+  .option('pubsub-project-id', {
+    type: 'string',
+    describe: 'Google Cloud Project ID for Pub/Sub publishing'
+  })
+  .option('pubsub-topic', {
+    type: 'string',
+    describe: 'Pub/Sub topic name for normalized events'
+  })
+  .option('pubsub-include-payloads', {
+    type: 'string',
+    describe: 'Comma separated payload cases to publish (others dropped)'
+  })
+  .option('pubsub-topic-routing', {
+    type: 'string',
+    describe: 'Comma separated payloadCase:topic pairs overriding the base topic'
+  })
+  .option('pubsub-static-attributes', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static Pub/Sub attributes'
+  })
+  .option('pubsub-ordering-key-template', {
+    type: 'string',
+    describe: 'Template for Pub/Sub ordering keys, e.g. {{exchange}}/{{payloadCase}}/{{symbol}}'
+  })
+  .option('pubsub-max-batch-size', {
+    type: 'number',
+    describe: 'Maximum number of bronze events per Pub/Sub batch'
+  })
+  .option('pubsub-max-batch-delay-ms', {
+    type: 'number',
+    describe: 'Maximum milliseconds events can wait before forced flush'
+  })
+
+  .option('pubsub-silver-project-id', {
+    type: 'string',
+    describe: 'Google Cloud Project ID for Pub/Sub silver publishing'
+  })
+  .option('pubsub-silver-topic', {
+    type: 'string',
+    describe: 'Pub/Sub topic name for silver events'
+  })
+  .option('pubsub-silver-include-records', {
+    type: 'string',
+    describe: 'Comma separated record types to publish for silver (others dropped)'
+  })
+  .option('pubsub-silver-topic-routing', {
+    type: 'string',
+    describe: 'Comma separated recordType:topic pairs overriding the base topic for silver'
+  })
+  .option('pubsub-silver-static-attributes', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static Pub/Sub attributes for silver'
+  })
+  .option('pubsub-silver-ordering-key-template', {
+    type: 'string',
+    describe: 'Template for Pub/Sub ordering keys for silver, e.g. {{exchange}}/{{recordType}}/{{symbol}}'
+  })
+  .option('pubsub-silver-max-batch-size', {
+    type: 'number',
+    describe: 'Maximum number of silver events per Pub/Sub batch'
+  })
+  .option('pubsub-silver-max-batch-delay-ms', {
+    type: 'number',
+    describe: 'Maximum milliseconds events can wait before forced flush for silver'
+  })
+
   .option('redis-silver-url', {
     type: 'string',
     describe: 'Redis connection URL for silver event publishing'
@@ -748,7 +816,8 @@ async function start() {
     parseRedisEventBusConfig(argv) ||
     parseSQSEventBusConfig(argv) ||
     parsePulsarEventBusConfig(argv) ||
-    parseAzureEventHubsEventBusConfig(argv)
+    parseAzureEventHubsEventBusConfig(argv) ||
+    parsePubSubEventBusConfig(argv)
 
   const silverEventBusConfig =
     parseSilverKafkaEventBusConfig(argv) ||
@@ -758,7 +827,8 @@ async function start() {
     parseSilverRedisEventBusConfig(argv) ||
     parseSilverPulsarEventBusConfig(argv) ||
     parseSilverSQSEventBusConfig(argv) ||
-    parseSilverAzureEventBusConfig(argv)
+    parseSilverAzureEventBusConfig(argv) ||
+    parseSilverPubSubEventBusConfig(argv)
 
   const machine = new TardisMachine({
     apiKey: argv['api-key'],

@@ -78,3 +78,17 @@
 - [x] Add integration test verifying Silver SQS publish using LocalStack.
 - [x] Add CLI support for Silver SQS event bus options.
 - [x] Add unit tests for Silver SQS config parsing.
+
+## New Feature: Azure Event Hubs Event Bus
+
+- [x] Implement Azure Event Hubs publishing for normalized events.
+- [x] Wire Azure Event Hubs into TardisMachine event bus creation.
+- [x] Add integration test verifying Azure Event Hubs publish using mocked producer.
+- [x] Add CLI support for Azure Event Hubs event bus options.
+- [x] Add unit tests for Azure Event Hubs config parsing.
+- [x] Add regression test ensuring Azure Event Hubs publishing can be toggled off.
+- [x] Implement Silver Azure Event Hubs publishing for normalized events.
+- [x] Wire Silver Azure Event Hubs into TardisMachine event bus creation.
+- [x] Add integration test verifying Silver Azure Event Hubs publish using mocked producer.
+- [x] Add CLI support for Silver Azure Event Hubs event bus options.
+- [x] Add unit tests for Silver Azure Event Hubs config parsing.

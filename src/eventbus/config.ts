@@ -11,6 +11,8 @@ import type {
   SQSEventBusConfig,
   PulsarEventBusConfig,
   AzureEventHubsEventBusConfig,
+  PubSubEventBusConfig,
+  SilverPubSubEventBusConfig,
   SilverRabbitMQEventBusConfig,
   SilverKinesisEventBusConfig,
   SilverNatsEventBusConfig,
@@ -2341,6 +2343,230 @@ export function parseSilverAzureEventBusConfig(argv: Record<string, any>): Event
   return {
     provider: 'azure-event-hubs-silver',
     ...azureConfig
+  }
+}
+
+export function parsePubSubEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const projectIdRaw = argv['pubsub-project-id']
+  const topicRaw = argv['pubsub-topic']
+
+  if (!projectIdRaw || !topicRaw) {
+    return undefined
+  }
+
+  const projectId = typeof projectIdRaw === 'string' ? projectIdRaw.trim() : ''
+  if (projectId === '') {
+    throw new Error('pubsub-project-id must be a non-empty string.')
+  }
+
+  const topic = typeof topicRaw === 'string' ? topicRaw.trim() : ''
+  if (topic === '') {
+    throw new Error('pubsub-topic must be a non-empty string.')
+  }
+
+  const pubsubConfig: PubSubEventBusConfig = {
+    projectId,
+    topic
+  }
+
+  const topicRoutingRaw = argv['pubsub-topic-routing']
+  if (topicRoutingRaw !== undefined) {
+    if (typeof topicRoutingRaw !== 'string') {
+      throw new Error('pubsub-topic-routing must be a string of payloadCase:topic entries separated by commas.')
+    }
+
+    const map: Partial<Record<BronzePayloadCase, string>> = {}
+    const invalidPayloadCases = new Set<string>()
+
+    const pairs = topicRoutingRaw
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    for (const pair of pairs) {
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid pubsub-topic-routing entry "${pair}". Expected format payloadCase:topicName.`)
+      }
+
+      const payloadCase = pair.slice(0, separatorIndex).trim()
+      const mappedTopic = pair.slice(separatorIndex + 1).trim()
+
+      if (!payloadCase || !mappedTopic) {
+        throw new Error(`Invalid pubsub-topic-routing entry "${pair}". Expected format payloadCase:topicName.`)
+      }
+
+      const normalizedPayloadCase = normalizePayloadCase(payloadCase)
+
+      if (!normalizedPayloadCase) {
+        invalidPayloadCases.add(payloadCase)
+        continue
+      }
+
+      map[normalizedPayloadCase] = mappedTopic
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('pubsub-topic-routing must define at least one payloadCase mapping.')
+    }
+
+    if (invalidPayloadCases.size > 0) {
+      throw new Error(`Unknown payload case(s) for pubsub-topic-routing: ${Array.from(invalidPayloadCases).join(', ')}.`)
+    }
+
+    pubsubConfig.topicByPayloadCase = map
+  }
+
+  const includePayloadCases = parseIncludePayloadCases(argv['pubsub-include-payloads'], 'pubsub')
+  if (includePayloadCases) {
+    pubsubConfig.includePayloadCases = includePayloadCases
+  }
+
+  const staticAttributes = parseStaticHeaders(argv['pubsub-static-attributes'], 'pubsub-static-attributes')
+  if (staticAttributes) {
+    pubsubConfig.staticAttributes = staticAttributes
+  }
+
+  const orderingKeyTemplateRaw = argv['pubsub-ordering-key-template']
+  if (orderingKeyTemplateRaw !== undefined) {
+    if (typeof orderingKeyTemplateRaw !== 'string') {
+      throw new Error('pubsub-ordering-key-template must be a non-empty string.')
+    }
+    const orderingKeyTemplate = orderingKeyTemplateRaw.trim()
+    if (orderingKeyTemplate === '') {
+      throw new Error('pubsub-ordering-key-template must be a non-empty string.')
+    }
+    compileKeyBuilder(orderingKeyTemplate, 'pubsub')
+    pubsubConfig.orderingKeyTemplate = orderingKeyTemplate
+  }
+
+  const maxBatchSize = parsePositiveInteger(argv['pubsub-max-batch-size'], 'pubsub-max-batch-size')
+  if (maxBatchSize !== undefined) {
+    pubsubConfig.maxBatchSize = maxBatchSize
+  }
+
+  const maxBatchDelayMs = parsePositiveInteger(argv['pubsub-max-batch-delay-ms'], 'pubsub-max-batch-delay-ms')
+  if (maxBatchDelayMs !== undefined) {
+    pubsubConfig.maxBatchDelayMs = maxBatchDelayMs
+  }
+
+  return {
+    provider: 'pubsub',
+    ...pubsubConfig
+  }
+}
+
+export function parseSilverPubSubEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const projectIdRaw = argv['pubsub-silver-project-id']
+  const topicRaw = argv['pubsub-silver-topic']
+
+  if (!projectIdRaw || !topicRaw) {
+    return undefined
+  }
+
+  const projectId = typeof projectIdRaw === 'string' ? projectIdRaw.trim() : ''
+  if (projectId === '') {
+    throw new Error('pubsub-silver-project-id must be a non-empty string.')
+  }
+
+  const topic = typeof topicRaw === 'string' ? topicRaw.trim() : ''
+  if (topic === '') {
+    throw new Error('pubsub-silver-topic must be a non-empty string.')
+  }
+
+  const pubsubConfig: SilverPubSubEventBusConfig = {
+    projectId,
+    topic
+  }
+
+  const topicRoutingRaw = argv['pubsub-silver-topic-routing']
+  if (topicRoutingRaw !== undefined) {
+    if (typeof topicRoutingRaw !== 'string') {
+      throw new Error('pubsub-silver-topic-routing must be a string of recordType:topic entries separated by commas.')
+    }
+
+    const map: Partial<Record<SilverRecordType, string>> = {}
+    const invalidRecordTypes = new Set<string>()
+
+    const pairs = topicRoutingRaw
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    for (const pair of pairs) {
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid pubsub-silver-topic-routing entry "${pair}". Expected format recordType:topicName.`)
+      }
+
+      const recordType = pair.slice(0, separatorIndex).trim()
+      const mappedTopic = pair.slice(separatorIndex + 1).trim()
+
+      if (!recordType || !mappedTopic) {
+        throw new Error(`Invalid pubsub-silver-topic-routing entry "${pair}". Expected format recordType:topicName.`)
+      }
+
+      const normalizedRecordType = normalizeSilverRecordType(recordType)
+
+      if (!normalizedRecordType) {
+        invalidRecordTypes.add(recordType)
+        continue
+      }
+
+      map[normalizedRecordType] = mappedTopic
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('pubsub-silver-topic-routing must define at least one recordType mapping.')
+    }
+
+    if (invalidRecordTypes.size > 0) {
+      throw new Error(`Unknown record type(s) for pubsub-silver-topic-routing: ${Array.from(invalidRecordTypes).join(', ')}.`)
+    }
+
+    pubsubConfig.topicByRecordType = map
+  }
+
+  const includeRecordTypes = parseIncludeSilverRecordTypes(argv['pubsub-silver-include-records'], 'pubsub-silver')
+  if (includeRecordTypes) {
+    pubsubConfig.includeRecordTypes = includeRecordTypes
+  }
+
+  const staticAttributes = parseStaticHeaders(
+    argv['pubsub-silver-static-attributes'],
+    'pubsub-silver-static-attributes',
+    RESERVED_SILVER_STATIC_HEADER_KEYS
+  )
+  if (staticAttributes) {
+    pubsubConfig.staticAttributes = staticAttributes
+  }
+
+  const orderingKeyTemplateRaw = argv['pubsub-silver-ordering-key-template']
+  if (orderingKeyTemplateRaw !== undefined) {
+    if (typeof orderingKeyTemplateRaw !== 'string') {
+      throw new Error('pubsub-silver-ordering-key-template must be a non-empty string.')
+    }
+    const orderingKeyTemplate = orderingKeyTemplateRaw.trim()
+    if (orderingKeyTemplate === '') {
+      throw new Error('pubsub-silver-ordering-key-template must be a non-empty string.')
+    }
+    compileSilverKeyBuilder(orderingKeyTemplate, 'pubsub-silver')
+    pubsubConfig.orderingKeyTemplate = orderingKeyTemplate
+  }
+
+  const maxBatchSize = parsePositiveInteger(argv['pubsub-silver-max-batch-size'], 'pubsub-silver-max-batch-size')
+  if (maxBatchSize !== undefined) {
+    pubsubConfig.maxBatchSize = maxBatchSize
+  }
+
+  const maxBatchDelayMs = parsePositiveInteger(argv['pubsub-silver-max-batch-delay-ms'], 'pubsub-silver-max-batch-delay-ms')
+  if (maxBatchDelayMs !== undefined) {
+    pubsubConfig.maxBatchDelayMs = maxBatchDelayMs
+  }
+
+  return {
+    provider: 'pubsub-silver',
+    ...pubsubConfig
   }
 }
 

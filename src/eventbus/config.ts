@@ -13,7 +13,9 @@ import type {
   SilverRabbitMQEventBusConfig,
   SilverKinesisEventBusConfig,
   SilverNatsEventBusConfig,
-  SilverRedisEventBusConfig
+  SilverRedisEventBusConfig,
+  SilverPulsarEventBusConfig,
+  SilverSQSEventBusConfig
 } from './types'
 import { compileKeyBuilder, compileSilverKeyBuilder } from './keyTemplate'
 
@@ -1736,6 +1738,259 @@ export function parsePulsarEventBusConfig(argv: Record<string, any>): EventBusCo
   return {
     provider: 'pulsar',
     ...pulsarConfig
+  }
+}
+
+export function parseSilverPulsarEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const serviceUrlRaw = argv['pulsar-silver-service-url']
+  const topicRaw = argv['pulsar-silver-topic']
+
+  if (!serviceUrlRaw || !topicRaw) {
+    return undefined
+  }
+
+  const serviceUrl = typeof serviceUrlRaw === 'string' ? serviceUrlRaw.trim() : ''
+  if (serviceUrl === '') {
+    throw new Error('pulsar-silver-service-url must be a non-empty string.')
+  }
+
+  const topic = typeof topicRaw === 'string' ? topicRaw.trim() : ''
+  if (topic === '') {
+    throw new Error('pulsar-silver-topic must be a non-empty string.')
+  }
+
+  const pulsarConfig: SilverPulsarEventBusConfig = {
+    serviceUrl,
+    topic
+  }
+
+  const tokenRaw = argv['pulsar-silver-token']
+  if (tokenRaw !== undefined) {
+    if (typeof tokenRaw !== 'string') {
+      throw new Error('pulsar-silver-token must be a string.')
+    }
+    const token = tokenRaw.trim()
+    if (token === '') {
+      throw new Error('pulsar-silver-token must be a non-empty string.')
+    }
+    pulsarConfig.token = token
+  }
+
+  const topicRoutingRaw = argv['pulsar-silver-topic-routing']
+  if (topicRoutingRaw !== undefined) {
+    if (typeof topicRoutingRaw !== 'string') {
+      throw new Error('pulsar-silver-topic-routing must be a string of recordType:topic entries separated by commas.')
+    }
+
+    const map: Partial<Record<SilverRecordType, string>> = {}
+    const invalidRecordTypes = new Set<string>()
+
+    const pairs = topicRoutingRaw
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    for (const pair of pairs) {
+      const [recordType, mappedTopic] = pair.split(':').map((part) => part?.trim())
+      if (!recordType || !mappedTopic) {
+        throw new Error(`Invalid pulsar-silver-topic-routing entry "${pair}". Expected format recordType:topicName.`)
+      }
+
+      const normalizedRecordType = normalizeSilverRecordType(recordType)
+
+      if (!normalizedRecordType) {
+        invalidRecordTypes.add(recordType)
+        continue
+      }
+
+      map[normalizedRecordType] = mappedTopic
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('pulsar-silver-topic-routing must define at least one recordType mapping.')
+    }
+
+    if (invalidRecordTypes.size > 0) {
+      throw new Error(`Unknown record type(s) for pulsar-silver-topic-routing: ${Array.from(invalidRecordTypes).join(', ')}.`)
+    }
+
+    pulsarConfig.topicByRecordType = map
+  }
+
+  const includeRecordTypes = parseIncludeSilverRecordTypes(argv['pulsar-silver-include-records'], 'pulsar-silver')
+  if (includeRecordTypes) {
+    pulsarConfig.includeRecordTypes = includeRecordTypes
+  }
+
+  const staticProperties = parseStaticHeaders(argv['pulsar-silver-static-properties'], 'pulsar-silver')
+  if (staticProperties) {
+    pulsarConfig.staticProperties = staticProperties
+  }
+
+  const keyTemplateRaw = argv['pulsar-silver-key-template']
+  if (keyTemplateRaw !== undefined) {
+    if (typeof keyTemplateRaw !== 'string') {
+      throw new Error('pulsar-silver-key-template must be a non-empty string.')
+    }
+    const keyTemplate = keyTemplateRaw.trim()
+    if (keyTemplate === '') {
+      throw new Error('pulsar-silver-key-template must be a non-empty string.')
+    }
+    compileSilverKeyBuilder(keyTemplate)
+    pulsarConfig.keyTemplate = keyTemplate
+  }
+
+  const maxBatchSize = parsePositiveInteger(argv['pulsar-silver-max-batch-size'], 'pulsar-silver-max-batch-size')
+  if (maxBatchSize !== undefined) {
+    pulsarConfig.maxBatchSize = maxBatchSize
+  }
+
+  const maxBatchDelayMs = parsePositiveInteger(argv['pulsar-silver-max-batch-delay-ms'], 'pulsar-silver-max-batch-delay-ms')
+  if (maxBatchDelayMs !== undefined) {
+    pulsarConfig.maxBatchDelayMs = maxBatchDelayMs
+  }
+
+  const compressionTypeRaw = argv['pulsar-silver-compression-type']
+  if (compressionTypeRaw !== undefined) {
+    if (typeof compressionTypeRaw !== 'string') {
+      throw new Error('pulsar-silver-compression-type must be a string.')
+    }
+    const compressionType = compressionTypeRaw.trim().toUpperCase()
+    if (!['NONE', 'LZ4', 'ZLIB', 'ZSTD', 'SNAPPY'].includes(compressionType)) {
+      throw new Error('pulsar-silver-compression-type must be one of NONE,LZ4,ZLIB,ZSTD,SNAPPY.')
+    }
+    pulsarConfig.compressionType = compressionType as SilverPulsarEventBusConfig['compressionType']
+  }
+
+  return {
+    provider: 'pulsar-silver',
+    ...pulsarConfig
+  }
+}
+
+export function parseSilverSQSEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const queueUrlRaw = argv['sqs-silver-queue-url']
+  const regionRaw = argv['sqs-silver-region']
+
+  if (!queueUrlRaw || !regionRaw) {
+    return undefined
+  }
+
+  const queueUrl = typeof queueUrlRaw === 'string' ? queueUrlRaw.trim() : ''
+  if (queueUrl === '') {
+    throw new Error('sqs-silver-queue-url must be a non-empty string.')
+  }
+
+  const region = typeof regionRaw === 'string' ? regionRaw.trim() : ''
+  if (region === '') {
+    throw new Error('sqs-silver-region must be a non-empty string.')
+  }
+
+  const sqsConfig: SilverSQSEventBusConfig = {
+    queueUrl,
+    region
+  }
+
+  const queueRoutingRaw = argv['sqs-silver-queue-routing']
+  if (queueRoutingRaw !== undefined) {
+    if (typeof queueRoutingRaw !== 'string') {
+      throw new Error('sqs-silver-queue-routing must be a string of recordType:queueUrl entries separated by commas.')
+    }
+
+    const map: Partial<Record<SilverRecordType, string>> = {}
+    const invalidRecordTypes = new Set<string>()
+
+    const pairs = queueRoutingRaw
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    for (const pair of pairs) {
+      const [recordType, mappedQueue] = pair.split(':').map((part) => part?.trim())
+      if (!recordType || !mappedQueue) {
+        throw new Error(`Invalid sqs-silver-queue-routing entry "${pair}". Expected format recordType:queueUrl.`)
+      }
+
+      const normalizedRecordType = normalizeSilverRecordType(recordType)
+
+      if (!normalizedRecordType) {
+        invalidRecordTypes.add(recordType)
+        continue
+      }
+
+      map[normalizedRecordType] = mappedQueue
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('sqs-silver-queue-routing must define at least one recordType mapping.')
+    }
+
+    if (invalidRecordTypes.size > 0) {
+      throw new Error(`Unknown record type(s) for sqs-silver-queue-routing: ${Array.from(invalidRecordTypes).join(', ')}.`)
+    }
+
+    sqsConfig.queueByRecordType = map
+  }
+
+  const includeRecordTypes = parseIncludeSilverRecordTypes(argv['sqs-silver-include-records'], 'sqs-silver')
+  if (includeRecordTypes) {
+    sqsConfig.includeRecordTypes = includeRecordTypes
+  }
+
+  const accessKeyIdRaw = argv['sqs-silver-access-key-id']
+  if (accessKeyIdRaw !== undefined) {
+    if (typeof accessKeyIdRaw !== 'string') {
+      throw new Error('sqs-silver-access-key-id must be a string.')
+    }
+    const accessKeyId = accessKeyIdRaw.trim()
+    if (accessKeyId === '') {
+      throw new Error('sqs-silver-access-key-id must be a non-empty string.')
+    }
+    sqsConfig.accessKeyId = accessKeyId
+  }
+
+  const secretAccessKeyRaw = argv['sqs-silver-secret-access-key']
+  if (secretAccessKeyRaw !== undefined) {
+    if (typeof secretAccessKeyRaw !== 'string') {
+      throw new Error('sqs-silver-secret-access-key must be a string.')
+    }
+    const secretAccessKey = secretAccessKeyRaw.trim()
+    if (secretAccessKey === '') {
+      throw new Error('sqs-silver-secret-access-key must be a non-empty string.')
+    }
+    sqsConfig.secretAccessKey = secretAccessKey
+  }
+
+  const sessionTokenRaw = argv['sqs-silver-session-token']
+  if (sessionTokenRaw !== undefined) {
+    if (typeof sessionTokenRaw !== 'string') {
+      throw new Error('sqs-silver-session-token must be a string.')
+    }
+    const sessionToken = sessionTokenRaw.trim()
+    if (sessionToken === '') {
+      throw new Error('sqs-silver-session-token must be a non-empty string.')
+    }
+    sqsConfig.sessionToken = sessionToken
+  }
+
+  const staticMessageAttributes = parseStaticHeaders(argv['sqs-silver-static-message-attributes'], 'sqs-silver')
+  if (staticMessageAttributes) {
+    sqsConfig.staticMessageAttributes = staticMessageAttributes
+  }
+
+  const maxBatchSize = parsePositiveInteger(argv['sqs-silver-max-batch-size'], 'sqs-silver-max-batch-size')
+  if (maxBatchSize !== undefined) {
+    sqsConfig.maxBatchSize = maxBatchSize
+  }
+
+  const maxBatchDelayMs = parsePositiveInteger(argv['sqs-silver-max-batch-delay-ms'], 'sqs-silver-max-batch-delay-ms')
+  if (maxBatchDelayMs !== undefined) {
+    sqsConfig.maxBatchDelayMs = maxBatchDelayMs
+  }
+
+  return {
+    provider: 'sqs-silver',
+    ...sqsConfig
   }
 }
 

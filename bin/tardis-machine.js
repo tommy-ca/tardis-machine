@@ -15,6 +15,8 @@ const {
   parseRedisEventBusConfig,
   parseSQSEventBusConfig,
   parsePulsarEventBusConfig,
+  parseSilverPulsarEventBusConfig,
+  parseSilverSQSEventBusConfig,
   parseSilverKafkaEventBusConfig,
   parseSilverRabbitMQEventBusConfig,
   parseSilverKinesisEventBusConfig,
@@ -557,6 +559,89 @@ const argv = yargs
     describe: 'Maximum milliseconds events can wait before forced flush for silver'
   })
 
+  .option('pulsar-silver-service-url', {
+    type: 'string',
+    describe: 'Pulsar service URL for silver event publishing'
+  })
+  .option('pulsar-silver-topic', {
+    type: 'string',
+    describe: 'Pulsar topic name for silver events'
+  })
+  .option('pulsar-silver-include-records', {
+    type: 'string',
+    describe: 'Comma separated record types to publish for silver (others dropped)'
+  })
+  .option('pulsar-silver-topic-routing', {
+    type: 'string',
+    describe: 'Comma separated recordType:topic pairs overriding the base topic for silver'
+  })
+  .option('pulsar-silver-token', {
+    type: 'string',
+    describe: 'Pulsar authentication token for silver'
+  })
+  .option('pulsar-silver-static-properties', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static Pulsar properties for silver'
+  })
+  .option('pulsar-silver-key-template', {
+    type: 'string',
+    describe: 'Template for Pulsar message keys for silver, e.g. {{exchange}}/{{recordType}}/{{symbol}}'
+  })
+  .option('pulsar-silver-max-batch-size', {
+    type: 'number',
+    describe: 'Maximum number of silver events per Pulsar batch'
+  })
+  .option('pulsar-silver-max-batch-delay-ms', {
+    type: 'number',
+    describe: 'Maximum milliseconds events can wait before forced flush for silver'
+  })
+  .option('pulsar-silver-compression-type', {
+    type: 'string',
+    choices: ['NONE', 'LZ4', 'ZLIB', 'ZSTD', 'SNAPPY'],
+    describe: 'Compression type for Pulsar messages for silver'
+  })
+
+  .option('sqs-silver-queue-url', {
+    type: 'string',
+    describe: 'SQS queue URL for silver event publishing'
+  })
+  .option('sqs-silver-region', {
+    type: 'string',
+    describe: 'AWS region for SQS queue for silver'
+  })
+  .option('sqs-silver-include-records', {
+    type: 'string',
+    describe: 'Comma separated record types to publish for silver (others dropped)'
+  })
+  .option('sqs-silver-queue-routing', {
+    type: 'string',
+    describe: 'Comma separated recordType:queueUrl pairs overriding the base queue for silver'
+  })
+  .option('sqs-silver-access-key-id', {
+    type: 'string',
+    describe: 'AWS access key ID for SQS silver'
+  })
+  .option('sqs-silver-secret-access-key', {
+    type: 'string',
+    describe: 'AWS secret access key for SQS silver'
+  })
+  .option('sqs-silver-session-token', {
+    type: 'string',
+    describe: 'AWS session token for temporary SQS credentials for silver'
+  })
+  .option('sqs-silver-static-message-attributes', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static SQS message attributes for silver'
+  })
+  .option('sqs-silver-max-batch-size', {
+    type: 'number',
+    describe: 'Maximum number of silver events per SQS batch'
+  })
+  .option('sqs-silver-max-batch-delay-ms', {
+    type: 'number',
+    describe: 'Maximum milliseconds events can wait before forced flush for silver'
+  })
+
   .help()
   .version()
   .usage('$0 [options]')
@@ -589,7 +674,9 @@ async function start() {
     parseSilverRabbitMQEventBusConfig(argv) ||
     parseSilverKinesisEventBusConfig(argv) ||
     parseSilverNatsEventBusConfig(argv) ||
-    parseSilverRedisEventBusConfig(argv)
+    parseSilverRedisEventBusConfig(argv) ||
+    parseSilverPulsarEventBusConfig(argv) ||
+    parseSilverSQSEventBusConfig(argv)
 
   const machine = new TardisMachine({
     apiKey: argv['api-key'],

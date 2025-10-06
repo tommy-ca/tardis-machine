@@ -61,7 +61,6 @@
   "license": "MPL-2.0",
   "dependencies": {
     "@aws-sdk/client-kinesis": "^3.0.0",
-    "@apache-pulsar/pulsar-client": "^1.11.0",
     "@aws-sdk/client-sqs": "^3.0.0",
     "@bufbuild/protobuf": "^2.9.0",
     "@kafkajs/confluent-schema-registry": "^3.9.0",
@@ -72,6 +71,7 @@
     "is-docker": "^2.2.1",
     "kafkajs": "^2.2.4",
     "nats": "^2.29.3",
+    "pulsar-client": "^1.14.0",
     "redis": "^5.8.3",
     "tardis-dev": "^14.1.1",
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.52.0",

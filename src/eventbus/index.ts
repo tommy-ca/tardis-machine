@@ -12,6 +12,8 @@ export { RedisEventBus } from './redis'
 export { SilverRedisEventBus } from './silverRedis'
 export { SQSEventBus } from './sqs'
 export { PulsarEventBus } from './pulsar'
+export { SilverPulsarEventBus } from './silverPulsar'
+export { SilverSQSEventBus } from './silverSqs'
 export {
   parseKafkaEventBusConfig,
   parseSilverKafkaEventBusConfig,
@@ -20,6 +22,9 @@ export {
   parseNatsEventBusConfig,
   parseRedisEventBusConfig,
   parseSQSEventBusConfig,
+  parsePulsarEventBusConfig,
+  parseSilverPulsarEventBusConfig,
+  parseSilverSQSEventBusConfig,
   parseSilverRabbitMQEventBusConfig,
   parseSilverKinesisEventBusConfig,
   parseSilverNatsEventBusConfig,

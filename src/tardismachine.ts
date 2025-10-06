@@ -14,6 +14,8 @@ import {
   RedisEventBus,
   SQSEventBus,
   PulsarEventBus,
+  SilverPulsarEventBus,
+  SilverSQSEventBus,
   SilverRabbitMQEventBus,
   SilverKinesisEventBus,
   SilverNatsEventBus,
@@ -232,6 +234,12 @@ export class TardisMachine {
     }
     if (config.provider === 'redis-silver') {
       return new SilverRedisEventBus(config)
+    }
+    if (config.provider === 'pulsar-silver') {
+      return new SilverPulsarEventBus(config)
+    }
+    if (config.provider === 'sqs-silver') {
+      return new SilverSQSEventBus(config)
     }
 
     throw new Error(`Unsupported silver event bus provider: ${(config as any).provider}`)

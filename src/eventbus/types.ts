@@ -237,7 +237,7 @@ export type PulsarEventBusConfig = {
   /** Maximum milliseconds events can wait before forced flush */
   maxBatchDelayMs?: number
   /** Compression type for Pulsar messages */
-  compressionType?: 'NONE' | 'LZ4' | 'ZLIB' | 'ZSTD' | 'SNAPPY'
+  compressionType?: string
   /** Template for constructing Pulsar message keys */
   keyTemplate?: string
 }
@@ -353,6 +353,48 @@ export type SilverRedisEventBusConfig = {
   keyTemplate?: string
 }
 
+export type SilverPulsarEventBusConfig = {
+  serviceUrl: string
+  topic: string
+  /** Optional map for routing record types to dedicated topics */
+  topicByRecordType?: Partial<Record<SilverRecordType, string>>
+  /** Optional allow-list of record types to publish */
+  includeRecordTypes?: SilverRecordType[]
+  /** Pulsar authentication token */
+  token?: string
+  /** Static properties applied to every message */
+  staticProperties?: Record<string, string>
+  /** Maximum number of Silver events to send per Pulsar batch */
+  maxBatchSize?: number
+  /** Maximum milliseconds events can wait before forced flush */
+  maxBatchDelayMs?: number
+  /** Compression type for Pulsar messages */
+  compressionType?: string
+  /** Template for constructing Pulsar message keys */
+  keyTemplate?: string
+}
+
+export type SilverSQSEventBusConfig = {
+  queueUrl: string
+  region: string
+  /** Optional map for routing record types to dedicated queues */
+  queueByRecordType?: Partial<Record<SilverRecordType, string>>
+  /** Optional allow-list of record types to publish */
+  includeRecordTypes?: SilverRecordType[]
+  /** AWS access key ID */
+  accessKeyId?: string
+  /** AWS secret access key */
+  secretAccessKey?: string
+  /** AWS session token (for temporary credentials) */
+  sessionToken?: string
+  /** Static message attributes applied to every message */
+  staticMessageAttributes?: Record<string, string>
+  /** Maximum number of Silver events to send per SQS batch */
+  maxBatchSize?: number
+  /** Maximum milliseconds events can wait before forced flush */
+  maxBatchDelayMs?: number
+}
+
 export type EventBusConfig =
   | ({
       provider: 'kafka'
@@ -390,3 +432,9 @@ export type EventBusConfig =
   | ({
       provider: 'redis-silver'
     } & SilverRedisEventBusConfig)
+  | ({
+      provider: 'pulsar-silver'
+    } & SilverPulsarEventBusConfig)
+  | ({
+      provider: 'sqs-silver'
+    } & SilverSQSEventBusConfig)

@@ -184,7 +184,7 @@ export class TardisMachine {
     })
 
     // Wait a bit for ports to be released
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    await new Promise((resolve) => setTimeout(resolve, 1000))
 
     if (this._eventBus) {
       await this._eventBus.close().catch(() => undefined)

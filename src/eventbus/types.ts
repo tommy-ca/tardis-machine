@@ -221,6 +221,27 @@ export type SQSEventBusConfig = {
   maxBatchDelayMs?: number
 }
 
+export type PulsarEventBusConfig = {
+  serviceUrl: string
+  topic: string
+  /** Optional map for routing payload cases to dedicated topics */
+  topicByPayloadCase?: Partial<Record<BronzePayloadCase, string>>
+  /** Optional allow-list of payload cases to publish */
+  includePayloadCases?: BronzePayloadCase[]
+  /** Pulsar authentication token */
+  token?: string
+  /** Static properties applied to every message */
+  staticProperties?: Record<string, string>
+  /** Maximum number of Bronze events to send per Pulsar batch */
+  maxBatchSize?: number
+  /** Maximum milliseconds events can wait before forced flush */
+  maxBatchDelayMs?: number
+  /** Compression type for Pulsar messages */
+  compressionType?: 'NONE' | 'LZ4' | 'ZLIB' | 'ZSTD' | 'SNAPPY'
+  /** Template for constructing Pulsar message keys */
+  keyTemplate?: string
+}
+
 export type SilverKafkaEventBusConfig = {
   brokers: string[]
   topic: string
@@ -351,6 +372,9 @@ export type EventBusConfig =
   | ({
       provider: 'sqs'
     } & SQSEventBusConfig)
+  | ({
+      provider: 'pulsar'
+    } & PulsarEventBusConfig)
   | ({
       provider: 'kafka-silver'
     } & SilverKafkaEventBusConfig)

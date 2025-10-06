@@ -43,11 +43,42 @@ export type BronzeEvent = {
 
 export type BronzePayloadCase = Exclude<NormalizedEvent['payload']['case'], undefined>
 
+export type SilverRecordType =
+  | 'trade'
+  | 'book_change'
+  | 'book_snapshot'
+  | 'grouped_book_snapshot'
+  | 'trade_bar'
+  | 'quote'
+  | 'derivative_ticker'
+  | 'liquidation'
+  | 'option_summary'
+  | 'book_ticker'
+
+export type SilverEvent = {
+  key: string
+  recordType: SilverRecordType
+  dataType: string
+  meta: Record<string, string>
+  binary: Uint8Array
+}
+
 export interface NormalizedEventEncoder {
   encode(message: NormalizedMessage, meta: PublishMeta): BronzeEvent[]
 }
 
+export interface SilverEventEncoder {
+  encode(message: NormalizedMessage, meta: PublishMeta): SilverEvent[]
+}
+
 export interface NormalizedEventSink {
+  start(): Promise<void>
+  publish(message: NormalizedMessage, meta: PublishMeta): Promise<void>
+  flush(): Promise<void>
+  close(): Promise<void>
+}
+
+export interface SilverEventSink {
   start(): Promise<void>
   publish(message: NormalizedMessage, meta: PublishMeta): Promise<void>
   flush(): Promise<void>

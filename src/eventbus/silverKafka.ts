@@ -4,6 +4,8 @@ import { compileSilverKeyBuilder } from './keyTemplate'
 import type { SilverEvent, SilverRecordType, SilverKafkaEventBusConfig, SilverEventSink, NormalizedMessage, PublishMeta } from './types'
 import { wait } from '../helpers'
 import { debug } from '../debug'
+import * as fs from 'fs'
+import * as path from 'path'
 
 const log = debug.extend('eventbus')
 
@@ -15,6 +17,7 @@ export class SilverKafkaEventBus implements SilverEventSink {
   private readonly encoder: SilverNormalizedEventEncoder
   private readonly kafka: Kafka
   private readonly producer: Producer
+  private schemaId?: number
   private readonly buffer: SilverEvent[] = []
   private flushTimer?: NodeJS.Timeout
   private sendingPromise: Promise<void> = Promise.resolve()
@@ -50,6 +53,33 @@ export class SilverKafkaEventBus implements SilverEventSink {
 
   async start() {
     await this.producer.connect()
+
+    if (this.config.schemaRegistry) {
+      const schemaPath = path.join(__dirname, '../../schemas/proto/lakehouse/silver/v1/records.proto')
+      const schema = fs.readFileSync(schemaPath, 'utf8')
+      const subject = `${this.config.topic}-value`
+      // Register schema via REST API
+      const response = await fetch(`${this.config.schemaRegistry.url}/subjects/${encodeURIComponent(subject)}/versions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/vnd.schemaregistry.v1+json',
+          ...(this.config.schemaRegistry.auth
+            ? {
+                Authorization: `Basic ${Buffer.from(`${this.config.schemaRegistry.auth.username}:${this.config.schemaRegistry.auth.password}`).toString('base64')}`
+              }
+            : {})
+        },
+        body: JSON.stringify({
+          schemaType: 'PROTOBUF',
+          schema: schema
+        })
+      })
+      if (!response.ok) {
+        throw new Error(`Failed to register schema: ${response.statusText}`)
+      }
+      const result = await response.json()
+      this.schemaId = result.id
+    }
   }
 
   async publish(message: NormalizedMessage, meta: PublishMeta): Promise<void> {
@@ -138,16 +168,43 @@ export class SilverKafkaEventBus implements SilverEventSink {
       try {
         const groups = this.groupByTopic(batch)
         for (const [topic, events] of groups) {
-          await this.producer.send({
-            topic,
-            messages: events.map((event) => ({
-              key: event.key,
-              value: Buffer.from(event.binary),
-              headers: this.buildHeaders(event)
-            })),
-            compression: this.compression,
-            acks: this.acks
-          })
+          if (this.schemaId) {
+            // Use schema registry encoding
+            const { SchemaRegistry } = await import('@kafkajs/confluent-schema-registry')
+            const registry = new SchemaRegistry({
+              host: this.config.schemaRegistry!.url,
+              auth: this.config.schemaRegistry!.auth
+                ? {
+                    username: this.config.schemaRegistry!.auth.username,
+                    password: this.config.schemaRegistry!.auth.password
+                  }
+                : undefined
+            })
+            const messages = await Promise.all(
+              events.map(async (event) => ({
+                key: event.key,
+                value: await registry.encode(this.schemaId!, Buffer.from(event.binary)),
+                headers: this.buildHeaders(event)
+              }))
+            )
+            await this.producer.send({
+              topic,
+              messages,
+              compression: this.compression,
+              acks: this.acks
+            })
+          } else {
+            await this.producer.send({
+              topic,
+              messages: events.map((event) => ({
+                key: event.key,
+                value: Buffer.from(event.binary),
+                headers: this.buildHeaders(event)
+              })),
+              compression: this.compression,
+              acks: this.acks
+            })
+          }
         }
         return
       } catch (error) {

@@ -8,7 +8,7 @@ import { NormalizedEvent, NormalizedEventSchema, Origin } from '../../src/genera
 
 jest.setTimeout(240000)
 
-const PORT = 8093
+const PORT = 8094
 const HTTP_REPLAY_NORMALIZED_URL = `http://localhost:${PORT}/replay-normalized`
 const exchange = 'bronze.events.e2e'
 const cacheDir = './.cache-rabbitmq-e2e'

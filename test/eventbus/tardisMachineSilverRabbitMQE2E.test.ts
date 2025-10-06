@@ -62,8 +62,8 @@ test('publishes replay-normalized events to Silver RabbitMQ with Buf payloads', 
       exchange: 'binance',
       symbols: ['btcusdt'],
       dataTypes: ['trade'],
-      from: '2024-01-01',
-      to: '2024-01-01T00:01:00.000Z'
+      from: '2020-01-01',
+      to: '2020-01-01T00:05:00.000Z'
     }
     const params = encodeOptions(options)
     const response = await fetch(`${HTTP_REPLAY_NORMALIZED_URL}?options=${params}`)

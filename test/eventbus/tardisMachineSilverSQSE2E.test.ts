@@ -91,8 +91,8 @@ test('publishes replay-normalized events to Silver SQS with Buf payloads', async
     const options = {
       exchange: 'binance',
       symbols: ['btcusdt'],
-      from: '2024-01-01',
-      to: '2024-01-01 00:01',
+      from: '2020-01-01',
+      to: '2020-01-01 00:05',
       dataTypes: ['trade']
     }
 
@@ -133,8 +133,8 @@ test('does not publish when silverEventBus is not configured', async () => {
     const options = {
       exchange: 'binance',
       symbols: ['btcusdt'],
-      from: '2024-01-01',
-      to: '2024-01-01 00:01',
+      from: '2020-01-01',
+      to: '2020-01-01 00:05',
       dataTypes: ['trade']
     }
 

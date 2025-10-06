@@ -8,7 +8,7 @@ import { TradeRecordSchema, Origin } from '../../src/generated/lakehouse/silver/
 
 jest.setTimeout(240000)
 
-const PORT = 8093
+const PORT = 8100
 const HTTP_REPLAY_NORMALIZED_URL = `http://localhost:${PORT}/replay-normalized`
 const topic = 'silver.records.e2e'
 const cacheDir = './.cache-silver-kafka-e2e'

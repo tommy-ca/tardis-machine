@@ -8,7 +8,7 @@ import { TradeRecordSchema, Origin } from '../../src/generated/lakehouse/silver/
 
 jest.setTimeout(240000)
 
-const PORT = 8101
+const PORT = 8104
 const HTTP_REPLAY_NORMALIZED_URL = `http://localhost:${PORT}/replay-normalized`
 const exchange = 'silver.events.e2e'
 const cacheDir = './.cache-silver-rabbitmq-e2e'

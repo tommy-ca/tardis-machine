@@ -2581,3 +2581,194 @@ describe('parseConsoleEventBusConfig', () => {
     ).toThrow('console-key-template must be a non-empty string.')
   })
 })
+
+describe('parseSilverPulsarEventBusConfig', () => {
+  test('returns undefined when pulsar-silver service url or topic missing', () => {
+    expect(parseSilverPulsarEventBusConfig({})).toBeUndefined()
+    expect(parseSilverPulsarEventBusConfig({ 'pulsar-silver-service-url': 'pulsar://localhost:6650' })).toBeUndefined()
+    expect(parseSilverPulsarEventBusConfig({ 'pulsar-silver-topic': 'events' })).toBeUndefined()
+  })
+
+  test('builds silver pulsar config with routing and auth', () => {
+    const config = parseSilverPulsarEventBusConfig({
+      'pulsar-silver-service-url': 'pulsar://localhost:6650',
+      'pulsar-silver-topic': 'silver.records',
+      'pulsar-silver-token': 'auth-token',
+      'pulsar-silver-topic-routing': 'trade:silver.trade,book_change:silver.books',
+      'pulsar-silver-include-records': 'trade,book_change',
+      'pulsar-silver-static-properties': 'env:prod,region:us-east-1',
+      'pulsar-silver-key-template': '{{exchange}}.{{recordType}}.{{symbol}}',
+      'pulsar-silver-max-batch-size': 256,
+      'pulsar-silver-max-batch-delay-ms': 50,
+      'pulsar-silver-compression-type': 'LZ4'
+    })
+
+    expect(config).toEqual({
+      provider: 'pulsar-silver',
+      serviceUrl: 'pulsar://localhost:6650',
+      topic: 'silver.records',
+      token: 'auth-token',
+      topicByRecordType: {
+        trade: 'silver.trade',
+        book_change: 'silver.books'
+      },
+      includeRecordTypes: ['trade', 'book_change'],
+      staticProperties: {
+        env: 'prod',
+        region: 'us-east-1'
+      },
+      keyTemplate: '{{exchange}}.{{recordType}}.{{symbol}}',
+      maxBatchSize: 256,
+      maxBatchDelayMs: 50,
+      compressionType: 'LZ4'
+    })
+  })
+
+  test('applies batch tuning options when provided', () => {
+    const config = parseSilverPulsarEventBusConfig({
+      'pulsar-silver-service-url': 'pulsar://localhost:6650',
+      'pulsar-silver-topic': 'silver.records',
+      'pulsar-silver-max-batch-size': 512,
+      'pulsar-silver-max-batch-delay-ms': 125
+    })
+
+    expect(config).toMatchObject({
+      maxBatchSize: 512,
+      maxBatchDelayMs: 125
+    })
+  })
+
+  test('parses schema registry url when provided', () => {
+    const config = parseSilverPulsarEventBusConfig({
+      'pulsar-silver-service-url': 'pulsar://localhost:6650',
+      'pulsar-silver-topic': 'silver.records',
+      'pulsar-silver-schema-registry-url': 'http://localhost:8080'
+    })
+
+    expect(config).toMatchObject({
+      schemaRegistry: {
+        url: 'http://localhost:8080'
+      }
+    })
+  })
+
+  test('rejects invalid pulsar-silver compression type', () => {
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': 'silver.records',
+        'pulsar-silver-compression-type': 'BROTLI'
+      })
+    ).toThrow('pulsar-silver-compression-type must be one of NONE,LZ4,ZLIB,ZSTD,SNAPPY.')
+  })
+
+  test('rejects blank pulsar-silver topic strings', () => {
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': '   '
+      })
+    ).toThrow('pulsar-silver-topic must be a non-empty string.')
+  })
+
+  test('rejects unknown record type names', () => {
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': 'silver.records',
+        'pulsar-silver-include-records': 'trade, candles'
+      })
+    ).toThrow('Unknown record type(s) for pulsar-silver-include-records: candles.')
+  })
+
+  test('rejects unknown record types in topic routing', () => {
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': 'silver.records',
+        'pulsar-silver-topic-routing': 'trade:silver.trade, candles:silver.candles'
+      })
+    ).toThrow('Unknown record type(s) for pulsar-silver-topic-routing: candles.')
+  })
+
+  test('accepts snake_case record names in topic routing', () => {
+    const config = parseSilverPulsarEventBusConfig({
+      'pulsar-silver-service-url': 'pulsar://localhost:6650',
+      'pulsar-silver-topic': 'silver.records',
+      'pulsar-silver-topic-routing': 'book_snapshot:silver.snapshots, grouped_book_snapshot:silver.grouped'
+    })
+
+    expect(config).toMatchObject({
+      topicByRecordType: {
+        book_snapshot: 'silver.snapshots',
+        grouped_book_snapshot: 'silver.grouped'
+      }
+    })
+  })
+
+  test('rejects invalid pulsar-silver static property entries', () => {
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': 'silver.records',
+        'pulsar-silver-static-properties': 'env'
+      })
+    ).toThrow('pulsar-silver-static-properties entries must be key:value pairs.')
+
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': 'silver.records',
+        'pulsar-silver-static-properties': 'recordType:overwritten'
+      })
+    ).toThrow('pulsar-silver-static-properties cannot override reserved header "recordType".')
+  })
+
+  test('rejects unknown key template placeholders', () => {
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': 'silver.records',
+        'pulsar-silver-key-template': '{{unknown}}'
+      })
+    ).toThrow('Unknown pulsar-silver-key-template placeholder "{{unknown}}".')
+  })
+
+  test('throws on invalid silver topic routing entry', () => {
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': 'silver.records',
+        'pulsar-silver-topic-routing': 'trade-only'
+      })
+    ).toThrow('Invalid pulsar-silver-topic-routing entry "trade-only". Expected format recordType:topicName.')
+  })
+
+  test('rejects blank silver pulsar service url strings', () => {
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': '   ',
+        'pulsar-silver-topic': 'silver.records'
+      })
+    ).toThrow('pulsar-silver-service-url must be a non-empty string.')
+  })
+
+  test('rejects blank silver pulsar topic strings', () => {
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': '   '
+      })
+    ).toThrow('pulsar-silver-topic must be a non-empty string.')
+  })
+
+  test('rejects blank schema registry url strings', () => {
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': 'silver.records',
+        'pulsar-silver-schema-registry-url': '   '
+      })
+    ).toThrow('pulsar-silver-schema-registry-url must be a non-empty string.')
+  })
+})

@@ -1,4 +1,6 @@
 import { Client } from 'pulsar-client'
+import * as fs from 'fs'
+import * as path from 'path'
 
 type Producer = any
 import { SilverNormalizedEventEncoder } from './silverMapper'
@@ -23,6 +25,7 @@ export class SilverPulsarEventBus implements SilverEventSink {
   private closed = false
   private readonly staticProperties?: Array<[string, string]>
   private readonly allowedRecordTypes?: Set<SilverRecordType>
+  private schema?: { schemaType: 'Protobuf'; name?: string; schema?: string; properties?: Record<string, string> }
 
   constructor(private readonly config: SilverPulsarEventBusConfig) {
     const keyBuilder = config.keyTemplate ? compileSilverKeyBuilder(config.keyTemplate) : undefined
@@ -40,6 +43,15 @@ export class SilverPulsarEventBus implements SilverEventSink {
   }
 
   async start() {
+    if (this.config.schemaRegistry) {
+      const schemaPath = path.join(__dirname, '../../schemas/proto/lakehouse/silver/v1/records.proto')
+      const schema = fs.readFileSync(schemaPath, 'utf8')
+      this.schema = {
+        schemaType: 'Protobuf' as const,
+        name: 'Records',
+        schema: schema
+      }
+    }
     // Producers will be created on demand
   }
 
@@ -156,7 +168,8 @@ export class SilverPulsarEventBus implements SilverEventSink {
     if (!producer) {
       producer = await this.client.createProducer({
         topic,
-        sendTimeoutMs: 30000
+        sendTimeoutMs: 30000,
+        schema: this.schema
       })
       this.producers.set(topic, producer)
     }

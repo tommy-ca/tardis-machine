@@ -2094,6 +2094,20 @@ export function parseSilverPulsarEventBusConfig(argv: Record<string, any>): Even
     pulsarConfig.compressionType = compressionType as SilverPulsarEventBusConfig['compressionType']
   }
 
+  const schemaRegistryUrlRaw = argv['pulsar-silver-schema-registry-url']
+  if (schemaRegistryUrlRaw !== undefined) {
+    if (typeof schemaRegistryUrlRaw !== 'string') {
+      throw new Error('pulsar-silver-schema-registry-url must be a string.')
+    }
+    const schemaRegistryUrl = schemaRegistryUrlRaw.trim()
+    if (schemaRegistryUrl === '') {
+      throw new Error('pulsar-silver-schema-registry-url must be a non-empty string.')
+    }
+    pulsarConfig.schemaRegistry = {
+      url: schemaRegistryUrl
+    }
+  }
+
   return {
     provider: 'pulsar-silver',
     ...pulsarConfig

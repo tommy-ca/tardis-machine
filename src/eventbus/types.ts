@@ -459,6 +459,11 @@ export type SilverPulsarEventBusConfig = {
   compressionType?: string
   /** Template for constructing Pulsar message keys */
   keyTemplate?: string
+  /** Schema Registry configuration for Protobuf schema management */
+  schemaRegistry?: {
+    /** Schema Registry URL (optional, defaults to serviceUrl) */
+    url?: string
+  }
 }
 
 export type SilverSQSEventBusConfig = {

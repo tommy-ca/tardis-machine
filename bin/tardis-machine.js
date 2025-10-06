@@ -903,6 +903,10 @@ const argv = yargs
     choices: ['NONE', 'LZ4', 'ZLIB', 'ZSTD', 'SNAPPY'],
     describe: 'Compression type for Pulsar messages for silver'
   })
+  .option('pulsar-silver-schema-registry-url', {
+    type: 'string',
+    describe: 'Schema Registry URL for silver Pulsar publishing'
+  })
 
   .option('sqs-silver-queue-url', {
     type: 'string',

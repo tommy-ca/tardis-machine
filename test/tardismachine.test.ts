@@ -13,6 +13,10 @@ let WS_REPLAY_URL: string
 const serializeOptions = (options: any) => {
   return encodeURIComponent(JSON.stringify(options))
 }
+
+// Increase timeout for hooks to handle server shutdown
+jest.setTimeout(60000)
+
 describe('tardis-machine', () => {
   let tardisMachine: TardisMachine
 

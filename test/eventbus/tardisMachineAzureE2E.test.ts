@@ -39,17 +39,15 @@ afterAll(async () => {
 })
 
 test('publishes replay-normalized events to Azure Event Hubs with Buf payloads', async () => {
-  const response = await fetch(HTTP_REPLAY_NORMALIZED_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      exchange: 'binance',
-      symbols: ['BTC/USDT'],
-      from: '2023-01-01',
-      to: '2023-01-01T00:01:00.000Z',
-      dataTypes: ['trades']
-    })
-  })
+  const options = {
+    exchange: 'binance',
+    symbols: ['btcusdt'],
+    from: '2020-01-01',
+    to: '2020-01-01T00:05:00.000Z',
+    dataTypes: ['trade']
+  }
+  const params = encodeOptions(options)
+  const response = await fetch(`${HTTP_REPLAY_NORMALIZED_URL}?options=${params}`)
 
   expect(response.status).toBe(200)
 
@@ -63,3 +61,7 @@ test('publishes replay-normalized events to Azure Event Hubs with Buf payloads',
   // but we can verify the machine started and processed the request
   expect(machine).toBeDefined()
 })
+
+function encodeOptions(options: any): string {
+  return encodeURIComponent(JSON.stringify(options))
+}

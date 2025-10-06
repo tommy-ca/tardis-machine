@@ -7,6 +7,7 @@ import {
   parseSQSEventBusConfig,
   parsePulsarEventBusConfig,
   parseSilverKafkaEventBusConfig,
+  parseSilverAzureEventBusConfig,
   parseSilverPulsarEventBusConfig,
   parseSilverSQSEventBusConfig
 } from '../../src/eventbus/config'
@@ -1442,5 +1443,149 @@ describe('parseSilverSQSEventBusConfig', () => {
         'sqs-silver-queue-routing': 'trade-only'
       })
     ).toThrow('Invalid sqs-silver-queue-routing entry "trade-only". Expected format recordType:queueUrl.')
+  })
+})
+
+describe('parseSilverAzureEventBusConfig', () => {
+  test('returns undefined when connection string or event hub name missing', () => {
+    expect(parseSilverAzureEventBusConfig({})).toBeUndefined()
+    expect(parseSilverAzureEventBusConfig({ 'event-hubs-silver-connection-string': 'Endpoint=sb://...' })).toBeUndefined()
+    expect(parseSilverAzureEventBusConfig({ 'event-hubs-silver-event-hub-name': 'events' })).toBeUndefined()
+  })
+
+  test('builds silver azure config with routing and properties', () => {
+    const config = parseSilverAzureEventBusConfig({
+      'event-hubs-silver-connection-string': 'Endpoint=sb://...',
+      'event-hubs-silver-event-hub-name': 'silver.records',
+      'event-hubs-silver-event-hub-routing': 'trade:silver.trade,book_change:silver.books',
+      'event-hubs-silver-include-records': 'trade,book_change',
+      'event-hubs-silver-static-properties': 'env:prod,region:us-east-1',
+      'event-hubs-silver-partition-key-template': '{{exchange}}.{{recordType}}.{{symbol}}',
+      'event-hubs-silver-max-batch-size': 50,
+      'event-hubs-silver-max-batch-delay-ms': 25
+    })
+
+    expect(config).toEqual({
+      provider: 'azure-event-hubs-silver',
+      connectionString: 'Endpoint=sb://...',
+      eventHubName: 'silver.records',
+      eventHubByRecordType: {
+        trade: 'silver.trade',
+        book_change: 'silver.books'
+      },
+      includeRecordTypes: ['trade', 'book_change'],
+      staticProperties: {
+        env: 'prod',
+        region: 'us-east-1'
+      },
+      partitionKeyTemplate: '{{exchange}}.{{recordType}}.{{symbol}}',
+      maxBatchSize: 50,
+      maxBatchDelayMs: 25
+    })
+  })
+
+  test('applies batch tuning options when provided', () => {
+    const config = parseSilverAzureEventBusConfig({
+      'event-hubs-silver-connection-string': 'Endpoint=sb://...',
+      'event-hubs-silver-event-hub-name': 'silver.records',
+      'event-hubs-silver-max-batch-size': 75,
+      'event-hubs-silver-max-batch-delay-ms': 50
+    })
+
+    expect(config).toMatchObject({
+      maxBatchSize: 75,
+      maxBatchDelayMs: 50
+    })
+  })
+
+  test('rejects blank silver azure connection string', () => {
+    expect(() =>
+      parseSilverAzureEventBusConfig({
+        'event-hubs-silver-connection-string': '   ',
+        'event-hubs-silver-event-hub-name': 'events'
+      })
+    ).toThrow('event-hubs-silver-connection-string must be a non-empty string.')
+  })
+
+  test('rejects blank silver azure event hub name', () => {
+    expect(() =>
+      parseSilverAzureEventBusConfig({
+        'event-hubs-silver-connection-string': 'Endpoint=sb://...',
+        'event-hubs-silver-event-hub-name': '   '
+      })
+    ).toThrow('event-hubs-silver-event-hub-name must be a non-empty string.')
+  })
+
+  test('rejects unknown record type names', () => {
+    expect(() =>
+      parseSilverAzureEventBusConfig({
+        'event-hubs-silver-connection-string': 'Endpoint=sb://...',
+        'event-hubs-silver-event-hub-name': 'silver.records',
+        'event-hubs-silver-include-records': 'trade, candles'
+      })
+    ).toThrow('Unknown record type(s) for event-hubs-silver-include-records: candles.')
+  })
+
+  test('rejects unknown record types in event hub routing', () => {
+    expect(() =>
+      parseSilverAzureEventBusConfig({
+        'event-hubs-silver-connection-string': 'Endpoint=sb://...',
+        'event-hubs-silver-event-hub-name': 'silver.records',
+        'event-hubs-silver-event-hub-routing': 'trade:silver.trade, candles:silver.candles'
+      })
+    ).toThrow('Unknown record type(s) for event-hubs-silver-event-hub-routing: candles.')
+  })
+
+  test('accepts snake_case record names in event hub routing', () => {
+    const config = parseSilverAzureEventBusConfig({
+      'event-hubs-silver-connection-string': 'Endpoint=sb://...',
+      'event-hubs-silver-event-hub-name': 'silver.records',
+      'event-hubs-silver-event-hub-routing': 'book_snapshot:silver.snapshots, grouped_book_snapshot:silver.grouped'
+    })
+
+    expect(config).toMatchObject({
+      eventHubByRecordType: {
+        book_snapshot: 'silver.snapshots',
+        grouped_book_snapshot: 'silver.grouped'
+      }
+    })
+  })
+
+  test('rejects invalid silver azure static property entries', () => {
+    expect(() =>
+      parseSilverAzureEventBusConfig({
+        'event-hubs-silver-connection-string': 'Endpoint=sb://...',
+        'event-hubs-silver-event-hub-name': 'silver.records',
+        'event-hubs-silver-static-properties': 'env'
+      })
+    ).toThrow('event-hubs-silver-static-properties entries must be key:value pairs.')
+
+    expect(() =>
+      parseSilverAzureEventBusConfig({
+        'event-hubs-silver-connection-string': 'Endpoint=sb://...',
+        'event-hubs-silver-event-hub-name': 'silver.records',
+        'event-hubs-silver-static-properties': 'recordType:overwritten'
+      })
+    ).toThrow('event-hubs-silver-static-properties cannot override reserved header "recordType".')
+  })
+
+  test('rejects unknown silver partition key template placeholders', () => {
+    expect(() =>
+      parseSilverAzureEventBusConfig({
+        'event-hubs-silver-connection-string': 'Endpoint=sb://...',
+        'event-hubs-silver-event-hub-name': 'silver.records',
+        'event-hubs-silver-partition-key-template': '{{unknown}}'
+      })
+    ).toThrow('Unknown event-hubs-silver-key-template placeholder "{{unknown}}".')
+  })
+
+  test('throws on invalid silver event hub routing entry', () => {
+    expect(() =>
+      parseSilverAzureEventBusConfig({
+        'event-hubs-silver-connection-string': 'Endpoint=sb://...',
+        'event-hubs-silver-event-hub-name': 'silver.records',
+        'event-hubs-silver-event-hub-routing': 'trade-only'
+      })
+    ).toThrow('Invalid event-hubs-silver-event-hub-routing entry "trade-only". Expected format recordType:eventHubName.')
   })
 })

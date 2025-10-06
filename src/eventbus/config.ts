@@ -16,7 +16,8 @@ import type {
   SilverNatsEventBusConfig,
   SilverRedisEventBusConfig,
   SilverPulsarEventBusConfig,
-  SilverSQSEventBusConfig
+  SilverSQSEventBusConfig,
+  SilverAzureEventBusConfig
 } from './types'
 import { compileKeyBuilder, compileSilverKeyBuilder } from './keyTemplate'
 
@@ -2226,6 +2227,120 @@ export function parseSilverSQSEventBusConfig(argv: Record<string, any>): EventBu
   return {
     provider: 'sqs-silver',
     ...sqsConfig
+  }
+}
+
+export function parseSilverAzureEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const connectionStringRaw = argv['event-hubs-silver-connection-string']
+  const eventHubNameRaw = argv['event-hubs-silver-event-hub-name']
+
+  if (!connectionStringRaw || !eventHubNameRaw) {
+    return undefined
+  }
+
+  const connectionString = typeof connectionStringRaw === 'string' ? connectionStringRaw.trim() : ''
+  if (connectionString === '') {
+    throw new Error('event-hubs-silver-connection-string must be a non-empty string.')
+  }
+
+  const eventHubName = typeof eventHubNameRaw === 'string' ? eventHubNameRaw.trim() : ''
+  if (eventHubName === '') {
+    throw new Error('event-hubs-silver-event-hub-name must be a non-empty string.')
+  }
+
+  const azureConfig: SilverAzureEventBusConfig = {
+    connectionString,
+    eventHubName
+  }
+
+  const eventHubRoutingRaw = argv['event-hubs-silver-event-hub-routing']
+  if (eventHubRoutingRaw !== undefined) {
+    if (typeof eventHubRoutingRaw !== 'string') {
+      throw new Error('event-hubs-silver-event-hub-routing must be a string of recordType:eventHubName entries separated by commas.')
+    }
+
+    const map: Partial<Record<SilverRecordType, string>> = {}
+    const invalidRecordTypes = new Set<string>()
+
+    const pairs = eventHubRoutingRaw
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    for (const pair of pairs) {
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid event-hubs-silver-event-hub-routing entry "${pair}". Expected format recordType:eventHubName.`)
+      }
+
+      const recordType = pair.slice(0, separatorIndex).trim()
+      const mappedEventHub = pair.slice(separatorIndex + 1).trim()
+
+      if (!recordType || !mappedEventHub) {
+        throw new Error(`Invalid event-hubs-silver-event-hub-routing entry "${pair}". Expected format recordType:eventHubName.`)
+      }
+
+      const normalizedRecordType = normalizeSilverRecordType(recordType)
+
+      if (!normalizedRecordType) {
+        invalidRecordTypes.add(recordType)
+        continue
+      }
+
+      map[normalizedRecordType] = mappedEventHub
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('event-hubs-silver-event-hub-routing must define at least one recordType mapping.')
+    }
+
+    if (invalidRecordTypes.size > 0) {
+      throw new Error(`Unknown record type(s) for event-hubs-silver-event-hub-routing: ${Array.from(invalidRecordTypes).join(', ')}.`)
+    }
+
+    azureConfig.eventHubByRecordType = map
+  }
+
+  const includeRecordTypes = parseIncludeSilverRecordTypes(argv['event-hubs-silver-include-records'], 'event-hubs-silver')
+  if (includeRecordTypes) {
+    azureConfig.includeRecordTypes = includeRecordTypes
+  }
+
+  const staticProperties = parseStaticHeaders(
+    argv['event-hubs-silver-static-properties'],
+    'event-hubs-silver-static-properties',
+    RESERVED_SILVER_STATIC_HEADER_KEYS
+  )
+  if (staticProperties) {
+    azureConfig.staticProperties = staticProperties
+  }
+
+  const partitionKeyTemplateRaw = argv['event-hubs-silver-partition-key-template']
+  if (partitionKeyTemplateRaw !== undefined) {
+    if (typeof partitionKeyTemplateRaw !== 'string') {
+      throw new Error('event-hubs-silver-partition-key-template must be a non-empty string.')
+    }
+    const partitionKeyTemplate = partitionKeyTemplateRaw.trim()
+    if (partitionKeyTemplate === '') {
+      throw new Error('event-hubs-silver-partition-key-template must be a non-empty string.')
+    }
+    compileSilverKeyBuilder(partitionKeyTemplate, 'event-hubs-silver')
+    azureConfig.partitionKeyTemplate = partitionKeyTemplate
+  }
+
+  const maxBatchSize = parsePositiveInteger(argv['event-hubs-silver-max-batch-size'], 'event-hubs-silver-max-batch-size')
+  if (maxBatchSize !== undefined) {
+    azureConfig.maxBatchSize = maxBatchSize
+  }
+
+  const maxBatchDelayMs = parsePositiveInteger(argv['event-hubs-silver-max-batch-delay-ms'], 'event-hubs-silver-max-batch-delay-ms')
+  if (maxBatchDelayMs !== undefined) {
+    azureConfig.maxBatchDelayMs = maxBatchDelayMs
+  }
+
+  return {
+    provider: 'azure-event-hubs-silver',
+    ...azureConfig
   }
 }
 

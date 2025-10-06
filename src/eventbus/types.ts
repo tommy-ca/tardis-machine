@@ -412,6 +412,23 @@ export type SilverSQSEventBusConfig = {
   maxBatchDelayMs?: number
 }
 
+export type SilverAzureEventBusConfig = {
+  connectionString: string
+  eventHubName: string
+  /** Optional map for routing record types to dedicated event hubs */
+  eventHubByRecordType?: Partial<Record<SilverRecordType, string>>
+  /** Optional allow-list of record types to publish */
+  includeRecordTypes?: SilverRecordType[]
+  /** Static properties applied to every event */
+  staticProperties?: Record<string, string>
+  /** Maximum number of Silver events to send per batch */
+  maxBatchSize?: number
+  /** Maximum milliseconds events can wait before forced flush */
+  maxBatchDelayMs?: number
+  /** Template for constructing partition keys */
+  partitionKeyTemplate?: string
+}
+
 export type EventBusConfig =
   | ({
       provider: 'kafka'
@@ -458,3 +475,6 @@ export type EventBusConfig =
   | ({
       provider: 'sqs-silver'
     } & SilverSQSEventBusConfig)
+  | ({
+      provider: 'azure-event-hubs-silver'
+    } & SilverAzureEventBusConfig)

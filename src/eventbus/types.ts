@@ -125,6 +125,19 @@ export type KinesisEventBusConfig = {
   partitionKeyTemplate?: string
 }
 
+export type NatsEventBusConfig = {
+  servers: string[]
+  subject: string
+  /** Optional map for routing payload cases to dedicated subjects */
+  subjectByPayloadCase?: Partial<Record<BronzePayloadCase, string>>
+  /** Optional allow-list of payload cases to publish */
+  includePayloadCases?: BronzePayloadCase[]
+  /** Static headers applied to every message */
+  staticHeaders?: Record<string, string>
+  /** Template for constructing NATS message subjects */
+  subjectTemplate?: string
+}
+
 export type EventBusConfig =
   | ({
       provider: 'kafka'
@@ -135,3 +148,6 @@ export type EventBusConfig =
   | ({
       provider: 'kinesis'
     } & KinesisEventBusConfig)
+  | ({
+      provider: 'nats'
+    } & NatsEventBusConfig)

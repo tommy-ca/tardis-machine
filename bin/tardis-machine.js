@@ -7,7 +7,12 @@ const cluster = require('cluster')
 const numCPUs = require('os').cpus().length
 const isDocker = require('is-docker')
 const pkg = require('../package.json')
-const { parseKafkaEventBusConfig, parseRabbitMQEventBusConfig, parseKinesisEventBusConfig } = require('../dist/eventbus/config')
+const {
+  parseKafkaEventBusConfig,
+  parseRabbitMQEventBusConfig,
+  parseKinesisEventBusConfig,
+  parseNatsEventBusConfig
+} = require('../dist/eventbus/config')
 
 const DEFAULT_PORT = 8000
 const argv = yargs
@@ -189,6 +194,31 @@ const argv = yargs
     describe: 'Maximum milliseconds events can wait before forced flush'
   })
 
+  .option('nats-servers', {
+    type: 'string',
+    describe: 'Comma separated NATS server URLs for normalized event publishing'
+  })
+  .option('nats-subject', {
+    type: 'string',
+    describe: 'NATS subject for normalized events'
+  })
+  .option('nats-include-payloads', {
+    type: 'string',
+    describe: 'Comma separated payload cases to publish (others dropped)'
+  })
+  .option('nats-subject-routing', {
+    type: 'string',
+    describe: 'Comma separated payloadCase:subject pairs overriding the base subject'
+  })
+  .option('nats-static-headers', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static NATS headers'
+  })
+  .option('nats-subject-template', {
+    type: 'string',
+    describe: 'Template for NATS subjects, e.g. {{exchange}}.{{payloadCase}}.{{symbol}}'
+  })
+
   .help()
   .version()
   .usage('$0 [options]')
@@ -207,7 +237,8 @@ if (enableDebug) {
 const { TardisMachine } = require('../dist')
 
 async function start() {
-  const eventBusConfig = parseKafkaEventBusConfig(argv) || parseRabbitMQEventBusConfig(argv) || parseKinesisEventBusConfig(argv)
+  const eventBusConfig =
+    parseKafkaEventBusConfig(argv) || parseRabbitMQEventBusConfig(argv) || parseKinesisEventBusConfig(argv) || parseNatsEventBusConfig(argv)
 
   const machine = new TardisMachine({
     apiKey: argv['api-key'],

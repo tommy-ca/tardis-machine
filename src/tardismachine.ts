@@ -5,7 +5,7 @@ import { App, DISABLED, TemplatedApp } from 'uWebSockets.js'
 import { replayHttp, createReplayNormalizedHttpHandler, healthCheck } from './http'
 import { createReplayNormalizedWSHandler, replayWS, createStreamNormalizedWSHandler } from './ws'
 import { debug } from './debug'
-import { KafkaEventBus, RabbitMQEventBus, KinesisEventBus } from './eventbus'
+import { KafkaEventBus, RabbitMQEventBus, KinesisEventBus, NatsEventBus } from './eventbus'
 import type { EventBusConfig, NormalizedEventSink, NormalizedMessage, PublishFn, PublishInjection, PublishMeta } from './eventbus/types'
 
 const pkg = require('../package.json')
@@ -160,6 +160,9 @@ export class TardisMachine {
     }
     if (config.provider === 'kinesis') {
       return new KinesisEventBus(config)
+    }
+    if (config.provider === 'nats') {
+      return new NatsEventBus(config)
     }
 
     throw new Error(`Unsupported event bus provider: ${(config as any).provider}`)

@@ -1,4 +1,11 @@
-import type { BronzePayloadCase, EventBusConfig, KafkaEventBusConfig, RabbitMQEventBusConfig, KinesisEventBusConfig } from './types'
+import type {
+  BronzePayloadCase,
+  EventBusConfig,
+  KafkaEventBusConfig,
+  RabbitMQEventBusConfig,
+  KinesisEventBusConfig,
+  NatsEventBusConfig
+} from './types'
 import { compileKeyBuilder } from './keyTemplate'
 
 const ALLOWED_COMPRESSION = new Set(['none', 'gzip', 'snappy', 'lz4', 'zstd'])
@@ -593,6 +600,110 @@ export function parseKinesisEventBusConfig(argv: Record<string, any>): EventBusC
   return {
     provider: 'kinesis',
     ...kinesisConfig
+  }
+}
+
+export function parseNatsEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const serversRaw = argv['nats-servers']
+  const subjectRaw = argv['nats-subject']
+
+  if (!serversRaw || !subjectRaw) {
+    return undefined
+  }
+
+  const subject = typeof subjectRaw === 'string' ? subjectRaw.trim() : ''
+  if (subject === '') {
+    throw new Error('nats-subject must be a non-empty string.')
+  }
+
+  let servers: string[]
+  if (typeof serversRaw === 'string') {
+    servers = serversRaw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+  } else if (Array.isArray(serversRaw)) {
+    servers = serversRaw.map((s) => String(s).trim()).filter(Boolean)
+  } else {
+    throw new Error('nats-servers must be a comma-separated string or array of server URLs.')
+  }
+
+  if (servers.length === 0) {
+    throw new Error('nats-servers must contain at least one server URL.')
+  }
+
+  const natsConfig: NatsEventBusConfig = {
+    servers,
+    subject
+  }
+
+  const subjectRoutingRaw = argv['nats-subject-routing']
+  if (subjectRoutingRaw !== undefined) {
+    if (typeof subjectRoutingRaw !== 'string') {
+      throw new Error('nats-subject-routing must be a string of payloadCase:subject entries separated by commas.')
+    }
+
+    const map: Partial<Record<BronzePayloadCase, string>> = {}
+    const invalidPayloadCases = new Set<string>()
+
+    const pairs = subjectRoutingRaw
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    for (const pair of pairs) {
+      const [payloadCase, mappedSubject] = pair.split(':').map((part) => part?.trim())
+      if (!payloadCase || !mappedSubject) {
+        throw new Error(`Invalid nats-subject-routing entry "${pair}". Expected format payloadCase:subject.`)
+      }
+
+      const normalizedPayloadCase = normalizePayloadCase(payloadCase)
+
+      if (!normalizedPayloadCase) {
+        invalidPayloadCases.add(payloadCase)
+        continue
+      }
+
+      map[normalizedPayloadCase] = mappedSubject
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('nats-subject-routing must define at least one payloadCase mapping.')
+    }
+
+    if (invalidPayloadCases.size > 0) {
+      throw new Error(`Unknown payload case(s) for nats-subject-routing: ${Array.from(invalidPayloadCases).join(', ')}.`)
+    }
+
+    natsConfig.subjectByPayloadCase = map
+  }
+
+  const includePayloadCases = parseIncludePayloadCases(argv['nats-include-payloads'])
+  if (includePayloadCases) {
+    natsConfig.includePayloadCases = includePayloadCases
+  }
+
+  const staticHeaders = parseStaticHeaders(argv['nats-static-headers'])
+  if (staticHeaders) {
+    natsConfig.staticHeaders = staticHeaders
+  }
+
+  const subjectTemplateRaw = argv['nats-subject-template']
+  if (subjectTemplateRaw !== undefined) {
+    if (typeof subjectTemplateRaw !== 'string') {
+      throw new Error('nats-subject-template must be a non-empty string.')
+    }
+    const subjectTemplate = subjectTemplateRaw.trim()
+    if (subjectTemplate === '') {
+      throw new Error('nats-subject-template must be a non-empty string.')
+    }
+    compileKeyBuilder(subjectTemplate)
+    natsConfig.subjectTemplate = subjectTemplate
+  }
+
+  return {
+    provider: 'nats',
+    ...natsConfig
   }
 }
 

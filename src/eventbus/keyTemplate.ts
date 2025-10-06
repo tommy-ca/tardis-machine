@@ -10,7 +10,7 @@ type SilverAccessor = (record: Parameters<SilverKeyBuilder>[0], recordType: Para
 
 type SilverSegment = string | SilverAccessor
 
-const PLACEHOLDER_PATTERN = /{{\s*([a-zA-Z0-9_.]+)\s*}}/g
+const PLACEHOLDER_PATTERN = /{{\s*([a-zA-Z0-9_.-]+)\s*}}/g
 const META_PREFIX = 'meta.'
 const META_KEY_PATTERN = /^[a-zA-Z0-9_]+$/
 

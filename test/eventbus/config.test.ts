@@ -520,6 +520,48 @@ describe('parseRedisEventBusConfig', () => {
 })
 
 describe('parseSilverKafkaEventBusConfig', () => {
+  test('builds silver kafka config with schema registry', () => {
+    const config = parseSilverKafkaEventBusConfig({
+      'kafka-silver-brokers': 'localhost:9092',
+      'kafka-silver-topic': 'silver.records',
+      'kafka-silver-schema-registry-url': 'http://localhost:8081',
+      'kafka-silver-schema-registry-auth-username': 'user',
+      'kafka-silver-schema-registry-auth-password': 'pass'
+    })
+
+    expect(config).toEqual({
+      provider: 'kafka-silver',
+      brokers: ['localhost:9092'],
+      topic: 'silver.records',
+      schemaRegistry: {
+        url: 'http://localhost:8081',
+        auth: {
+          username: 'user',
+          password: 'pass'
+        }
+      }
+    })
+  })
+
+  test('builds silver kafka config with schema registry without auth', () => {
+    const config = parseSilverKafkaEventBusConfig({
+      'kafka-silver-brokers': 'localhost:9092',
+      'kafka-silver-topic': 'silver.records',
+      'kafka-silver-schema-registry-url': 'http://localhost:8081'
+    })
+
+    expect(config).toEqual({
+      provider: 'kafka-silver',
+      brokers: ['localhost:9092'],
+      topic: 'silver.records',
+      schemaRegistry: {
+        url: 'http://localhost:8081'
+      }
+    })
+  })
+})
+
+describe('parseSilverKafkaEventBusConfig', () => {
   test('returns undefined when kafka silver brokers or topic missing', () => {
     expect(parseSilverKafkaEventBusConfig({})).toBeUndefined()
     expect(parseSilverKafkaEventBusConfig({ 'kafka-silver-brokers': 'localhost:9092' })).toBeUndefined()

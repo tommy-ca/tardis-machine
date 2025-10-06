@@ -19,6 +19,7 @@ export { SilverSQSEventBus } from './silverSqs'
 export { PubSubEventBus } from './pubsub'
 export { SilverPubSubEventBus } from './silverPubsub'
 export { ConsoleEventBus } from './console'
+export { SilverConsoleEventBus } from './silverConsole'
 export {
   parseKafkaEventBusConfig,
   parseSilverKafkaEventBusConfig,

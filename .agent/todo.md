@@ -101,6 +101,6 @@
 
 - [x] Run buf:lint and buf:format to ensure proto schemas are clean
 - [x] Run npm run build to ensure TypeScript compiles
-- [ ] Run npm run test to ensure all tests pass (E2E with Testcontainers)
+- [x] Run npm run test to ensure all tests pass (E2E with Testcontainers)
 - [x] Run npm run check-format and fix if needed
 - [ ] Push local commits to origin/master

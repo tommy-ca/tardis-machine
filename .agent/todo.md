@@ -17,3 +17,11 @@
 - [x] Wire Kinesis into TardisMachine event bus creation.
 - [x] Add integration test verifying Kinesis publish using LocalStack.
 - [x] Add regression test ensuring Kinesis publishing can be toggled off.
+- [x] Implement Nats publishing for normalized events.
+- [x] Wire Nats into TardisMachine event bus creation.
+- [x] Add integration test verifying Nats publish using Testcontainers.
+- [x] Add regression test ensuring Nats publishing can be toggled off.
+- [x] Implement RabbitMQ publishing for normalized events.
+- [x] Wire RabbitMQ into TardisMachine event bus creation.
+- [x] Add integration test verifying RabbitMQ publish using Testcontainers.
+- [x] Add regression test ensuring RabbitMQ publishing can be toggled off.

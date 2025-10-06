@@ -205,6 +205,58 @@ export type SilverKafkaEventBusConfig = {
   idempotent?: boolean
 }
 
+export type SilverRabbitMQEventBusConfig = {
+  url: string
+  exchange: string
+  exchangeType?: 'direct' | 'topic' | 'headers' | 'fanout'
+  /** Optional routing key template for constructing routing keys */
+  routingKeyTemplate?: string
+  /** Optional allow-list of record types to publish */
+  includeRecordTypes?: SilverRecordType[]
+  /** Static headers applied to every message */
+  staticHeaders?: Record<string, string>
+}
+
+export type SilverKinesisEventBusConfig = {
+  streamName: string
+  region: string
+  /** Optional map for routing record types to dedicated streams */
+  streamByRecordType?: Partial<Record<SilverRecordType, string>>
+  /** Optional allow-list of record types to publish */
+  includeRecordTypes?: SilverRecordType[]
+  /** AWS access key ID */
+  accessKeyId?: string
+  /** AWS secret access key */
+  secretAccessKey?: string
+  /** AWS session token (for temporary credentials) */
+  sessionToken?: string
+  /** Static metadata applied to every record */
+  staticHeaders?: Record<string, string>
+  /** Maximum number of Silver events to send per Kinesis batch */
+  maxBatchSize?: number
+  /** Maximum milliseconds events can wait before forced flush */
+  maxBatchDelayMs?: number
+  /** Template for constructing Kinesis partition keys */
+  partitionKeyTemplate?: string
+}
+
+export type SilverNatsEventBusConfig = {
+  servers: string[]
+  subject: string
+  /** Optional map for routing record types to dedicated subjects */
+  subjectByRecordType?: Partial<Record<SilverRecordType, string>>
+  /** Optional allow-list of record types to publish */
+  includeRecordTypes?: SilverRecordType[]
+  /** Static headers applied to every message */
+  staticHeaders?: Record<string, string>
+  /** Template for constructing NATS message subjects */
+  subjectTemplate?: string
+  /** NATS user for authentication */
+  user?: string
+  /** NATS password for authentication */
+  pass?: string
+}
+
 export type EventBusConfig =
   | ({
       provider: 'kafka'
@@ -221,3 +273,12 @@ export type EventBusConfig =
   | ({
       provider: 'kafka-silver'
     } & SilverKafkaEventBusConfig)
+  | ({
+      provider: 'rabbitmq-silver'
+    } & SilverRabbitMQEventBusConfig)
+  | ({
+      provider: 'kinesis-silver'
+    } & SilverKinesisEventBusConfig)
+  | ({
+      provider: 'nats-silver'
+    } & SilverNatsEventBusConfig)

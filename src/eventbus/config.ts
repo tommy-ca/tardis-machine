@@ -6,7 +6,10 @@ import type {
   SilverKafkaEventBusConfig,
   RabbitMQEventBusConfig,
   KinesisEventBusConfig,
-  NatsEventBusConfig
+  NatsEventBusConfig,
+  SilverRabbitMQEventBusConfig,
+  SilverKinesisEventBusConfig,
+  SilverNatsEventBusConfig
 } from './types'
 import { compileKeyBuilder, compileSilverKeyBuilder } from './keyTemplate'
 
@@ -65,18 +68,18 @@ function parseKafkaBrokers(raw: unknown): string[] {
     .filter(Boolean)
 }
 
-function parseCompression(raw: unknown): KafkaEventBusConfig['compression'] | undefined {
+function parseCompression(raw: unknown, flagPrefix = 'kafka'): KafkaEventBusConfig['compression'] | undefined {
   if (raw === undefined || raw === null || raw === '') {
     return undefined
   }
 
   if (typeof raw !== 'string') {
-    throw new Error('kafka-compression must be one of none,gzip,snappy,lz4,zstd.')
+    throw new Error(`${flagPrefix}-compression must be one of none,gzip,snappy,lz4,zstd.`)
   }
 
   const value = raw.trim().toLowerCase()
   if (!ALLOWED_COMPRESSION.has(value)) {
-    throw new Error('kafka-compression must be one of none,gzip,snappy,lz4,zstd.')
+    throw new Error(`${flagPrefix}-compression must be one of none,gzip,snappy,lz4,zstd.`)
   }
 
   return value as KafkaEventBusConfig['compression']
@@ -167,13 +170,13 @@ function parseIncludePayloadCases(raw: unknown): BronzePayloadCase[] | undefined
   return Array.from(normalizedCases)
 }
 
-function parseStaticHeaders(raw: unknown): Record<string, string> | undefined {
+function parseStaticHeaders(raw: unknown, flagPrefix = 'kafka'): Record<string, string> | undefined {
   if (raw === undefined || raw === null || raw === '') {
     return undefined
   }
 
   if (typeof raw !== 'string') {
-    throw new Error('kafka-static-headers must be a comma separated string list of key:value pairs.')
+    throw new Error(`${flagPrefix}-static-headers must be a comma separated string list of key:value pairs.`)
   }
 
   const entries = raw
@@ -182,29 +185,29 @@ function parseStaticHeaders(raw: unknown): Record<string, string> | undefined {
     .filter(Boolean)
 
   if (entries.length === 0) {
-    throw new Error('kafka-static-headers must list at least one key:value pair.')
+    throw new Error(`${flagPrefix}-static-headers must list at least one key:value pair.`)
   }
 
   const headers: Record<string, string> = {}
   for (const entry of entries) {
     const separatorIndex = entry.indexOf(':')
     if (separatorIndex <= 0 || separatorIndex === entry.length - 1) {
-      throw new Error('kafka-static-headers entries must be key:value pairs.')
+      throw new Error(`${flagPrefix}-static-headers entries must be key:value pairs.`)
     }
 
     const key = entry.slice(0, separatorIndex).trim()
     const value = entry.slice(separatorIndex + 1).trim()
 
     if (!key || !value) {
-      throw new Error('kafka-static-headers entries must be key:value pairs.')
+      throw new Error(`${flagPrefix}-static-headers entries must be key:value pairs.`)
     }
 
     if (RESERVED_STATIC_HEADER_KEYS.has(key)) {
-      throw new Error(`kafka-static-headers cannot override reserved header "${key}".`)
+      throw new Error(`${flagPrefix}-static-headers cannot override reserved header "${key}".`)
     }
 
     if (headers[key] !== undefined) {
-      throw new Error(`Duplicate kafka-static-headers key "${key}".`)
+      throw new Error(`Duplicate ${flagPrefix}-static-headers key "${key}".`)
     }
 
     headers[key] = value
@@ -235,7 +238,7 @@ function parseBooleanOption(value: unknown, optionName: string): boolean | undef
   throw new Error(`${optionName} must be a boolean value.`)
 }
 
-function parseAcks(raw: unknown): KafkaEventBusConfig['acks'] | undefined {
+function parseAcks(raw: unknown, flagPrefix = 'kafka'): KafkaEventBusConfig['acks'] | undefined {
   if (raw === undefined || raw === null || raw === '') {
     return undefined
   }
@@ -244,7 +247,7 @@ function parseAcks(raw: unknown): KafkaEventBusConfig['acks'] | undefined {
     if (raw === -1 || raw === 0 || raw === 1) {
       return raw
     }
-    throw new Error('kafka-acks must be one of all,leader,none,1,0,-1.')
+    throw new Error(`${flagPrefix}-acks must be one of all,leader,none,1,0,-1.`)
   }
 
   if (typeof raw === 'string') {
@@ -253,10 +256,10 @@ function parseAcks(raw: unknown): KafkaEventBusConfig['acks'] | undefined {
     if (mapped !== undefined) {
       return mapped
     }
-    throw new Error('kafka-acks must be one of all,leader,none,1,0,-1.')
+    throw new Error(`${flagPrefix}-acks must be one of all,leader,none,1,0,-1.`)
   }
 
-  throw new Error('kafka-acks must be one of all,leader,none,1,0,-1.')
+  throw new Error(`${flagPrefix}-acks must be one of all,leader,none,1,0,-1.`)
 }
 
 function parseSasl(argv: Record<string, any>): KafkaEventBusConfig['sasl'] | undefined {
@@ -525,7 +528,7 @@ export function parseSilverKafkaEventBusConfig(argv: Record<string, any>): Event
     kafkaConfig.topicByRecordType = map
   }
 
-  const includeRecordTypes = parseIncludeSilverRecordTypes(argv['kafka-silver-include-records'])
+  const includeRecordTypes = parseIncludeSilverRecordTypes(argv['kafka-silver-include-records'], 'kafka-silver')
   if (includeRecordTypes) {
     kafkaConfig.includeRecordTypes = includeRecordTypes
   }
@@ -559,7 +562,7 @@ export function parseSilverKafkaEventBusConfig(argv: Record<string, any>): Event
     kafkaConfig.metaHeadersPrefix = metaHeadersPrefix
   }
 
-  const staticHeaders = parseStaticHeaders(argv['kafka-silver-static-headers'])
+  const staticHeaders = parseStaticHeaders(argv['kafka-silver-static-headers'], 'kafka-silver')
   if (staticHeaders) {
     kafkaConfig.staticHeaders = staticHeaders
   }
@@ -592,12 +595,12 @@ export function parseSilverKafkaEventBusConfig(argv: Record<string, any>): Event
     kafkaConfig.maxBatchDelayMs = maxBatchDelayMs
   }
 
-  const compression = parseCompression(argv['kafka-silver-compression'])
+  const compression = parseCompression(argv['kafka-silver-compression'], 'kafka-silver')
   if (compression) {
     kafkaConfig.compression = compression
   }
 
-  const acks = parseAcks(argv['kafka-silver-acks'])
+  const acks = parseAcks(argv['kafka-silver-acks'], 'kafka-silver')
   if (acks !== undefined) {
     kafkaConfig.acks = acks
   }
@@ -613,7 +616,7 @@ export function parseSilverKafkaEventBusConfig(argv: Record<string, any>): Event
   }
 }
 
-function parseIncludeSilverRecordTypes(raw: unknown): SilverRecordType[] | undefined {
+function parseIncludeSilverRecordTypes(raw: unknown, flagPrefix = 'kafka-silver'): SilverRecordType[] | undefined {
   if (typeof raw !== 'string') {
     return undefined
   }
@@ -636,7 +639,7 @@ function parseIncludeSilverRecordTypes(raw: unknown): SilverRecordType[] | undef
   }
 
   if (invalidRecordTypes.size > 0) {
-    throw new Error(`Unknown record type(s) for kafka-silver-include-records: ${Array.from(invalidRecordTypes).join(', ')}.`)
+    throw new Error(`Unknown record type(s) for ${flagPrefix}-include-records: ${Array.from(invalidRecordTypes).join(', ')}.`)
   }
 
   return recordTypes.length > 0 ? recordTypes : undefined
@@ -941,6 +944,313 @@ export function parseNatsEventBusConfig(argv: Record<string, any>): EventBusConf
 
   return {
     provider: 'nats',
+    ...natsConfig
+  }
+}
+
+export function parseSilverRabbitMQEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const urlRaw = argv['rabbitmq-silver-url']
+  const exchangeRaw = argv['rabbitmq-silver-exchange']
+
+  if (!urlRaw || !exchangeRaw) {
+    return undefined
+  }
+
+  const url = typeof urlRaw === 'string' ? urlRaw.trim() : ''
+  if (url === '') {
+    throw new Error('rabbitmq-silver-url must be a non-empty string.')
+  }
+
+  const exchange = typeof exchangeRaw === 'string' ? exchangeRaw.trim() : ''
+  if (exchange === '') {
+    throw new Error('rabbitmq-silver-exchange must be a non-empty string.')
+  }
+
+  const rabbitmqConfig: SilverRabbitMQEventBusConfig = {
+    url,
+    exchange
+  }
+
+  const exchangeTypeRaw = argv['rabbitmq-silver-exchange-type']
+  if (exchangeTypeRaw !== undefined) {
+    if (typeof exchangeTypeRaw !== 'string') {
+      throw new Error('rabbitmq-silver-exchange-type must be a string.')
+    }
+    const exchangeType = exchangeTypeRaw.trim().toLowerCase()
+    if (!['direct', 'topic', 'headers', 'fanout'].includes(exchangeType)) {
+      throw new Error('rabbitmq-silver-exchange-type must be one of direct,topic,headers,fanout.')
+    }
+    rabbitmqConfig.exchangeType = exchangeType as 'direct' | 'topic' | 'headers' | 'fanout'
+  }
+
+  const routingKeyTemplateRaw = argv['rabbitmq-silver-routing-key-template']
+  if (routingKeyTemplateRaw !== undefined) {
+    if (typeof routingKeyTemplateRaw !== 'string') {
+      throw new Error('rabbitmq-silver-routing-key-template must be a non-empty string.')
+    }
+    const routingKeyTemplate = routingKeyTemplateRaw.trim()
+    if (routingKeyTemplate === '') {
+      throw new Error('rabbitmq-silver-routing-key-template must be a non-empty string.')
+    }
+    compileSilverKeyBuilder(routingKeyTemplate)
+    rabbitmqConfig.routingKeyTemplate = routingKeyTemplate
+  }
+
+  const includeRecordTypes = parseIncludeSilverRecordTypes(argv['rabbitmq-silver-include-records'], 'rabbitmq-silver')
+  if (includeRecordTypes) {
+    rabbitmqConfig.includeRecordTypes = includeRecordTypes
+  }
+
+  const staticHeaders = parseStaticHeaders(argv['rabbitmq-silver-static-headers'], 'rabbitmq-silver')
+  if (staticHeaders) {
+    rabbitmqConfig.staticHeaders = staticHeaders
+  }
+
+  return {
+    provider: 'rabbitmq-silver',
+    ...rabbitmqConfig
+  }
+}
+
+export function parseSilverKinesisEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const streamNameRaw = argv['kinesis-silver-stream-name']
+  const regionRaw = argv['kinesis-silver-region']
+
+  if (!streamNameRaw || !regionRaw) {
+    return undefined
+  }
+
+  const streamName = typeof streamNameRaw === 'string' ? streamNameRaw.trim() : ''
+  if (streamName === '') {
+    throw new Error('kinesis-silver-stream-name must be a non-empty string.')
+  }
+
+  const region = typeof regionRaw === 'string' ? regionRaw.trim() : ''
+  if (region === '') {
+    throw new Error('kinesis-silver-region must be a non-empty string.')
+  }
+
+  const kinesisConfig: SilverKinesisEventBusConfig = {
+    streamName,
+    region
+  }
+
+  const streamRoutingRaw = argv['kinesis-silver-stream-routing']
+  if (streamRoutingRaw !== undefined) {
+    if (typeof streamRoutingRaw !== 'string') {
+      throw new Error('kinesis-silver-stream-routing must be a string of recordType:streamName entries separated by commas.')
+    }
+
+    const map: Partial<Record<SilverRecordType, string>> = {}
+    const invalidRecordTypes = new Set<string>()
+
+    const pairs = streamRoutingRaw
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    for (const pair of pairs) {
+      const [recordType, mappedStream] = pair.split(':').map((part) => part?.trim())
+      if (!recordType || !mappedStream) {
+        throw new Error(`Invalid kinesis-silver-stream-routing entry "${pair}". Expected format recordType:streamName.`)
+      }
+
+      const normalizedRecordType = normalizeSilverRecordType(recordType)
+
+      if (!normalizedRecordType) {
+        invalidRecordTypes.add(recordType)
+        continue
+      }
+
+      map[normalizedRecordType] = mappedStream
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('kinesis-silver-stream-routing must define at least one recordType mapping.')
+    }
+
+    if (invalidRecordTypes.size > 0) {
+      throw new Error(`Unknown record type(s) for kinesis-silver-stream-routing: ${Array.from(invalidRecordTypes).join(', ')}.`)
+    }
+
+    kinesisConfig.streamByRecordType = map
+  }
+
+  const includeRecordTypes = parseIncludeSilverRecordTypes(argv['kinesis-silver-include-records'], 'kinesis-silver')
+  if (includeRecordTypes) {
+    kinesisConfig.includeRecordTypes = includeRecordTypes
+  }
+
+  const accessKeyIdRaw = argv['kinesis-silver-access-key-id']
+  if (accessKeyIdRaw !== undefined) {
+    if (typeof accessKeyIdRaw !== 'string') {
+      throw new Error('kinesis-silver-access-key-id must be a string.')
+    }
+    const accessKeyId = accessKeyIdRaw.trim()
+    if (accessKeyId === '') {
+      throw new Error('kinesis-silver-access-key-id must be a non-empty string.')
+    }
+    kinesisConfig.accessKeyId = accessKeyId
+  }
+
+  const secretAccessKeyRaw = argv['kinesis-silver-secret-access-key']
+  if (secretAccessKeyRaw !== undefined) {
+    if (typeof secretAccessKeyRaw !== 'string') {
+      throw new Error('kinesis-silver-secret-access-key must be a string.')
+    }
+    const secretAccessKey = secretAccessKeyRaw.trim()
+    if (secretAccessKey === '') {
+      throw new Error('kinesis-silver-secret-access-key must be a non-empty string.')
+    }
+    kinesisConfig.secretAccessKey = secretAccessKey
+  }
+
+  const sessionTokenRaw = argv['kinesis-silver-session-token']
+  if (sessionTokenRaw !== undefined) {
+    if (typeof sessionTokenRaw !== 'string') {
+      throw new Error('kinesis-silver-session-token must be a string.')
+    }
+    const sessionToken = sessionTokenRaw.trim()
+    if (sessionToken === '') {
+      throw new Error('kinesis-silver-session-token must be a non-empty string.')
+    }
+    kinesisConfig.sessionToken = sessionToken
+  }
+
+  const staticHeaders = parseStaticHeaders(argv['kinesis-silver-static-headers'], 'kinesis-silver')
+  if (staticHeaders) {
+    kinesisConfig.staticHeaders = staticHeaders
+  }
+
+  const partitionKeyTemplateRaw = argv['kinesis-silver-partition-key-template']
+  if (partitionKeyTemplateRaw !== undefined) {
+    if (typeof partitionKeyTemplateRaw !== 'string') {
+      throw new Error('kinesis-silver-partition-key-template must be a non-empty string.')
+    }
+    const partitionKeyTemplate = partitionKeyTemplateRaw.trim()
+    if (partitionKeyTemplate === '') {
+      throw new Error('kinesis-silver-partition-key-template must be a non-empty string.')
+    }
+    compileSilverKeyBuilder(partitionKeyTemplate)
+    kinesisConfig.partitionKeyTemplate = partitionKeyTemplate
+  }
+
+  const maxBatchSize = parsePositiveInteger(argv['kinesis-silver-max-batch-size'], 'kinesis-silver-max-batch-size')
+  if (maxBatchSize !== undefined) {
+    kinesisConfig.maxBatchSize = maxBatchSize
+  }
+
+  const maxBatchDelayMs = parsePositiveInteger(argv['kinesis-silver-max-batch-delay-ms'], 'kinesis-silver-max-batch-delay-ms')
+  if (maxBatchDelayMs !== undefined) {
+    kinesisConfig.maxBatchDelayMs = maxBatchDelayMs
+  }
+
+  return {
+    provider: 'kinesis-silver',
+    ...kinesisConfig
+  }
+}
+
+export function parseSilverNatsEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const serversRaw = argv['nats-silver-servers']
+  const subjectRaw = argv['nats-silver-subject']
+
+  if (!serversRaw || !subjectRaw) {
+    return undefined
+  }
+
+  const subject = typeof subjectRaw === 'string' ? subjectRaw.trim() : ''
+  if (subject === '') {
+    throw new Error('nats-silver-subject must be a non-empty string.')
+  }
+
+  let servers: string[]
+  if (typeof serversRaw === 'string') {
+    servers = serversRaw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+  } else if (Array.isArray(serversRaw)) {
+    servers = serversRaw.map((s) => String(s).trim()).filter(Boolean)
+  } else {
+    throw new Error('nats-silver-servers must be a comma-separated string or array of server URLs.')
+  }
+
+  if (servers.length === 0) {
+    throw new Error('nats-silver-servers must contain at least one server URL.')
+  }
+
+  const natsConfig: SilverNatsEventBusConfig = {
+    servers,
+    subject
+  }
+
+  const subjectRoutingRaw = argv['nats-silver-subject-routing']
+  if (subjectRoutingRaw !== undefined) {
+    if (typeof subjectRoutingRaw !== 'string') {
+      throw new Error('nats-silver-subject-routing must be a string of recordType:subject entries separated by commas.')
+    }
+
+    const map: Partial<Record<SilverRecordType, string>> = {}
+    const invalidRecordTypes = new Set<string>()
+
+    const pairs = subjectRoutingRaw
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    for (const pair of pairs) {
+      const [recordType, mappedSubject] = pair.split(':').map((part) => part?.trim())
+      if (!recordType || !mappedSubject) {
+        throw new Error(`Invalid nats-silver-subject-routing entry "${pair}". Expected format recordType:subject.`)
+      }
+
+      const normalizedRecordType = normalizeSilverRecordType(recordType)
+
+      if (!normalizedRecordType) {
+        invalidRecordTypes.add(recordType)
+        continue
+      }
+
+      map[normalizedRecordType] = mappedSubject
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('nats-silver-subject-routing must define at least one recordType mapping.')
+    }
+
+    if (invalidRecordTypes.size > 0) {
+      throw new Error(`Unknown record type(s) for nats-silver-subject-routing: ${Array.from(invalidRecordTypes).join(', ')}.`)
+    }
+
+    natsConfig.subjectByRecordType = map
+  }
+
+  const includeRecordTypes = parseIncludeSilverRecordTypes(argv['nats-silver-include-records'], 'nats-silver')
+  if (includeRecordTypes) {
+    natsConfig.includeRecordTypes = includeRecordTypes
+  }
+
+  const staticHeaders = parseStaticHeaders(argv['nats-silver-static-headers'], 'nats-silver')
+  if (staticHeaders) {
+    natsConfig.staticHeaders = staticHeaders
+  }
+
+  const subjectTemplateRaw = argv['nats-silver-subject-template']
+  if (subjectTemplateRaw !== undefined) {
+    if (typeof subjectTemplateRaw !== 'string') {
+      throw new Error('nats-silver-subject-template must be a non-empty string.')
+    }
+    const subjectTemplate = subjectTemplateRaw.trim()
+    if (subjectTemplate === '') {
+      throw new Error('nats-silver-subject-template must be a non-empty string.')
+    }
+    compileSilverKeyBuilder(subjectTemplate)
+    natsConfig.subjectTemplate = subjectTemplate
+  }
+
+  return {
+    provider: 'nats-silver',
     ...natsConfig
   }
 }

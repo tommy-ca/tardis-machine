@@ -1,6 +1,6 @@
 import fetch from 'node-fetch'
 import { Client, Consumer } from 'pulsar-client'
-import { PulsarContainer, StartedPulsarContainer } from '@testcontainers/pulsar'
+import { GenericContainer, StartedTestContainer } from 'testcontainers'
 import { fromBinary } from '@bufbuild/protobuf'
 import { rm } from 'fs/promises'
 import { TardisMachine } from '../../src'
@@ -15,14 +15,16 @@ const cacheDir = './.cache-pulsar-e2e'
 const pulsarImage = 'apachepulsar/pulsar:3.0.0'
 const startTimeoutMs = 180000
 
-let container: StartedPulsarContainer
+let container: StartedTestContainer
 let pulsarUrl: string
 let shouldSkip = false
 
 beforeAll(async () => {
   try {
     container = await startPulsarContainer()
-    pulsarUrl = container.getServiceUrl()
+    const host = container.getHost()
+    const port = container.getMappedPort(6650)
+    pulsarUrl = `pulsar://${host}:${port}`
     // Wait for Pulsar to be ready
     await new Promise((resolve) => setTimeout(resolve, 5000))
     const testClient = new Client({ serviceUrl: pulsarUrl })
@@ -174,8 +176,8 @@ test('does not publish when Pulsar service URL is invalid', async () => {
   }
 })
 
-async function startPulsarContainer(): Promise<StartedPulsarContainer> {
-  const container = new PulsarContainer(pulsarImage).withStartupTimeout(startTimeoutMs)
+async function startPulsarContainer(): Promise<StartedTestContainer> {
+  const container = new GenericContainer(pulsarImage).withExposedPorts(6650).withStartupTimeout(startTimeoutMs)
 
   return container.start()
 }

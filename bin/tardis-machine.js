@@ -131,6 +131,18 @@ const argv = yargs
     type: 'string',
     describe: 'Kafka SASL password'
   })
+  .option('kafka-schema-registry-url', {
+    type: 'string',
+    describe: 'Schema Registry URL for Kafka publishing'
+  })
+  .option('kafka-schema-registry-auth-username', {
+    type: 'string',
+    describe: 'Schema Registry auth username'
+  })
+  .option('kafka-schema-registry-auth-password', {
+    type: 'string',
+    describe: 'Schema Registry auth password'
+  })
 
   .option('kafka-silver-brokers', {
     type: 'string',

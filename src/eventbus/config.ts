@@ -130,13 +130,13 @@ function parseTopicRouting(raw: unknown): KafkaEventBusConfig['topicByPayloadCas
   return map
 }
 
-function parseIncludePayloadCases(raw: unknown): BronzePayloadCase[] | undefined {
+function parseIncludePayloadCases(raw: unknown, flagPrefix = 'kafka'): BronzePayloadCase[] | undefined {
   if (raw === undefined || raw === null || raw === '') {
     return undefined
   }
 
   if (typeof raw !== 'string') {
-    throw new Error('kafka-include-payloads must be a comma separated string list of payload cases.')
+    throw new Error(`${flagPrefix}-include-payloads must be a comma separated string list of payload cases.`)
   }
 
   const uniqueInputs = Array.from(
@@ -149,7 +149,7 @@ function parseIncludePayloadCases(raw: unknown): BronzePayloadCase[] | undefined
   )
 
   if (uniqueInputs.length === 0) {
-    throw new Error('kafka-include-payloads must list at least one payload case.')
+    throw new Error(`${flagPrefix}-include-payloads must list at least one payload case.`)
   }
 
   const normalizedCases = new Set<BronzePayloadCase>()
@@ -165,7 +165,7 @@ function parseIncludePayloadCases(raw: unknown): BronzePayloadCase[] | undefined
   }
 
   if (invalid.length > 0) {
-    throw new Error(`Unknown payload case(s) for kafka-include-payloads: ${invalid.join(', ')}.`)
+    throw new Error(`Unknown payload case(s) for ${flagPrefix}-include-payloads: ${invalid.join(', ')}.`)
   }
 
   return Array.from(normalizedCases)
@@ -1320,12 +1320,12 @@ export function parseRedisEventBusConfig(argv: Record<string, any>): EventBusCon
     redisConfig.streamByPayloadCase = map
   }
 
-  const includePayloadCases = parseIncludePayloadCases(argv['redis-include-payloads'])
+  const includePayloadCases = parseIncludePayloadCases(argv['redis-include-payloads'], 'redis')
   if (includePayloadCases) {
     redisConfig.includePayloadCases = includePayloadCases
   }
 
-  const staticHeaders = parseStaticHeaders(argv['redis-static-headers'])
+  const staticHeaders = parseStaticHeaders(argv['redis-static-headers'], 'redis')
   if (staticHeaders) {
     redisConfig.staticHeaders = staticHeaders
   }
@@ -1339,7 +1339,7 @@ export function parseRedisEventBusConfig(argv: Record<string, any>): EventBusCon
     if (keyTemplate === '') {
       throw new Error('redis-key-template must be a non-empty string.')
     }
-    compileKeyBuilder(keyTemplate)
+    compileKeyBuilder(keyTemplate, 'redis')
     redisConfig.keyTemplate = keyTemplate
   }
 

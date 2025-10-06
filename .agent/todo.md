@@ -93,9 +93,19 @@
 - [x] Add CLI support for Silver Azure Event Hubs event bus options.
 - [x] Add unit tests for Silver Azure Event Hubs config parsing.
 
-## New Feature: Silver PubSub E2E Test
+## New Feature: PubSub Event Bus
 
-- [x] Add integration test verifying Silver Pub/Sub publish using mocked producer.
+- [x] Implement PubSub publishing for normalized events.
+- [x] Wire PubSub into TardisMachine event bus creation.
+- [x] Add integration test verifying PubSub publish using mocked producer.
+- [x] Add CLI support for PubSub event bus options.
+- [x] Add unit tests for PubSub config parsing.
+- [x] Add regression test ensuring PubSub publishing can be toggled off.
+- [x] Implement Silver PubSub publishing for normalized events.
+- [x] Wire Silver PubSub into TardisMachine event bus creation.
+- [x] Add integration test verifying Silver PubSub publish using mocked producer.
+- [x] Add CLI support for Silver PubSub event bus options.
+- [x] Add unit tests for Silver PubSub config parsing.
 
 ## Maintenance Tasks
 

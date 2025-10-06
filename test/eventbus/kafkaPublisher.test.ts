@@ -232,6 +232,27 @@ describe('KafkaEventBus', () => {
     expect(headers['meta.transport']).toBe('websocket')
   })
 
+  test('encodes messages with schema ID when configured', async () => {
+    const bus = new KafkaEventBus({
+      brokers: ['localhost:9092'],
+      topic: baseTopic,
+      schemaRegistry: {
+        url: 'http://localhost:8081'
+      }
+    })
+
+    // Simulate schema ID set
+    ;(bus as any).schemaId = 123
+
+    const binary = new Uint8Array([1, 2, 3, 4])
+    const encoded = (bus as any).encodeValue(binary)
+
+    expect(encoded.length).toBe(5 + 4) // magic + schemaId + binary
+    expect(encoded.readUInt8(0)).toBe(0) // magic byte
+    expect(encoded.readUInt32BE(1)).toBe(123) // schema ID
+    expect(encoded.subarray(5)).toEqual(Buffer.from(binary))
+  })
+
   test('publishes configured static headers', async () => {
     if (shouldSkip) {
       return

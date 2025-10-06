@@ -40,6 +40,7 @@
 - Introduce Buf CLI workflows (format, lint, generate) and TypeScript generation via `@bufbuild/protoc-gen-es` to avoid runtime reflection encoding.
 - Generated TypeScript code should live under `src/generated` (git committed) and feed publisher encoding.
 - Maintain compatibility tests under `test/proto` to ensure schema and generated code fidelity.
+- Support Confluent Schema Registry for Kafka publishing, registering Protobuf schemas and encoding messages with schema IDs for better schema evolution.
 
 ## Testing Strategy
 
@@ -57,3 +58,4 @@
 - CLI exposes `--kafka-*` options (brokers, topic, topic routing, client id, SSL, SASL) to enable publishing.
 - Publishing is optional; when Kafka options are missing, the server behaves exactly as before.
 - Payload filtering allow-lists via `--kafka-include-payloads` drop unlisted cases before they reach batching logic, minimizing broker load.
+- Schema Registry support allows registering Protobuf schemas and encoding messages with schema IDs for compatibility and evolution (optional via `--kafka-schema-registry-url`).

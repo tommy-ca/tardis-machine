@@ -88,6 +88,48 @@
 - Shape subjects with `--nats-subject-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{payloadCase}}`, or `{{meta.request_id}}`.
 - Attach deployment metadata with `--nats-static-headers`, supplying comma separated `key:value` pairs that become constant NATS headers on every message.
 
+### Silver Layer Publishing
+
+The Silver layer provides analytics-ready data with fixed scales and strong typing, complementing the existing Bronze layer. Silver records are published to event buses using the same infrastructure but with dedicated configuration flags.
+
+#### Silver Kafka Publishing
+
+- Publish Silver layer records to Kafka by supplying `--kafka-silver-brokers` and `--kafka-silver-topic` flags.
+- Use `--kafka-silver-topic-routing` to route specific record types (e.g. `trade`, `book_change`) to dedicated topics via a comma separated `recordType:topic` list. Record type names must match the Silver record types (`trade`, `book_change`, `book_snapshot`, `grouped_book_snapshot`, `quote`, `derivative_ticker`, `liquidation`, `option_summary`, `book_ticker`, `trade_bar`).
+- Reduce downstream load by specifying `--kafka-silver-include-records` with a comma separated record type allow-list (others are dropped before batching).
+- Additional flags like `--kafka-silver-client-id`, `--kafka-silver-ssl`, and SASL options remain available for secure deployments.
+- Shape Kafka partitioning keys with `--kafka-silver-key-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{recordType}}`.
+- Dial delivery guarantees with `--kafka-silver-acks` (`all`, `leader`, `none`) and enable idempotent producers via `--kafka-silver-idempotent`.
+- Tune publishing throughput via `--kafka-silver-max-batch-size` (events per batch) and `--kafka-silver-max-batch-delay-ms` (max milliseconds to wait before flushing).
+- Select compression with `--kafka-silver-compression` (`none`, `gzip`, `snappy`, `lz4`, `zstd`).
+- Attach deployment metadata with `--kafka-silver-static-headers`, supplying comma separated `key:value` pairs that become constant Kafka headers on every record.
+
+#### Silver RabbitMQ Publishing
+
+- Publish Silver layer records to RabbitMQ by supplying `--rabbitmq-silver-url` and `--rabbitmq-silver-exchange` flags.
+- Use `--rabbitmq-silver-exchange-type` to set the exchange type (`direct`, `topic`, `headers`, `fanout`).
+- Shape routing keys with `--rabbitmq-silver-routing-key-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{recordType}}`.
+- Reduce downstream load by specifying `--rabbitmq-silver-include-records` with a comma separated record type allow-list (others are dropped).
+- Attach deployment metadata with `--rabbitmq-silver-static-headers`, supplying comma separated `key:value` pairs that become constant RabbitMQ headers on every message.
+
+#### Silver Kinesis Publishing
+
+- Publish Silver layer records to AWS Kinesis by supplying `--kinesis-silver-stream-name` and `--kinesis-silver-region` flags.
+- Use `--kinesis-silver-stream-routing` to route specific record types (e.g. `trade`, `book_change`) to dedicated streams via a comma separated `recordType:streamName` list. Record type names must match the Silver record types.
+- Reduce downstream load by specifying `--kinesis-silver-include-records` with a comma separated record type allow-list (others are dropped before batching).
+- Provide AWS credentials via `--kinesis-silver-access-key-id` and `--kinesis-silver-secret-access-key`, or rely on IAM roles/instance profiles.
+- Shape partition keys with `--kinesis-silver-partition-key-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{recordType}}`.
+- Tune publishing throughput via `--kinesis-silver-max-batch-size` (events per batch) and `--kinesis-silver-max-batch-delay-ms` (max milliseconds to wait before flushing).
+- Attach deployment metadata with `--kinesis-silver-static-headers`, supplying comma separated `key:value` pairs that become constant metadata on every record.
+
+#### Silver NATS Publishing
+
+- Publish Silver layer records to NATS by supplying `--nats-silver-servers` and `--nats-silver-subject` flags.
+- Use `--nats-silver-subject-routing` to route specific record types (e.g. `trade`, `book_change`) to dedicated subjects via a comma separated `recordType:subject` list. Record type names must match the Silver record types.
+- Reduce downstream load by specifying `--nats-silver-include-records` with a comma separated record type allow-list (others are dropped).
+- Shape subjects with `--nats-silver-subject-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{recordType}}`.
+- Attach deployment metadata with `--nats-silver-static-headers`, supplying comma separated `key:value` pairs that become constant NATS headers on every message.
+
 ### Keeping Schemas and Builds in Sync
 
 Normalized event schemas live under `schemas/proto`, and generated TypeScript bindings are emitted into `src/generated`. Whenever schemas change, run `npm run buf:generate` to refresh the Buf-generated sources and `npm run build` to update the compiled `dist/` artifacts that power the CLI entry point.
@@ -105,6 +147,13 @@ Event bus publishing is covered by integration tests in `test/eventbus`. These r
 - For Kinesis: Confirm `--kinesis-region` and stream name are correct; ensure IAM permissions allow `PutRecords` on the specified stream.
 - For Kinesis: Review batching knobs regularly: `--kinesis-max-batch-size` should stay below Kinesis `PutRecords` limits (500 records), and `--kinesis-max-batch-delay-ms` must align with downstream latency budgets.
 - For NATS: Ensure `--nats-servers` points to healthy NATS servers and subjects are appropriately configured for your routing needs.
-- Confirm header contracts after schema updates by consuming a sample message and validating Buf-decoded payloads alongside the emitted `payloadCase` and `meta.*` headers.
+- For Silver Kafka: Verify `--kafka-silver-brokers` reflects the current cluster endpoints; apply same broker maintenance as Bronze layer.
+- For Silver Kafka: Confirm `--kafka-silver-acks` and `--kafka-silver-idempotent` match broker durability targets.
+- For Silver Kafka: Review batching knobs regularly: `--kafka-silver-max-batch-size` and `--kafka-silver-max-batch-delay-ms` should align with throughput requirements.
+- For Silver RabbitMQ: Ensure `--rabbitmq-silver-url` points to a healthy RabbitMQ cluster and `--rabbitmq-silver-exchange` exists or can be auto-created.
+- For Silver Kinesis: Confirm `--kinesis-silver-region` and stream name are correct; ensure IAM permissions allow `PutRecords` on the specified stream.
+- For Silver Kinesis: Review batching knobs regularly: `--kinesis-silver-max-batch-size` should stay below Kinesis `PutRecords` limits (500 records).
+- For Silver NATS: Ensure `--nats-silver-servers` points to healthy NATS servers and subjects are appropriately configured.
+- Confirm header contracts after schema updates by consuming a sample message and validating Buf-decoded payloads alongside the emitted `recordType` and `dataType` headers for Silver layer.
 - Track retries via application logs; repeated send attempt warnings indicate sustained pressure and should trigger broker-side health checks.
 - Re-run `npm run buf:generate` and rebuild whenever `schemas/proto` changes to keep binary payloads matching the deployed Buf schema version.

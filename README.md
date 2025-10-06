@@ -117,6 +117,15 @@
 - Tune publishing throughput via `--sqs-max-batch-size` (events per batch, max 10) and `--sqs-max-batch-delay-ms` (max milliseconds to wait before flushing).
 - Attach deployment metadata with `--sqs-static-message-attributes`, supplying comma separated `key:value` pairs that become constant SQS message attributes on every message.
 
+### Azure Event Hubs Publishing
+
+- Publish normalized market data to Azure Event Hubs by supplying `--event-hubs-connection-string` and `--event-hubs-event-hub-name` flags.
+- Use `--event-hubs-event-hub-routing` to route specific payload cases (e.g. `trade`, `bookChange`) to dedicated event hubs via a comma separated `payloadCase:eventHubName` list. Payload case names must match the normalized Bronze cases (`trade`, `bookChange`, `bookSnapshot`, `groupedBookSnapshot`, `quote`, `derivativeTicker`, `liquidation`, `optionSummary`, `bookTicker`, `tradeBar`, `error`, `disconnect`).
+- Reduce downstream load by specifying `--event-hubs-include-payloads` with a comma separated payload case allow-list (others are dropped before batching).
+- Shape partition keys with `--event-hubs-partition-key-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{payloadCase}}`, or `{{meta.request_id}}`.
+- Tune publishing throughput via `--event-hubs-max-batch-size` (events per batch) and `--event-hubs-max-batch-delay-ms` (max milliseconds to wait before flushing).
+- Attach deployment metadata with `--event-hubs-static-properties`, supplying comma separated `key:value` pairs that become constant Event Hubs properties on every event.
+
 ### Silver Layer Publishing
 
 The Silver layer provides analytics-ready data with fixed scales and strong typing, complementing the existing Bronze layer. Silver records are published to event buses using the same infrastructure but with dedicated configuration flags.
@@ -225,6 +234,10 @@ Event bus publishing is covered by integration tests in `test/eventbus`. These r
 - For Silver Pulsar: Review batching knobs regularly: `--pulsar-silver-max-batch-size` and `--pulsar-silver-max-batch-delay-ms` should align with throughput requirements.
 - For Silver SQS: Confirm `--sqs-silver-region` and queue URLs are correct; ensure IAM permissions allow `SendMessage` on the specified queues.
 - For Silver SQS: Review batching knobs regularly: `--sqs-silver-max-batch-size` should stay below SQS `SendMessageBatch` limits (10 messages), and `--sqs-silver-max-batch-delay-ms` must align with downstream latency budgets.
+- For Silver Azure Event Hubs: Ensure `--event-hubs-silver-connection-string` and `--event-hubs-silver-event-hub-name` are correct; ensure the connection string has send permissions.
+- For Silver Azure Event Hubs: Review batching knobs regularly: `--event-hubs-silver-max-batch-size` should stay below Event Hubs batch limits (100 events), and `--event-hubs-silver-max-batch-delay-ms` must align with downstream latency budgets.
+- For Azure Event Hubs: Ensure `--event-hubs-connection-string` and `--event-hubs-event-hub-name` are correct; ensure the connection string has send permissions.
+- For Azure Event Hubs: Review batching knobs regularly: `--event-hubs-max-batch-size` should stay below Event Hubs batch limits (100 events), and `--event-hubs-max-batch-delay-ms` must align with downstream latency budgets.
 - Confirm header contracts after schema updates by consuming a sample message and validating Buf-decoded payloads alongside the emitted `recordType` and `dataType` headers for Silver layer.
 - Track retries via application logs; repeated send attempt warnings indicate sustained pressure and should trigger broker-side health checks.
 - Re-run `npm run buf:generate` and rebuild whenever `schemas/proto` changes to keep binary payloads matching the deployed Buf schema version.

@@ -23,6 +23,9 @@ beforeAll(async () => {
   try {
     container = await startNatsContainer()
     natsUrl = `${container.getHost()}:${container.getMappedPort(4222)}`
+    // Wait for NATS to be ready
+    const testConn = await connect({ servers: [natsUrl] })
+    await testConn.close()
   } catch (error) {
     shouldSkip = true
     console.warn('Skipping tardis-machine NATS E2E test:', error)

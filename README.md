@@ -207,6 +207,24 @@ The Silver layer provides analytics-ready data with fixed scales and strong typi
 - Tune publishing throughput via `--sqs-silver-max-batch-size` (events per batch, max 10) and `--sqs-silver-max-batch-delay-ms` (max milliseconds to wait before flushing).
 - Attach deployment metadata with `--sqs-silver-static-message-attributes`, supplying comma separated `key:value` pairs that become constant SQS message attributes on every message.
 
+#### Silver Azure Event Hubs Publishing
+
+- Publish Silver layer records to Azure Event Hubs by supplying `--event-hubs-silver-connection-string` and `--event-hubs-silver-event-hub-name` flags.
+- Use `--event-hubs-silver-event-hub-routing` to route specific record types (e.g. `trade`, `book_change`) to dedicated event hubs via a comma separated `recordType:eventHubName` list. Record type names must match the Silver record types (`trade`, `book_change`, `book_snapshot`, `grouped_book_snapshot`, `quote`, `derivative_ticker`, `liquidation`, `option_summary`, `book_ticker`, `trade_bar`).
+- Reduce downstream load by specifying `--event-hubs-silver-include-records` with a comma separated record type allow-list (others are dropped before batching).
+- Shape partition keys with `--event-hubs-silver-partition-key-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{recordType}}`.
+- Tune publishing throughput via `--event-hubs-silver-max-batch-size` (events per batch) and `--event-hubs-silver-max-batch-delay-ms` (max milliseconds to wait before flushing).
+- Attach deployment metadata with `--event-hubs-silver-static-properties`, supplying comma separated `key:value` pairs that become constant Event Hubs properties on every event.
+
+#### Silver Google Cloud Pub/Sub Publishing
+
+- Publish Silver layer records to Google Cloud Pub/Sub by supplying `--pubsub-silver-project-id` and `--pubsub-silver-topic` flags.
+- Use `--pubsub-silver-topic-routing` to route specific record types (e.g. `trade`, `book_change`) to dedicated topics via a comma separated `recordType:topic` list. Record type names must match the Silver record types (`trade`, `book_change`, `book_snapshot`, `grouped_book_snapshot`, `quote`, `derivative_ticker`, `liquidation`, `option_summary`, `book_ticker`, `trade_bar`).
+- Reduce downstream load by specifying `--pubsub-silver-include-records` with a comma separated record type allow-list (others are dropped before batching).
+- Shape ordering keys with `--pubsub-silver-ordering-key-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{recordType}}`.
+- Tune publishing throughput via `--pubsub-silver-max-batch-size` (events per batch) and `--pubsub-silver-max-batch-delay-ms` (max milliseconds to wait before flushing).
+- Attach deployment metadata with `--pubsub-silver-static-attributes`, supplying comma separated `key:value` pairs that become constant Pub/Sub attributes on every message.
+
 ### Keeping Schemas and Builds in Sync
 
 Normalized event schemas live under `schemas/proto`, and generated TypeScript bindings are emitted into `src/generated`. Whenever schemas change, run `npm run buf:generate` to refresh the Buf-generated sources and `npm run build` to update the compiled `dist/` artifacts that power the CLI entry point.

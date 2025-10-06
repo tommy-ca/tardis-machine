@@ -126,6 +126,15 @@
 - Tune publishing throughput via `--event-hubs-max-batch-size` (events per batch) and `--event-hubs-max-batch-delay-ms` (max milliseconds to wait before flushing).
 - Attach deployment metadata with `--event-hubs-static-properties`, supplying comma separated `key:value` pairs that become constant Event Hubs properties on every event.
 
+### Google Cloud Pub/Sub Publishing
+
+- Publish normalized market data to Google Cloud Pub/Sub by supplying `--pubsub-project-id` and `--pubsub-topic` flags.
+- Use `--pubsub-topic-routing` to route specific payload cases (e.g. `trade`, `bookChange`) to dedicated topics via a comma separated `payloadCase:topic` list. Payload case names must match the normalized Bronze cases (`trade`, `bookChange`, `bookSnapshot`, `groupedBookSnapshot`, `quote`, `derivativeTicker`, `liquidation`, `optionSummary`, `bookTicker`, `tradeBar`, `error`, `disconnect`).
+- Reduce downstream load by specifying `--pubsub-include-payloads` with a comma separated payload case allow-list (others are dropped before batching).
+- Shape ordering keys with `--pubsub-ordering-key-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{payloadCase}}`, or `{{meta.request_id}}`.
+- Tune publishing throughput via `--pubsub-max-batch-size` (events per batch) and `--pubsub-max-batch-delay-ms` (max milliseconds to wait before flushing).
+- Attach deployment metadata with `--pubsub-static-attributes`, supplying comma separated `key:value` pairs that become constant Pub/Sub attributes on every message.
+
 ### Silver Layer Publishing
 
 The Silver layer provides analytics-ready data with fixed scales and strong typing, complementing the existing Bronze layer. Silver records are published to event buses using the same infrastructure but with dedicated configuration flags.
@@ -204,7 +213,7 @@ Normalized event schemas live under `schemas/proto`, and generated TypeScript bi
 
 ### Event Bus Integration Test Prerequisites
 
-Event bus publishing is covered by integration tests in `test/eventbus`. These rely on Testcontainers and require a local Docker daemon with at least 2 CPU cores, 4 GB of memory, and the ability to pull the `confluentinc/cp-kafka:7.5.3`, `rabbitmq:3-management-alpine`, `localstack/localstack:3.0`, `nats:2.10`, `redis:7-alpine`, and `apachepulsar/pulsar:3.0.0` images. Ensure Docker is running before invoking `npm test`; otherwise event bus suites will be skipped after a timeout.
+Event bus publishing is covered by integration tests in `test/eventbus`. Most tests rely on Testcontainers and require a local Docker daemon with at least 2 CPU cores, 4 GB of memory, and the ability to pull the `confluentinc/cp-kafka:7.5.3`, `rabbitmq:3-management-alpine`, `localstack/localstack:3.0`, `nats:2.10`, `redis:7-alpine`, and `apachepulsar/pulsar:3.0.0` images. The Google Cloud Pub/Sub tests use mocking and do not require Docker. Ensure Docker is running before invoking `npm test` for containerized tests; otherwise those suites will be skipped after a timeout.
 
 ### Event Bus Maintenance Checklist
 
@@ -238,6 +247,10 @@ Event bus publishing is covered by integration tests in `test/eventbus`. These r
 - For Silver Azure Event Hubs: Review batching knobs regularly: `--event-hubs-silver-max-batch-size` should stay below Event Hubs batch limits (100 events), and `--event-hubs-silver-max-batch-delay-ms` must align with downstream latency budgets.
 - For Azure Event Hubs: Ensure `--event-hubs-connection-string` and `--event-hubs-event-hub-name` are correct; ensure the connection string has send permissions.
 - For Azure Event Hubs: Review batching knobs regularly: `--event-hubs-max-batch-size` should stay below Event Hubs batch limits (100 events), and `--event-hubs-max-batch-delay-ms` must align with downstream latency budgets.
+- For Google Cloud Pub/Sub: Ensure `--pubsub-project-id` and topic names are correct; ensure GCP credentials have publish permissions on the specified topics.
+- For Google Cloud Pub/Sub: Review batching knobs regularly: `--pubsub-max-batch-size` should stay below Pub/Sub batch limits (1000 messages), and `--pubsub-max-batch-delay-ms` must align with downstream latency budgets.
+- For Silver Google Cloud Pub/Sub: Ensure `--pubsub-silver-project-id` and topic names are correct; ensure GCP credentials have publish permissions on the specified topics.
+- For Silver Google Cloud Pub/Sub: Review batching knobs regularly: `--pubsub-silver-max-batch-size` should stay below Pub/Sub batch limits (1000 messages), and `--pubsub-silver-max-batch-delay-ms` must align with downstream latency budgets.
 - Confirm header contracts after schema updates by consuming a sample message and validating Buf-decoded payloads alongside the emitted `recordType` and `dataType` headers for Silver layer.
 - Track retries via application logs; repeated send attempt warnings indicate sustained pressure and should trigger broker-side health checks.
 - Re-run `npm run buf:generate` and rebuild whenever `schemas/proto` changes to keep binary payloads matching the deployed Buf schema version.

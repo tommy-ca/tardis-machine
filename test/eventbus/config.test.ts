@@ -7,6 +7,8 @@ import {
   parseSQSEventBusConfig,
   parsePulsarEventBusConfig,
   parseAzureEventHubsEventBusConfig,
+  parsePubSubEventBusConfig,
+  parseSilverPubSubEventBusConfig,
   parseSilverKafkaEventBusConfig,
   parseSilverAzureEventBusConfig,
   parseSilverPulsarEventBusConfig,
@@ -1737,5 +1739,303 @@ describe('parseSilverAzureEventBusConfig', () => {
         'event-hubs-silver-event-hub-routing': 'trade-only'
       })
     ).toThrow('Invalid event-hubs-silver-event-hub-routing entry "trade-only". Expected format recordType:eventHubName.')
+  })
+})
+
+describe('parsePubSubEventBusConfig', () => {
+  test('returns undefined when pubsub project id or topic missing', () => {
+    expect(parsePubSubEventBusConfig({})).toBeUndefined()
+    expect(parsePubSubEventBusConfig({ 'pubsub-project-id': 'my-project' })).toBeUndefined()
+    expect(parsePubSubEventBusConfig({ 'pubsub-topic': 'events' })).toBeUndefined()
+  })
+
+  test('builds pubsub config with routing and attributes', () => {
+    const config = parsePubSubEventBusConfig({
+      'pubsub-project-id': 'my-project',
+      'pubsub-topic': 'bronze.events',
+      'pubsub-topic-routing': 'trade:bronze.trade,bookChange:bronze.books',
+      'pubsub-include-payloads': 'trade,bookChange',
+      'pubsub-static-attributes': 'env:prod,region:us-east-1',
+      'pubsub-ordering-key-template': '{{exchange}}.{{payloadCase}}.{{symbol}}',
+      'pubsub-max-batch-size': 256,
+      'pubsub-max-batch-delay-ms': 50
+    })
+
+    expect(config).toEqual({
+      provider: 'pubsub',
+      projectId: 'my-project',
+      topic: 'bronze.events',
+      topicByPayloadCase: {
+        trade: 'bronze.trade',
+        bookChange: 'bronze.books'
+      },
+      includePayloadCases: ['trade', 'bookChange'],
+      staticAttributes: {
+        env: 'prod',
+        region: 'us-east-1'
+      },
+      orderingKeyTemplate: '{{exchange}}.{{payloadCase}}.{{symbol}}',
+      maxBatchSize: 256,
+      maxBatchDelayMs: 50
+    })
+  })
+
+  test('applies batch tuning options when provided', () => {
+    const config = parsePubSubEventBusConfig({
+      'pubsub-project-id': 'my-project',
+      'pubsub-topic': 'bronze.events',
+      'pubsub-max-batch-size': 512,
+      'pubsub-max-batch-delay-ms': 125
+    })
+
+    expect(config).toMatchObject({
+      maxBatchSize: 512,
+      maxBatchDelayMs: 125
+    })
+  })
+
+  test('parses pubsub ordering key template string', () => {
+    const config = parsePubSubEventBusConfig({
+      'pubsub-project-id': 'my-project',
+      'pubsub-topic': 'bronze.events',
+      'pubsub-ordering-key-template': '{{exchange}}.{{payloadCase}}.{{symbol}}'
+    })
+
+    expect(config).toMatchObject({
+      orderingKeyTemplate: '{{exchange}}.{{payloadCase}}.{{symbol}}'
+    })
+  })
+
+  test('parses pubsub static attributes', () => {
+    const config = parsePubSubEventBusConfig({
+      'pubsub-project-id': 'my-project',
+      'pubsub-topic': 'bronze.events',
+      'pubsub-static-attributes': 'env:prod, region:us-east-1,trace-id:abc123 '
+    })
+
+    expect(config).toMatchObject({
+      staticAttributes: {
+        env: 'prod',
+        region: 'us-east-1',
+        'trace-id': 'abc123'
+      }
+    })
+  })
+
+  test('parses allowed payload cases list', () => {
+    const config = parsePubSubEventBusConfig({
+      'pubsub-project-id': 'my-project',
+      'pubsub-topic': 'bronze.events',
+      'pubsub-include-payloads': 'trade, bookChange, trade'
+    })
+
+    expect(config).toMatchObject({ includePayloadCases: ['trade', 'bookChange'] })
+  })
+
+  test('accepts snake_case payload names in include list', () => {
+    const config = parsePubSubEventBusConfig({
+      'pubsub-project-id': 'my-project',
+      'pubsub-topic': 'bronze.events',
+      'pubsub-include-payloads': 'book_change'
+    })
+
+    expect(config).toMatchObject({ includePayloadCases: ['bookChange'] })
+  })
+
+  test('rejects unknown payload case names', () => {
+    expect(() =>
+      parsePubSubEventBusConfig({
+        'pubsub-project-id': 'my-project',
+        'pubsub-topic': 'bronze.events',
+        'pubsub-include-payloads': 'trade, candles'
+      })
+    ).toThrow('Unknown payload case(s) for pubsub-include-payloads: candles.')
+  })
+
+  test('rejects unknown payload cases in topic routing', () => {
+    expect(() =>
+      parsePubSubEventBusConfig({
+        'pubsub-project-id': 'my-project',
+        'pubsub-topic': 'bronze.events',
+        'pubsub-topic-routing': 'trade:bronze.trade,candles:bronze.candles'
+      })
+    ).toThrow('Unknown payload case(s) for pubsub-topic-routing: candles.')
+  })
+
+  test('throws on invalid topic routing entry', () => {
+    expect(() =>
+      parsePubSubEventBusConfig({
+        'pubsub-project-id': 'my-project',
+        'pubsub-topic': 'bronze.events',
+        'pubsub-topic-routing': 'trade-only'
+      })
+    ).toThrow('Invalid pubsub-topic-routing entry "trade-only". Expected format payloadCase:topicName.')
+  })
+
+  test('rejects blank pubsub project id strings', () => {
+    expect(() =>
+      parsePubSubEventBusConfig({
+        'pubsub-project-id': '   ',
+        'pubsub-topic': 'bronze.events'
+      })
+    ).toThrow('pubsub-project-id must be a non-empty string.')
+  })
+
+  test('rejects blank pubsub topic strings', () => {
+    expect(() =>
+      parsePubSubEventBusConfig({
+        'pubsub-project-id': 'my-project',
+        'pubsub-topic': '   '
+      })
+    ).toThrow('pubsub-topic must be a non-empty string.')
+  })
+})
+
+describe('parseSilverPubSubEventBusConfig', () => {
+  test('returns undefined when pubsub silver project id or topic missing', () => {
+    expect(parseSilverPubSubEventBusConfig({})).toBeUndefined()
+    expect(parseSilverPubSubEventBusConfig({ 'pubsub-silver-project-id': 'my-project' })).toBeUndefined()
+    expect(parseSilverPubSubEventBusConfig({ 'pubsub-silver-topic': 'events' })).toBeUndefined()
+  })
+
+  test('builds silver pubsub config with routing and attributes', () => {
+    const config = parseSilverPubSubEventBusConfig({
+      'pubsub-silver-project-id': 'my-project',
+      'pubsub-silver-topic': 'silver.records',
+      'pubsub-silver-topic-routing': 'trade:silver.trade,book_change:silver.books',
+      'pubsub-silver-include-records': 'trade,book_change',
+      'pubsub-silver-static-attributes': 'env:prod,region:us-east-1',
+      'pubsub-silver-ordering-key-template': '{{exchange}}.{{recordType}}.{{symbol}}',
+      'pubsub-silver-max-batch-size': 256,
+      'pubsub-silver-max-batch-delay-ms': 50
+    })
+
+    expect(config).toEqual({
+      provider: 'pubsub-silver',
+      projectId: 'my-project',
+      topic: 'silver.records',
+      topicByRecordType: {
+        trade: 'silver.trade',
+        book_change: 'silver.books'
+      },
+      includeRecordTypes: ['trade', 'book_change'],
+      staticAttributes: {
+        env: 'prod',
+        region: 'us-east-1'
+      },
+      orderingKeyTemplate: '{{exchange}}.{{recordType}}.{{symbol}}',
+      maxBatchSize: 256,
+      maxBatchDelayMs: 50
+    })
+  })
+
+  test('applies batch tuning options when provided', () => {
+    const config = parseSilverPubSubEventBusConfig({
+      'pubsub-silver-project-id': 'my-project',
+      'pubsub-silver-topic': 'silver.records',
+      'pubsub-silver-max-batch-size': 512,
+      'pubsub-silver-max-batch-delay-ms': 125
+    })
+
+    expect(config).toMatchObject({
+      maxBatchSize: 512,
+      maxBatchDelayMs: 125
+    })
+  })
+
+  test('parses silver pubsub ordering key template string', () => {
+    const config = parseSilverPubSubEventBusConfig({
+      'pubsub-silver-project-id': 'my-project',
+      'pubsub-silver-topic': 'silver.records',
+      'pubsub-silver-ordering-key-template': '{{exchange}}.{{recordType}}.{{symbol}}'
+    })
+
+    expect(config).toMatchObject({
+      orderingKeyTemplate: '{{exchange}}.{{recordType}}.{{symbol}}'
+    })
+  })
+
+  test('parses silver pubsub static attributes', () => {
+    const config = parseSilverPubSubEventBusConfig({
+      'pubsub-silver-project-id': 'my-project',
+      'pubsub-silver-topic': 'silver.records',
+      'pubsub-silver-static-attributes': 'env:prod, region:us-east-1,trace-id:abc123 '
+    })
+
+    expect(config).toMatchObject({
+      staticAttributes: {
+        env: 'prod',
+        region: 'us-east-1',
+        'trace-id': 'abc123'
+      }
+    })
+  })
+
+  test('parses allowed record types list', () => {
+    const config = parseSilverPubSubEventBusConfig({
+      'pubsub-silver-project-id': 'my-project',
+      'pubsub-silver-topic': 'silver.records',
+      'pubsub-silver-include-records': 'trade, book_change, trade'
+    })
+
+    expect(config).toMatchObject({ includeRecordTypes: ['trade', 'book_change'] })
+  })
+
+  test('accepts snake_case record names in include list', () => {
+    const config = parseSilverPubSubEventBusConfig({
+      'pubsub-silver-project-id': 'my-project',
+      'pubsub-silver-topic': 'silver.records',
+      'pubsub-silver-include-records': 'book_change'
+    })
+
+    expect(config).toMatchObject({ includeRecordTypes: ['book_change'] })
+  })
+
+  test('rejects unknown record type names', () => {
+    expect(() =>
+      parseSilverPubSubEventBusConfig({
+        'pubsub-silver-project-id': 'my-project',
+        'pubsub-silver-topic': 'silver.records',
+        'pubsub-silver-include-records': 'trade, candles'
+      })
+    ).toThrow('Unknown record type(s) for pubsub-silver-include-records: candles.')
+  })
+
+  test('rejects unknown record types in topic routing', () => {
+    expect(() =>
+      parseSilverPubSubEventBusConfig({
+        'pubsub-silver-project-id': 'my-project',
+        'pubsub-silver-topic': 'silver.records',
+        'pubsub-silver-topic-routing': 'trade:silver.trade, candles:silver.candles'
+      })
+    ).toThrow('Unknown record type(s) for pubsub-silver-topic-routing: candles.')
+  })
+
+  test('throws on invalid silver topic routing entry', () => {
+    expect(() =>
+      parseSilverPubSubEventBusConfig({
+        'pubsub-silver-project-id': 'my-project',
+        'pubsub-silver-topic': 'silver.records',
+        'pubsub-silver-topic-routing': 'trade-only'
+      })
+    ).toThrow('Invalid pubsub-silver-topic-routing entry "trade-only". Expected format recordType:topicName.')
+  })
+
+  test('rejects blank silver pubsub project id strings', () => {
+    expect(() =>
+      parseSilverPubSubEventBusConfig({
+        'pubsub-silver-project-id': '   ',
+        'pubsub-silver-topic': 'silver.records'
+      })
+    ).toThrow('pubsub-silver-project-id must be a non-empty string.')
+  })
+
+  test('rejects blank silver pubsub topic strings', () => {
+    expect(() =>
+      parseSilverPubSubEventBusConfig({
+        'pubsub-silver-project-id': 'my-project',
+        'pubsub-silver-topic': '   '
+      })
+    ).toThrow('pubsub-silver-topic must be a non-empty string.')
   })
 })

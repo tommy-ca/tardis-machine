@@ -92,3 +92,7 @@
 - [x] Add integration test verifying Silver Azure Event Hubs publish using mocked producer.
 - [x] Add CLI support for Silver Azure Event Hubs event bus options.
 - [x] Add unit tests for Silver Azure Event Hubs config parsing.
+
+## New Feature: Silver PubSub E2E Test
+
+- [x] Add integration test verifying Silver Pub/Sub publish using mocked producer.

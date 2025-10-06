@@ -103,4 +103,4 @@
 - [x] Run npm run build to ensure TypeScript compiles
 - [x] Run npm run test to ensure all tests pass (E2E with Testcontainers)
 - [x] Run npm run check-format and fix if needed
-- [ ] Push local commits to origin/master
+- [x] Push local commits to origin/master

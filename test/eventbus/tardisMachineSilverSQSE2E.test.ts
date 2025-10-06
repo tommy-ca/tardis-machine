@@ -8,7 +8,7 @@ import { TradeRecordSchema, Origin } from '../../src/generated/lakehouse/silver/
 
 jest.setTimeout(240000)
 
-const PORT = 8102
+const PORT = 8202
 const HTTP_REPLAY_NORMALIZED_URL = `http://localhost:${PORT}/replay-normalized`
 const queueName = 'silver-events-e2e'
 const cacheDir = './.cache-silver-sqs-e2e'

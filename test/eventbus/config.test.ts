@@ -9,6 +9,8 @@ import {
   parseAzureEventHubsEventBusConfig,
   parsePubSubEventBusConfig,
   parseMQTTEventBusConfig,
+  parseActiveMQEventBusConfig,
+  parseSilverActiveMQEventBusConfig,
   parseSilverMQTTEventBusConfig,
   parseSilverPubSubEventBusConfig,
   parseSilverKafkaEventBusConfig,
@@ -2307,6 +2309,198 @@ describe('parseSilverMQTTEventBusConfig', () => {
         'mqtt-silver-topic-routing': 'trade-only'
       })
     ).toThrow('Invalid mqtt-silver-topic-routing entry "trade-only". Expected format recordType:topicName.')
+  })
+})
+
+describe('parseActiveMQEventBusConfig', () => {
+  test('returns undefined when activemq url or destination missing', () => {
+    expect(parseActiveMQEventBusConfig({})).toBeUndefined()
+    expect(parseActiveMQEventBusConfig({ 'activemq-url': 'amqp://localhost:5672' })).toBeUndefined()
+    expect(parseActiveMQEventBusConfig({ 'activemq-destination': 'my-queue' })).toBeUndefined()
+  })
+
+  test('builds activemq config with routing and headers', () => {
+    const config = parseActiveMQEventBusConfig({
+      'activemq-url': 'amqp://localhost:5672',
+      'activemq-destination': 'bronze.events',
+      'activemq-destination-type': 'queue',
+      'activemq-routing-key-template': '{{exchange}}.{{payloadCase}}.{{symbol}}',
+      'activemq-include-payloads': 'trade,bookChange',
+      'activemq-static-headers': 'env:prod,region:us-east-1'
+    })
+
+    expect(config).toEqual({
+      provider: 'activemq',
+      url: 'amqp://localhost:5672',
+      destination: 'bronze.events',
+      destinationType: 'queue',
+      routingKeyTemplate: '{{exchange}}.{{payloadCase}}.{{symbol}}',
+      includePayloadCases: ['trade', 'bookChange'],
+      staticHeaders: {
+        env: 'prod',
+        region: 'us-east-1'
+      }
+    })
+  })
+
+  test('parses activemq static headers', () => {
+    const config = parseActiveMQEventBusConfig({
+      'activemq-url': 'amqp://localhost:5672',
+      'activemq-destination': 'bronze.events',
+      'activemq-static-headers': 'env:prod, region:us-east-1,trace-id:abc123 '
+    })
+
+    expect(config).toMatchObject({
+      staticHeaders: {
+        env: 'prod',
+        region: 'us-east-1',
+        'trace-id': 'abc123'
+      }
+    })
+  })
+
+  test('parses allowed payload cases list', () => {
+    const config = parseActiveMQEventBusConfig({
+      'activemq-url': 'amqp://localhost:5672',
+      'activemq-destination': 'bronze.events',
+      'activemq-include-payloads': 'trade, bookChange, trade'
+    })
+
+    expect(config).toMatchObject({ includePayloadCases: ['trade', 'bookChange'] })
+  })
+
+  test('accepts snake_case payload names in include list', () => {
+    const config = parseActiveMQEventBusConfig({
+      'activemq-url': 'amqp://localhost:5672',
+      'activemq-destination': 'bronze.events',
+      'activemq-include-payloads': 'book_change'
+    })
+
+    expect(config).toMatchObject({ includePayloadCases: ['bookChange'] })
+  })
+
+  test('rejects unknown payload case names', () => {
+    expect(() =>
+      parseActiveMQEventBusConfig({
+        'activemq-url': 'amqp://localhost:5672',
+        'activemq-destination': 'bronze.events',
+        'activemq-include-payloads': 'trade, candles'
+      })
+    ).toThrow('Unknown payload case(s) for activemq-include-payloads: candles.')
+  })
+
+  test('rejects blank activemq url strings', () => {
+    expect(() =>
+      parseActiveMQEventBusConfig({
+        'activemq-url': '   ',
+        'activemq-destination': 'bronze.events'
+      })
+    ).toThrow('activemq-url must be a non-empty string.')
+  })
+
+  test('rejects blank activemq destination strings', () => {
+    expect(() =>
+      parseActiveMQEventBusConfig({
+        'activemq-url': 'amqp://localhost:5672',
+        'activemq-destination': '   '
+      })
+    ).toThrow('activemq-destination must be a non-empty string.')
+  })
+})
+
+describe('parseSilverActiveMQEventBusConfig', () => {
+  test('returns undefined when activemq-silver url or destination missing', () => {
+    expect(parseSilverActiveMQEventBusConfig({})).toBeUndefined()
+    expect(parseSilverActiveMQEventBusConfig({ 'activemq-silver-url': 'amqp://localhost:5672' })).toBeUndefined()
+    expect(parseSilverActiveMQEventBusConfig({ 'activemq-silver-destination': 'my-queue' })).toBeUndefined()
+  })
+
+  test('builds silver activemq config with routing and headers', () => {
+    const config = parseSilverActiveMQEventBusConfig({
+      'activemq-silver-url': 'amqp://localhost:5672',
+      'activemq-silver-destination': 'silver.records',
+      'activemq-silver-destination-type': 'queue',
+      'activemq-silver-routing-key-template': '{{exchange}}.{{recordType}}.{{symbol}}',
+      'activemq-silver-include-records': 'trade,book_change',
+      'activemq-silver-static-headers': 'env:prod,region:us-east-1'
+    })
+
+    expect(config).toEqual({
+      provider: 'activemq-silver',
+      url: 'amqp://localhost:5672',
+      destination: 'silver.records',
+      destinationType: 'queue',
+      routingKeyTemplate: '{{exchange}}.{{recordType}}.{{symbol}}',
+      includeRecordTypes: ['trade', 'book_change'],
+      staticHeaders: {
+        env: 'prod',
+        region: 'us-east-1'
+      }
+    })
+  })
+
+  test('parses silver activemq static headers', () => {
+    const config = parseSilverActiveMQEventBusConfig({
+      'activemq-silver-url': 'amqp://localhost:5672',
+      'activemq-silver-destination': 'silver.records',
+      'activemq-silver-static-headers': 'env:prod, region:us-east-1,trace-id:abc123 '
+    })
+
+    expect(config).toMatchObject({
+      staticHeaders: {
+        env: 'prod',
+        region: 'us-east-1',
+        'trace-id': 'abc123'
+      }
+    })
+  })
+
+  test('parses allowed record types list', () => {
+    const config = parseSilverActiveMQEventBusConfig({
+      'activemq-silver-url': 'amqp://localhost:5672',
+      'activemq-silver-destination': 'silver.records',
+      'activemq-silver-include-records': 'trade, book_change, trade'
+    })
+
+    expect(config).toMatchObject({ includeRecordTypes: ['trade', 'book_change'] })
+  })
+
+  test('accepts snake_case record names in include list', () => {
+    const config = parseSilverActiveMQEventBusConfig({
+      'activemq-silver-url': 'amqp://localhost:5672',
+      'activemq-silver-destination': 'silver.records',
+      'activemq-silver-include-records': 'book_change'
+    })
+
+    expect(config).toMatchObject({ includeRecordTypes: ['book_change'] })
+  })
+
+  test('rejects unknown record type names', () => {
+    expect(() =>
+      parseSilverActiveMQEventBusConfig({
+        'activemq-silver-url': 'amqp://localhost:5672',
+        'activemq-silver-destination': 'silver.records',
+        'activemq-silver-include-records': 'trade, candles'
+      })
+    ).toThrow('Unknown record type(s) for activemq-silver-include-records: candles.')
+  })
+
+  test('rejects blank silver activemq url strings', () => {
+    expect(() =>
+      parseSilverActiveMQEventBusConfig({
+        'activemq-silver-url': '   ',
+        'activemq-silver-destination': 'silver.records'
+      })
+    ).toThrow('activemq-silver-url must be a non-empty string.')
+  })
+
+  test('rejects blank silver activemq destination strings', () => {
+    expect(() =>
+      parseSilverActiveMQEventBusConfig({
+        'activemq-silver-url': 'amqp://localhost:5672',
+        'activemq-silver-destination': '   '
+      })
+    ).toThrow('activemq-silver-destination must be a non-empty string.')
   })
 })
 

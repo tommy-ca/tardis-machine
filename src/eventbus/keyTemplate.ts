@@ -30,9 +30,7 @@ export function compileKeyBuilder(template: string): KeyBuilder {
   const segments = parseTemplate(template)
 
   return (event, payloadCase, dataType) =>
-    segments
-      .map((segment) => (typeof segment === 'string' ? segment : segment(event, payloadCase, dataType)))
-      .join('')
+    segments.map((segment) => (typeof segment === 'string' ? segment : segment(event, payloadCase, dataType))).join('')
 }
 
 function parseTemplate(template: string): Segment[] {

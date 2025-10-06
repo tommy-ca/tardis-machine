@@ -32,15 +32,20 @@ import {
   BookTicker,
   BookTickerSchema
 } from '../generated/lakehouse/bronze/v1/normalized_event_pb'
-import type { Optional, BookChange as NormalizedBookChange, BookSnapshot as NormalizedBookSnapshot, BookTicker as NormalizedBookTicker, DerivativeTicker as NormalizedDerivativeTicker, Disconnect, Liquidation as NormalizedLiquidation, NormalizedData, OptionSummary as NormalizedOptionSummary, Trade as NormalizedTrade, TradeBar as NormalizedTradeBar } from 'tardis-dev'
 import type {
-  BronzeEvent,
-  BronzePayloadCase,
-  ControlErrorMessage,
-  NormalizedEventEncoder,
-  NormalizedMessage,
-  PublishMeta
-} from './types'
+  Optional,
+  BookChange as NormalizedBookChange,
+  BookSnapshot as NormalizedBookSnapshot,
+  BookTicker as NormalizedBookTicker,
+  DerivativeTicker as NormalizedDerivativeTicker,
+  Disconnect,
+  Liquidation as NormalizedLiquidation,
+  NormalizedData,
+  OptionSummary as NormalizedOptionSummary,
+  Trade as NormalizedTrade,
+  TradeBar as NormalizedTradeBar
+} from 'tardis-dev'
+import type { BronzeEvent, BronzePayloadCase, ControlErrorMessage, NormalizedEventEncoder, NormalizedMessage, PublishMeta } from './types'
 
 type EventRecord = {
   event: NormalizedEvent
@@ -73,12 +78,13 @@ type SnapshotMetadata = {
 
 type NormalizedBookSnapshotWithMetadata = NormalizedBookSnapshot & SnapshotMetadata
 
-type NormalizedGroupedBookSnapshot = NormalizedData & SnapshotMetadata & {
-  type: 'grouped_book_snapshot'
-  depth: number
-  bids: Array<Optional<{ price: number; amount: number }>>
-  asks: Array<Optional<{ price: number; amount: number }>>
-}
+type NormalizedGroupedBookSnapshot = NormalizedData &
+  SnapshotMetadata & {
+    type: 'grouped_book_snapshot'
+    depth: number
+    bids: Array<Optional<{ price: number; amount: number }>>
+    asks: Array<Optional<{ price: number; amount: number }>>
+  }
 
 export class BronzeNormalizedEventEncoder implements NormalizedEventEncoder {
   constructor(private readonly keyBuilder: KeyBuilder = defaultKeyBuilder) {}
@@ -214,18 +220,12 @@ function buildBookChange(
   }
 }
 
-function buildBookSnapshotEvent(
-  message: NormalizedBookSnapshotWithMetadata,
-  meta: PublishMeta
-): EventRecord {
+function buildBookSnapshotEvent(message: NormalizedBookSnapshotWithMetadata, meta: PublishMeta): EventRecord {
   const payloadCase = message.grouping ? 'groupedBookSnapshot' : 'bookSnapshot'
   return buildSnapshotEvent(message, meta, payloadCase)
 }
 
-function buildGroupedBookSnapshotEvent(
-  message: NormalizedGroupedBookSnapshot,
-  meta: PublishMeta
-): EventRecord {
+function buildGroupedBookSnapshotEvent(message: NormalizedGroupedBookSnapshot, meta: PublishMeta): EventRecord {
   return buildSnapshotEvent(message, meta, 'groupedBookSnapshot')
 }
 
@@ -236,19 +236,16 @@ function buildSnapshotEvent(
 ): EventRecord {
   const event = createBaseEvent(message, meta)
 
-  const snapshot = create(
-    payloadCase === 'groupedBookSnapshot' ? GroupedBookSnapshotSchema : BookSnapshotSchema,
-    {
-      depth: message.depth,
-      bids: mapSnapshotLevels(message.bids),
-      asks: mapSnapshotLevels(message.asks),
-      eventTs: dateToTimestamp(message.timestamp),
-      grouping: message.grouping,
-      intervalMs: resolveIntervalMs(message),
-      removeCrossedLevels: message.removeCrossedLevels ?? true,
-      sequence: optionalBigInt(message.sequence)
-    }
-  ) as BookSnapshot | GroupedBookSnapshot
+  const snapshot = create(payloadCase === 'groupedBookSnapshot' ? GroupedBookSnapshotSchema : BookSnapshotSchema, {
+    depth: message.depth,
+    bids: mapSnapshotLevels(message.bids),
+    asks: mapSnapshotLevels(message.asks),
+    eventTs: dateToTimestamp(message.timestamp),
+    grouping: message.grouping,
+    intervalMs: resolveIntervalMs(message),
+    removeCrossedLevels: message.removeCrossedLevels ?? true,
+    sequence: optionalBigInt(message.sequence)
+  }) as BookSnapshot | GroupedBookSnapshot
 
   if (payloadCase === 'groupedBookSnapshot') {
     event.payload = { case: 'groupedBookSnapshot', value: snapshot as GroupedBookSnapshot }
@@ -515,10 +512,7 @@ function createBaseEventForControlError(message: ControlErrorMessage, meta: Publ
   })
 }
 
-function buildMeta(
-  message: Partial<NormalizedData> | Disconnect | ControlErrorMessage,
-  meta: PublishMeta
-): Record<string, string> {
+function buildMeta(message: Partial<NormalizedData> | Disconnect | ControlErrorMessage, meta: PublishMeta): Record<string, string> {
   const result: Record<string, string> = {}
 
   if ('type' in message && message.type) {

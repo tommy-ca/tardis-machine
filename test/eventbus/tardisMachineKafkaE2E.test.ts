@@ -4,11 +4,7 @@ import { KafkaContainer, StartedKafkaContainer } from '@testcontainers/kafka'
 import { fromBinary } from '@bufbuild/protobuf'
 import { rm } from 'fs/promises'
 import { TardisMachine } from '../../src'
-import {
-  NormalizedEvent,
-  NormalizedEventSchema,
-  Origin
-} from '../../src/generated/lakehouse/bronze/v1/normalized_event_pb'
+import { NormalizedEvent, NormalizedEventSchema, Origin } from '../../src/generated/lakehouse/bronze/v1/normalized_event_pb'
 
 jest.setTimeout(240000)
 
@@ -114,11 +110,7 @@ function encodeOptions(options: any): string {
   return encodeURIComponent(JSON.stringify(options))
 }
 
-async function collectEvents(
-  consumer: ReturnType<Kafka['consumer']>,
-  minCount: number,
-  timeoutMs: number
-): Promise<NormalizedEvent[]> {
+async function collectEvents(consumer: ReturnType<Kafka['consumer']>, minCount: number, timeoutMs: number): Promise<NormalizedEvent[]> {
   const events: NormalizedEvent[] = []
   let completed = false
 
@@ -128,11 +120,7 @@ async function collectEvents(
         return
       }
       completed = true
-      reject(
-        new Error(
-          `Timed out after ${timeoutMs}ms waiting for ${minCount} Kafka events (received ${events.length})`
-        )
-      )
+      reject(new Error(`Timed out after ${timeoutMs}ms waiting for ${minCount} Kafka events (received ${events.length})`))
     }, timeoutMs)
 
     consumer
@@ -175,10 +163,7 @@ async function startKafkaContainer() {
   return container.start()
 }
 
-async function waitForKafkaController(
-  admin: ReturnType<Kafka['admin']>,
-  timeoutMs = 60000
-) {
+async function waitForKafkaController(admin: ReturnType<Kafka['admin']>, timeoutMs = 60000) {
   const start = Date.now()
   while (true) {
     try {

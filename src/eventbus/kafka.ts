@@ -1,14 +1,7 @@
 import { Kafka, logLevel, Producer, SASLOptions, CompressionTypes } from 'kafkajs'
 import { BronzeNormalizedEventEncoder } from './bronzeMapper'
 import { compileKeyBuilder } from './keyTemplate'
-import type {
-  BronzeEvent,
-  BronzePayloadCase,
-  KafkaEventBusConfig,
-  NormalizedEventSink,
-  NormalizedMessage,
-  PublishMeta
-} from './types'
+import type { BronzeEvent, BronzePayloadCase, KafkaEventBusConfig, NormalizedEventSink, NormalizedMessage, PublishMeta } from './types'
 import { wait } from '../helpers'
 import { debug } from '../debug'
 
@@ -47,10 +40,7 @@ export class KafkaEventBus implements NormalizedEventSink {
     })
     this.compression = mapCompression(config.compression)
     if (config.staticHeaders) {
-      this.staticHeaders = Object.entries(config.staticHeaders).map(([key, value]) => [
-        key,
-        Buffer.from(value)
-      ])
+      this.staticHeaders = Object.entries(config.staticHeaders).map(([key, value]) => [key, Buffer.from(value)])
     }
     this.acks = config.acks
     if (config.includePayloadCases) {

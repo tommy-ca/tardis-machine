@@ -1,10 +1,7 @@
 import path from 'path'
 import protobuf from 'protobufjs'
 
-const bronzeProto = path.join(
-  __dirname,
-  '../../schemas/proto/lakehouse/bronze/v1/normalized_event.proto'
-)
+const bronzeProto = path.join(__dirname, '../../schemas/proto/lakehouse/bronze/v1/normalized_event.proto')
 
 const load = () => protobuf.load(bronzeProto)
 const ts = (seconds: number, nanos = 0) => ({ seconds, nanos })
@@ -77,4 +74,3 @@ describe('Bronze computables: TradeBar & GroupedBookSnapshot', () => {
     expect(dec.groupedBookSnapshot.sequence).toBe(7)
   })
 })
-

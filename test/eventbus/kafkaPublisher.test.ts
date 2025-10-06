@@ -539,12 +539,7 @@ async function startKafkaContainer() {
   return container.start()
 }
 
-async function consumeEvents(
-  kafka: Kafka,
-  topic: string,
-  expectedCount: number,
-  timeoutMs = 120000
-) {
+async function consumeEvents(kafka: Kafka, topic: string, expectedCount: number, timeoutMs = 120000) {
   const consumer = kafka.consumer({ groupId: `bronze-test-${topic}-${Date.now()}` })
   await consumer.connect()
   await consumer.subscribe({ topic, fromBeginning: true })
@@ -556,12 +551,7 @@ async function consumeEvents(
   }
 }
 
-async function consumeRecords(
-  kafka: Kafka,
-  topic: string,
-  expectedCount: number,
-  timeoutMs = 120000
-): Promise<KafkaRecord[]> {
+async function consumeRecords(kafka: Kafka, topic: string, expectedCount: number, timeoutMs = 120000): Promise<KafkaRecord[]> {
   const consumer = kafka.consumer({ groupId: `bronze-test-${topic}-${Date.now()}` })
   await consumer.connect()
   await consumer.subscribe({ topic, fromBeginning: true })
@@ -602,11 +592,7 @@ async function collectKafkaRecords(
         return
       }
       completed = true
-      reject(
-        new Error(
-          `Timed out after ${timeoutMs}ms waiting for ${expectedCount} Kafka events (received ${records.length})`
-        )
-      )
+      reject(new Error(`Timed out after ${timeoutMs}ms waiting for ${expectedCount} Kafka events (received ${records.length})`))
     }, timeoutMs)
 
     consumer
@@ -655,9 +641,7 @@ function normalizeHeaders(headers: IHeaders | undefined): Record<string, string>
     return {}
   }
 
-  return Object.fromEntries(
-    Object.entries(headers).map(([key, value]) => [key, headerValueToString(value)])
-  )
+  return Object.fromEntries(Object.entries(headers).map(([key, value]) => [key, headerValueToString(value)]))
 }
 
 function normalizeKey(key: Buffer | null | undefined): string {
@@ -684,10 +668,7 @@ function headerValueToString(value: IHeaders[string]): string {
   return value.toString()
 }
 
-async function waitForKafkaController(
-  admin: ReturnType<Kafka['admin']>,
-  timeoutMs = 60000
-) {
+async function waitForKafkaController(admin: ReturnType<Kafka['admin']>, timeoutMs = 60000) {
   const start = Date.now()
   while (true) {
     try {

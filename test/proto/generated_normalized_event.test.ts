@@ -3,10 +3,7 @@ import protobuf from 'protobufjs'
 import { create, fromBinary, toBinary } from '@bufbuild/protobuf'
 import { NormalizedEventSchema, TradeSchema, Origin } from '../../src/generated/lakehouse/bronze/v1/normalized_event_pb'
 
-const bronzeProto = path.join(
-  __dirname,
-  '../../schemas/proto/lakehouse/bronze/v1/normalized_event.proto'
-)
+const bronzeProto = path.join(__dirname, '../../schemas/proto/lakehouse/bronze/v1/normalized_event.proto')
 
 const timestampBuf = (seconds: number, nanos = 0) => ({ seconds: BigInt(seconds), nanos })
 const timestampProto = (seconds: number, nanos = 0) => ({ seconds, nanos })

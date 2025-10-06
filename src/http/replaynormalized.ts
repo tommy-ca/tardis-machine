@@ -8,47 +8,41 @@ import { constructDataTypeFilter, getComputables, getNormalizers, ReplayNormaliz
 import { Origin } from '../generated/lakehouse/bronze/v1/normalized_event_pb'
 import type { PublishFn, NormalizedMessage } from '../eventbus/types'
 
-export const createReplayNormalizedHttpHandler = (publishNormalized?: PublishFn) =>
-  async (req: IncomingMessage, res: ServerResponse) => {
-    try {
-      const startTimestamp = new Date().getTime()
-      const parsedQuery = url.parse(req.url!, true).query
-      const optionsString = parsedQuery['options'] as string
-      const replayNormalizedOptions = JSON.parse(optionsString) as ReplayNormalizedRequestOptions
+export const createReplayNormalizedHttpHandler = (publishNormalized?: PublishFn) => async (req: IncomingMessage, res: ServerResponse) => {
+  try {
+    const startTimestamp = new Date().getTime()
+    const parsedQuery = url.parse(req.url!, true).query
+    const optionsString = parsedQuery['options'] as string
+    const replayNormalizedOptions = JSON.parse(optionsString) as ReplayNormalizedRequestOptions
 
-      debug('GET /replay-normalized request started, options: %o', replayNormalizedOptions)
+    debug('GET /replay-normalized request started, options: %o', replayNormalizedOptions)
 
-      const requestId = randomUUID()
-      const streamedMessagesCount = await writeMessagesToResponse(
-        res,
-        replayNormalizedOptions,
-        publishNormalized,
-        requestId
-      )
-      const endTimestamp = new Date().getTime()
+    const requestId = randomUUID()
+    const streamedMessagesCount = await writeMessagesToResponse(res, replayNormalizedOptions, publishNormalized, requestId)
+    const endTimestamp = new Date().getTime()
 
-      debug(
-        'GET /replay-normalized request finished, options: %o, time: %d seconds, total messages count: %d',
-        replayNormalizedOptions,
-        (endTimestamp - startTimestamp) / 1000,
-        streamedMessagesCount
-      )
-    } catch (e: any) {
-      const errorInfo = {
-        responseText: e.responseText,
-        message: e.message,
-        url: e.url
-      }
+    debug(
+      'GET /replay-normalized request finished, options: %o, time: %d seconds, total messages count: %d',
+      replayNormalizedOptions,
+      (endTimestamp - startTimestamp) / 1000,
+      streamedMessagesCount
+    )
+  } catch (e: any) {
+    const errorInfo = {
+      responseText: e.responseText,
+      message: e.message,
+      url: e.url
+    }
 
-      debug('GET /replay-normalized request error: %o', e)
-      console.error('GET /replay-normalized request error:', e)
+    debug('GET /replay-normalized request error: %o', e)
+    console.error('GET /replay-normalized request error:', e)
 
-      if (!res.finished) {
-        res.statusCode = e.status || 500
-        res.end(JSON.stringify(errorInfo))
-      }
+    if (!res.finished) {
+      res.statusCode = e.status || 500
+      res.end(JSON.stringify(errorInfo))
     }
   }
+}
 
 async function writeMessagesToResponse(
   res: OutgoingMessage,

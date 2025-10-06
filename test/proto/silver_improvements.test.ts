@@ -1,10 +1,7 @@
 import path from 'path'
 import protobuf from 'protobufjs'
 
-const silverProto = path.join(
-  __dirname,
-  '../../schemas/proto/lakehouse/silver/v1/records.proto'
-)
+const silverProto = path.join(__dirname, '../../schemas/proto/lakehouse/silver/v1/records.proto')
 
 const load = () => protobuf.load(silverProto)
 const ts = (seconds: number, nanos = 0) => ({ seconds, nanos })

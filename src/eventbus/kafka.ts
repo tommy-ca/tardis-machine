@@ -4,6 +4,8 @@ import { compileKeyBuilder } from './keyTemplate'
 import type { BronzeEvent, BronzePayloadCase, KafkaEventBusConfig, NormalizedEventSink, NormalizedMessage, PublishMeta } from './types'
 import { wait } from '../helpers'
 import { debug } from '../debug'
+import * as fs from 'fs'
+import * as path from 'path'
 
 const log = debug.extend('eventbus')
 
@@ -15,6 +17,7 @@ export class KafkaEventBus implements NormalizedEventSink {
   private readonly encoder: BronzeNormalizedEventEncoder
   private readonly kafka: Kafka
   private readonly producer: Producer
+  private schemaId?: number
   private readonly buffer: BronzeEvent[] = []
   private flushTimer?: NodeJS.Timeout
   private sendingPromise: Promise<void> = Promise.resolve()
@@ -50,6 +53,33 @@ export class KafkaEventBus implements NormalizedEventSink {
 
   async start() {
     await this.producer.connect()
+
+    if (this.config.schemaRegistry) {
+      const schemaPath = path.join(__dirname, '../../schemas/proto/lakehouse/bronze/v1/normalized_event.proto')
+      const schema = fs.readFileSync(schemaPath, 'utf8')
+      const subject = `${this.config.topic}-value`
+      // Register schema via REST API
+      const response = await fetch(`${this.config.schemaRegistry.url}/subjects/${encodeURIComponent(subject)}/versions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/vnd.schemaregistry.v1+json',
+          ...(this.config.schemaRegistry.auth
+            ? {
+                Authorization: `Basic ${Buffer.from(`${this.config.schemaRegistry.auth.username}:${this.config.schemaRegistry.auth.password}`).toString('base64')}`
+              }
+            : {})
+        },
+        body: JSON.stringify({
+          schemaType: 'PROTOBUF',
+          schema: schema
+        })
+      })
+      if (!response.ok) {
+        throw new Error(`Failed to register schema: ${response.statusText}`)
+      }
+      const result = await response.json()
+      this.schemaId = result.id
+    }
   }
 
   async publish(message: NormalizedMessage, meta: PublishMeta): Promise<void> {
@@ -142,7 +172,7 @@ export class KafkaEventBus implements NormalizedEventSink {
             topic,
             messages: events.map((event) => ({
               key: event.key,
-              value: Buffer.from(event.binary),
+              value: this.encodeValue(event.binary),
               headers: this.buildHeaders(event)
             })),
             compression: this.compression,
@@ -211,6 +241,17 @@ export class KafkaEventBus implements NormalizedEventSink {
     }
 
     return events.filter((event) => this.allowedPayloadCases!.has(event.payloadCase))
+  }
+
+  private encodeValue(binary: Uint8Array): Buffer {
+    if (this.schemaId !== undefined) {
+      const buffer = Buffer.alloc(5 + binary.length)
+      buffer.writeUInt8(0, 0) // magic byte
+      buffer.writeUInt32BE(this.schemaId, 1) // schema ID
+      buffer.set(binary, 5)
+      return buffer
+    }
+    return Buffer.from(binary)
   }
 
   private buildHeaders(event: BronzeEvent): Record<string, Buffer> {

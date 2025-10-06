@@ -119,6 +119,16 @@ export type KafkaEventBusConfig = {
   acks?: -1 | 0 | 1
   /** Enable Kafka idempotent producer semantics */
   idempotent?: boolean
+  /** Schema Registry configuration for Avro/Protobuf schema management */
+  schemaRegistry?: {
+    /** Schema Registry URL */
+    url: string
+    /** Optional authentication */
+    auth?: {
+      username: string
+      password: string
+    }
+  }
 }
 
 export type RabbitMQEventBusConfig = {

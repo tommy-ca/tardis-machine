@@ -8,8 +8,7 @@ import { NormalizedEvent, NormalizedEventSchema, Origin } from '../../src/genera
 
 jest.setTimeout(240000)
 
-const PORT = 8194
-const HTTP_REPLAY_NORMALIZED_URL = `http://localhost:${PORT}/replay-normalized`
+const HTTP_REPLAY_NORMALIZED_URL = `http://localhost:0/replay-normalized`
 const exchange = 'bronze.events.e2e'
 const cacheDir = './.cache-rabbitmq-e2e'
 const rabbitmqImage = 'rabbitmq:3-management-alpine'
@@ -56,7 +55,7 @@ test('publishes replay-normalized events to RabbitMQ with Buf payloads', async (
     }
   })
 
-  await machine.start(PORT)
+  const port = await machine.start(0)
 
   const connection = await amqp.connect(amqpUrl)
   connection.on('error', (err) => console.warn('RabbitMQ connection error:', err))
@@ -79,7 +78,7 @@ test('publishes replay-normalized events to RabbitMQ with Buf payloads', async (
     }
 
     const params = encodeOptions(options)
-    const response = await fetch(`${HTTP_REPLAY_NORMALIZED_URL}?options=${params}`)
+    const response = await fetch(`http://localhost:${port}/replay-normalized?options=${params}`)
     expect(response.status).toBe(200)
     await response.text()
 

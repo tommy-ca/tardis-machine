@@ -21,7 +21,7 @@
     "buf:generate": "buf generate schemas/proto --template buf.gen.yaml",
     "buf:lint": "buf lint schemas/proto",
     "buf:format": "buf format -w schemas/proto",
-    "buf:breaking": "buf breaking --against '.git#branch=main' --path schemas/proto"
+    "buf:breaking": "buf breaking --against '.git#branch=master' schemas/proto"
   },
   "bin": {
     "tardis-machine": "./bin/tardis-machine.js"

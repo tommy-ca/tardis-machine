@@ -59,6 +59,8 @@ test('publishes replay-normalized events to RabbitMQ with Buf payloads', async (
   await machine.start(PORT)
 
   const connection = await amqp.connect(amqpUrl)
+  connection.on('error', (err) => console.warn('RabbitMQ connection error:', err))
+  connection.on('close', () => console.warn('RabbitMQ connection closed'))
   const channel = await connection.createChannel()
   await channel.assertExchange(exchange, 'direct', { durable: true })
   const queue = await channel.assertQueue('', { exclusive: true })

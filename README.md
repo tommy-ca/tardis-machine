@@ -146,6 +146,14 @@
 - Tune publishing throughput via `--mqtt-max-batch-size` (events per batch) and `--mqtt-max-batch-delay-ms` (max milliseconds to wait before flushing).
 - Attach deployment metadata with `--mqtt-static-user-properties`, supplying comma separated `key:value` pairs that become constant MQTT user properties on every message.
 
+### Apache ActiveMQ Publishing
+
+- Publish normalized market data to Apache ActiveMQ by supplying `--activemq-url` and `--activemq-destination` flags.
+- Use `--activemq-destination-type` to specify whether the destination is a `queue` or `topic` (defaults to `queue`).
+- Reduce downstream load by specifying `--activemq-include-payloads` with a comma separated payload case allow-list (others are dropped).
+- Shape routing keys with `--activemq-routing-key-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{payloadCase}}`, or `{{meta.request_id}}`.
+- Attach deployment metadata with `--activemq-static-headers`, supplying comma separated `key:value` pairs that become constant ActiveMQ headers on every message.
+
 ### Silver Layer Publishing
 
 The Silver layer provides analytics-ready data with fixed scales and strong typing, complementing the existing Bronze layer. Silver records are published to event buses using the same infrastructure but with dedicated configuration flags.
@@ -236,13 +244,21 @@ The Silver layer provides analytics-ready data with fixed scales and strong typi
 - Tune publishing throughput via `--pubsub-silver-max-batch-size` (events per batch) and `--pubsub-silver-max-batch-delay-ms` (max milliseconds to wait before flushing).
 - Attach deployment metadata with `--pubsub-silver-static-attributes`, supplying comma separated `key:value` pairs that become constant Pub/Sub attributes on every message.
 
+#### Silver Apache ActiveMQ Publishing
+
+- Publish Silver layer records to Apache ActiveMQ by supplying `--activemq-silver-url` and `--activemq-silver-destination` flags.
+- Use `--activemq-silver-destination-type` to specify whether the destination is a `queue` or `topic` (defaults to `queue`).
+- Reduce downstream load by specifying `--activemq-silver-include-records` with a comma separated record type allow-list (others are dropped).
+- Shape routing keys with `--activemq-silver-routing-key-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{recordType}}`, or `{{meta.request_id}}`.
+- Attach deployment metadata with `--activemq-silver-static-headers`, supplying comma separated `key:value` pairs that become constant ActiveMQ headers on every message.
+
 ### Keeping Schemas and Builds in Sync
 
 Normalized event schemas live under `schemas/proto`, and generated TypeScript bindings are emitted into `src/generated`. Whenever schemas change, run `npm run buf:generate` to refresh the Buf-generated sources and `npm run build` to update the compiled `dist/` artifacts that power the CLI entry point.
 
 ### Event Bus Integration Test Prerequisites
 
-Event bus publishing is covered by integration tests in `test/eventbus`. Most tests rely on Testcontainers and require a local Docker daemon with at least 2 CPU cores, 4 GB of memory, and the ability to pull the `confluentinc/cp-kafka:7.5.3`, `rabbitmq:3-management-alpine`, `localstack/localstack:3.0`, `nats:2.10`, `redis:7-alpine`, and `apachepulsar/pulsar:3.0.0` images. The Google Cloud Pub/Sub tests use mocking and do not require Docker. Ensure Docker is running before invoking `npm test` for containerized tests; otherwise those suites will be skipped after a timeout.
+Event bus publishing is covered by integration tests in `test/eventbus`. Most tests rely on Testcontainers and require a local Docker daemon with at least 2 CPU cores, 4 GB of memory, and the ability to pull the `confluentinc/cp-kafka:7.5.3`, `rabbitmq:3-management-alpine`, `localstack/localstack:3.0`, `nats:2.10`, `redis:7-alpine`, `apachepulsar/pulsar:3.0.0`, and `apache/activemq-artemis:latest` images. The Google Cloud Pub/Sub tests use mocking and do not require Docker. Ensure Docker is running before invoking `npm test` for containerized tests; otherwise those suites will be skipped after a timeout.
 
 ### Event Bus Maintenance Checklist
 
@@ -282,6 +298,8 @@ Event bus publishing is covered by integration tests in `test/eventbus`. Most te
 - For Silver Google Cloud Pub/Sub: Review batching knobs regularly: `--pubsub-silver-max-batch-size` should stay below Pub/Sub batch limits (1000 messages), and `--pubsub-silver-max-batch-delay-ms` must align with downstream latency budgets.
 - For MQTT: Ensure `--mqtt-url` points to a healthy MQTT broker and topics are appropriately configured for your routing needs.
 - For MQTT: Review batching knobs regularly: `--mqtt-max-batch-size` and `--mqtt-max-batch-delay-ms` should align with throughput requirements.
+- For ActiveMQ: Ensure `--activemq-url` points to a healthy ActiveMQ broker and destinations are appropriately configured for your routing needs.
+- For Silver ActiveMQ: Ensure `--activemq-silver-url` points to a healthy ActiveMQ broker and destinations are appropriately configured for your routing needs.
 - Confirm header contracts after schema updates by consuming a sample message and validating Buf-decoded payloads alongside the emitted `recordType` and `dataType` headers for Silver layer.
 - Track retries via application logs; repeated send attempt warnings indicate sustained pressure and should trigger broker-side health checks.
 - Re-run `npm run buf:generate` and rebuild whenever `schemas/proto` changes to keep binary payloads matching the deployed Buf schema version.

@@ -6,7 +6,9 @@ import {
   parseRedisEventBusConfig,
   parseSQSEventBusConfig,
   parsePulsarEventBusConfig,
-  parseSilverKafkaEventBusConfig
+  parseSilverKafkaEventBusConfig,
+  parseSilverPulsarEventBusConfig,
+  parseSilverSQSEventBusConfig
 } from '../../src/eventbus/config'
 
 describe('parseKafkaEventBusConfig', () => {
@@ -306,6 +308,48 @@ describe('parseKafkaEventBusConfig', () => {
         'kafka-topic-routing': 'trade-only'
       })
     ).toThrow('Invalid kafka-topic-routing entry "trade-only". Expected format payloadCase:topicName.')
+  })
+
+  test('builds kafka config with schema registry', () => {
+    const config = parseKafkaEventBusConfig({
+      'kafka-brokers': 'localhost:9092',
+      'kafka-topic': 'bronze.events',
+      'kafka-schema-registry-url': 'http://localhost:8081',
+      'kafka-schema-registry-auth-username': 'user',
+      'kafka-schema-registry-auth-password': 'pass'
+    })
+
+    expect(config).toEqual({
+      provider: 'kafka',
+      brokers: ['localhost:9092'],
+      topic: 'bronze.events',
+      clientId: 'tardis-machine-publisher',
+      schemaRegistry: {
+        url: 'http://localhost:8081',
+        auth: {
+          username: 'user',
+          password: 'pass'
+        }
+      }
+    })
+  })
+
+  test('builds kafka config with schema registry without auth', () => {
+    const config = parseKafkaEventBusConfig({
+      'kafka-brokers': 'localhost:9092',
+      'kafka-topic': 'bronze.events',
+      'kafka-schema-registry-url': 'http://localhost:8081'
+    })
+
+    expect(config).toEqual({
+      provider: 'kafka',
+      brokers: ['localhost:9092'],
+      topic: 'bronze.events',
+      clientId: 'tardis-machine-publisher',
+      schemaRegistry: {
+        url: 'http://localhost:8081'
+      }
+    })
   })
 })
 
@@ -691,9 +735,9 @@ describe('parseSilverKafkaEventBusConfig', () => {
       parseSilverKafkaEventBusConfig({
         'kafka-silver-brokers': 'localhost:9092',
         'kafka-silver-topic': 'silver.records',
-        'kafka-silver-static-headers': 'payloadCase:overwritten'
+        'kafka-silver-static-headers': 'recordType:overwritten'
       })
-    ).toThrow('kafka-silver-static-headers cannot override reserved header "payloadCase".')
+    ).toThrow('kafka-silver-static-headers cannot override reserved header "recordType".')
   })
 
   test('rejects unknown silver key template placeholders', () => {
@@ -1060,5 +1104,343 @@ describe('parsePulsarEventBusConfig', () => {
         'pulsar-topic-routing': 'trade-only'
       })
     ).toThrow('Invalid pulsar-topic-routing entry "trade-only". Expected format payloadCase:topicName.')
+  })
+})
+
+describe('parseSilverPulsarEventBusConfig', () => {
+  test('returns undefined when pulsar silver service url or topic missing', () => {
+    expect(parseSilverPulsarEventBusConfig({})).toBeUndefined()
+    expect(parseSilverPulsarEventBusConfig({ 'pulsar-silver-service-url': 'pulsar://localhost:6650' })).toBeUndefined()
+    expect(parseSilverPulsarEventBusConfig({ 'pulsar-silver-topic': 'events' })).toBeUndefined()
+  })
+
+  test('builds silver pulsar config with routing and token', () => {
+    const config = parseSilverPulsarEventBusConfig({
+      'pulsar-silver-service-url': 'pulsar://localhost:6650',
+      'pulsar-silver-topic': 'silver.records',
+      'pulsar-silver-token': 'token123',
+      'pulsar-silver-topic-routing': 'trade:silver.trade,book_change:silver.books',
+      'pulsar-silver-include-records': 'trade,book_change',
+      'pulsar-silver-static-properties': 'env:prod,region:us-east-1',
+      'pulsar-silver-key-template': '{{exchange}}.{{recordType}}.{{symbol}}',
+      'pulsar-silver-max-batch-size': 256,
+      'pulsar-silver-max-batch-delay-ms': 50,
+      'pulsar-silver-compression-type': 'LZ4'
+    })
+
+    expect(config).toEqual({
+      provider: 'pulsar-silver',
+      serviceUrl: 'pulsar://localhost:6650',
+      topic: 'silver.records',
+      token: 'token123',
+      topicByRecordType: {
+        trade: 'silver.trade',
+        book_change: 'silver.books'
+      },
+      includeRecordTypes: ['trade', 'book_change'],
+      staticProperties: {
+        env: 'prod',
+        region: 'us-east-1'
+      },
+      keyTemplate: '{{exchange}}.{{recordType}}.{{symbol}}',
+      maxBatchSize: 256,
+      maxBatchDelayMs: 50,
+      compressionType: 'LZ4'
+    })
+  })
+
+  test('applies batch tuning options when provided', () => {
+    const config = parseSilverPulsarEventBusConfig({
+      'pulsar-silver-service-url': 'pulsar://localhost:6650',
+      'pulsar-silver-topic': 'silver.records',
+      'pulsar-silver-max-batch-size': 512,
+      'pulsar-silver-max-batch-delay-ms': 125
+    })
+
+    expect(config).toMatchObject({
+      maxBatchSize: 512,
+      maxBatchDelayMs: 125
+    })
+  })
+
+  test('rejects blank silver pulsar topic strings', () => {
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': '   '
+      })
+    ).toThrow('pulsar-silver-topic must be a non-empty string.')
+  })
+
+  test('rejects unknown record type names', () => {
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': 'silver.records',
+        'pulsar-silver-include-records': 'trade, candles'
+      })
+    ).toThrow('Unknown record type(s) for pulsar-silver-include-records: candles.')
+  })
+
+  test('rejects unknown record types in topic routing', () => {
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': 'silver.records',
+        'pulsar-silver-topic-routing': 'trade:silver.trade, candles:silver.candles'
+      })
+    ).toThrow('Unknown record type(s) for pulsar-silver-topic-routing: candles.')
+  })
+
+  test('accepts snake_case record names in topic routing', () => {
+    const config = parseSilverPulsarEventBusConfig({
+      'pulsar-silver-service-url': 'pulsar://localhost:6650',
+      'pulsar-silver-topic': 'silver.records',
+      'pulsar-silver-topic-routing': 'book_snapshot:silver.snapshots, grouped_book_snapshot:silver.grouped'
+    })
+
+    expect(config).toMatchObject({
+      topicByRecordType: {
+        book_snapshot: 'silver.snapshots',
+        grouped_book_snapshot: 'silver.grouped'
+      }
+    })
+  })
+
+  test('rejects invalid silver pulsar static property entries', () => {
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': 'silver.records',
+        'pulsar-silver-static-properties': 'env'
+      })
+    ).toThrow('pulsar-silver-static-properties entries must be key:value pairs.')
+
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': 'silver.records',
+        'pulsar-silver-static-properties': 'recordType:overwritten'
+      })
+    ).toThrow('pulsar-silver-static-properties cannot override reserved header "recordType".')
+  })
+
+  test('rejects unknown silver key template placeholders', () => {
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': 'silver.records',
+        'pulsar-silver-key-template': '{{unknown}}'
+      })
+    ).toThrow('Unknown pulsar-silver-key-template placeholder "{{unknown}}".')
+  })
+
+  test('throws on invalid silver topic routing entry', () => {
+    expect(() =>
+      parseSilverPulsarEventBusConfig({
+        'pulsar-silver-service-url': 'pulsar://localhost:6650',
+        'pulsar-silver-topic': 'silver.records',
+        'pulsar-silver-topic-routing': 'trade-only'
+      })
+    ).toThrow('Invalid pulsar-silver-topic-routing entry "trade-only". Expected format recordType:topicName.')
+  })
+})
+
+describe('parseSilverSQSEventBusConfig', () => {
+  test('returns undefined when sqs silver queue url or region missing', () => {
+    expect(parseSilverSQSEventBusConfig({})).toBeUndefined()
+    expect(
+      parseSilverSQSEventBusConfig({ 'sqs-silver-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue' })
+    ).toBeUndefined()
+    expect(parseSilverSQSEventBusConfig({ 'sqs-silver-region': 'us-east-1' })).toBeUndefined()
+  })
+
+  test('builds silver sqs config with routing and credentials', () => {
+    const config = parseSilverSQSEventBusConfig({
+      'sqs-silver-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+      'sqs-silver-region': 'us-east-1',
+      'sqs-silver-queue-routing':
+        'trade:https://sqs.us-east-1.amazonaws.com/123456789012/trade-queue,book_change:https://sqs.us-east-1.amazonaws.com/123456789012/books-queue',
+      'sqs-silver-include-records': 'trade,book_change',
+      'sqs-silver-access-key-id': 'AKIAIOSFODNN7EXAMPLE',
+      'sqs-silver-secret-access-key': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+      'sqs-silver-session-token': 'session-token',
+      'sqs-silver-static-message-attributes': 'env:prod,region:us-east-1',
+      'sqs-silver-max-batch-size': 5,
+      'sqs-silver-max-batch-delay-ms': 100
+    })
+
+    expect(config).toEqual({
+      provider: 'sqs-silver',
+      queueUrl: 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+      region: 'us-east-1',
+      queueByRecordType: {
+        trade: 'https://sqs.us-east-1.amazonaws.com/123456789012/trade-queue',
+        book_change: 'https://sqs.us-east-1.amazonaws.com/123456789012/books-queue'
+      },
+      includeRecordTypes: ['trade', 'book_change'],
+      accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+      secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+      sessionToken: 'session-token',
+      staticMessageAttributes: {
+        env: 'prod',
+        region: 'us-east-1'
+      },
+      maxBatchSize: 5,
+      maxBatchDelayMs: 100
+    })
+  })
+
+  test('applies batch tuning options when provided', () => {
+    const config = parseSilverSQSEventBusConfig({
+      'sqs-silver-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+      'sqs-silver-region': 'us-east-1',
+      'sqs-silver-max-batch-size': 8,
+      'sqs-silver-max-batch-delay-ms': 200
+    })
+
+    expect(config).toMatchObject({
+      maxBatchSize: 8,
+      maxBatchDelayMs: 200
+    })
+  })
+
+  test('parses silver sqs static message attributes', () => {
+    const config = parseSilverSQSEventBusConfig({
+      'sqs-silver-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+      'sqs-silver-region': 'us-east-1',
+      'sqs-silver-static-message-attributes': 'env:prod, region:us-east-1,trace-id:abc123 '
+    })
+
+    expect(config).toMatchObject({
+      staticMessageAttributes: {
+        env: 'prod',
+        region: 'us-east-1',
+        'trace-id': 'abc123'
+      }
+    })
+  })
+
+  test('parses allowed record types list', () => {
+    const config = parseSilverSQSEventBusConfig({
+      'sqs-silver-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+      'sqs-silver-region': 'us-east-1',
+      'sqs-silver-include-records': 'trade, book_change, trade'
+    })
+
+    expect(config).toMatchObject({ includeRecordTypes: ['trade', 'book_change'] })
+  })
+
+  test('accepts snake_case record names in include list', () => {
+    const config = parseSilverSQSEventBusConfig({
+      'sqs-silver-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+      'sqs-silver-region': 'us-east-1',
+      'sqs-silver-include-records': 'book_change, TRADE_BAR, quote'
+    })
+
+    expect(config).toMatchObject({
+      includeRecordTypes: ['book_change', 'trade_bar', 'quote']
+    })
+  })
+
+  test('accepts snake_case record names in queue routing', () => {
+    const config = parseSilverSQSEventBusConfig({
+      'sqs-silver-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+      'sqs-silver-region': 'us-east-1',
+      'sqs-silver-queue-routing':
+        'book_snapshot:https://sqs.us-east-1.amazonaws.com/123456789012/snapshots, grouped_book_snapshot:https://sqs.us-east-1.amazonaws.com/123456789012/grouped'
+    })
+
+    expect(config).toMatchObject({
+      queueByRecordType: {
+        book_snapshot: 'https://sqs.us-east-1.amazonaws.com/123456789012/snapshots',
+        grouped_book_snapshot: 'https://sqs.us-east-1.amazonaws.com/123456789012/grouped'
+      }
+    })
+  })
+
+  test('rejects non-positive batch tuning values', () => {
+    expect(() =>
+      parseSilverSQSEventBusConfig({
+        'sqs-silver-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+        'sqs-silver-region': 'us-east-1',
+        'sqs-silver-max-batch-size': 0
+      })
+    ).toThrow('sqs-silver-max-batch-size must be a positive integer.')
+
+    expect(() =>
+      parseSilverSQSEventBusConfig({
+        'sqs-silver-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+        'sqs-silver-region': 'us-east-1',
+        'sqs-silver-max-batch-delay-ms': -1
+      })
+    ).toThrow('sqs-silver-max-batch-delay-ms must be a positive integer.')
+  })
+
+  test('rejects blank silver sqs queue url strings', () => {
+    expect(() =>
+      parseSilverSQSEventBusConfig({
+        'sqs-silver-queue-url': '   ',
+        'sqs-silver-region': 'us-east-1'
+      })
+    ).toThrow('sqs-silver-queue-url must be a non-empty string.')
+  })
+
+  test('rejects blank silver sqs region strings', () => {
+    expect(() =>
+      parseSilverSQSEventBusConfig({
+        'sqs-silver-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+        'sqs-silver-region': '   '
+      })
+    ).toThrow('sqs-silver-region must be a non-empty string.')
+  })
+
+  test('rejects unknown record type names', () => {
+    expect(() =>
+      parseSilverSQSEventBusConfig({
+        'sqs-silver-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+        'sqs-silver-region': 'us-east-1',
+        'sqs-silver-include-records': 'trade, candles'
+      })
+    ).toThrow('Unknown record type(s) for sqs-silver-include-records: candles.')
+  })
+
+  test('rejects unknown record types in queue routing', () => {
+    expect(() =>
+      parseSilverSQSEventBusConfig({
+        'sqs-silver-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+        'sqs-silver-region': 'us-east-1',
+        'sqs-silver-queue-routing':
+          'trade:https://sqs.us-east-1.amazonaws.com/123456789012/trade, candles:https://sqs.us-east-1.amazonaws.com/123456789012/candles'
+      })
+    ).toThrow('Unknown record type(s) for sqs-silver-queue-routing: candles.')
+  })
+
+  test('rejects invalid silver sqs static message attribute entries', () => {
+    expect(() =>
+      parseSilverSQSEventBusConfig({
+        'sqs-silver-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+        'sqs-silver-region': 'us-east-1',
+        'sqs-silver-static-message-attributes': 'env'
+      })
+    ).toThrow('sqs-silver-static-message-attributes entries must be key:value pairs.')
+
+    expect(() =>
+      parseSilverSQSEventBusConfig({
+        'sqs-silver-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+        'sqs-silver-region': 'us-east-1',
+        'sqs-silver-static-message-attributes': 'recordType:overwritten'
+      })
+    ).toThrow('sqs-silver-static-message-attributes cannot override reserved header "recordType".')
+  })
+
+  test('throws on invalid silver queue routing entry', () => {
+    expect(() =>
+      parseSilverSQSEventBusConfig({
+        'sqs-silver-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+        'sqs-silver-region': 'us-east-1',
+        'sqs-silver-queue-routing': 'trade-only'
+      })
+    ).toThrow('Invalid sqs-silver-queue-routing entry "trade-only". Expected format recordType:queueUrl.')
   })
 })

@@ -62,127 +62,19 @@ const ACK_VALUE_MAP: Record<string, -1 | 0 | 1> = {
 }
 
 const RESERVED_STATIC_HEADER_KEYS = new Set(['payloadCase', 'dataType'])
+const RESERVED_SILVER_STATIC_HEADER_KEYS = new Set(['recordType', 'dataType'])
 
-function parseKafkaBrokers(raw: unknown): string[] {
-  if (typeof raw !== 'string') {
-    return []
-  }
-
-  return raw
-    .split(',')
-    .map((broker) => broker.trim())
-    .filter(Boolean)
-}
-
-function parseCompression(raw: unknown, flagPrefix = 'kafka'): KafkaEventBusConfig['compression'] | undefined {
+function parseStaticHeaders(
+  raw: unknown,
+  flagName = 'static-headers',
+  reservedKeys = RESERVED_STATIC_HEADER_KEYS
+): Record<string, string> | undefined {
   if (raw === undefined || raw === null || raw === '') {
     return undefined
   }
 
   if (typeof raw !== 'string') {
-    throw new Error(`${flagPrefix}-compression must be one of none,gzip,snappy,lz4,zstd.`)
-  }
-
-  const value = raw.trim().toLowerCase()
-  if (!ALLOWED_COMPRESSION.has(value)) {
-    throw new Error(`${flagPrefix}-compression must be one of none,gzip,snappy,lz4,zstd.`)
-  }
-
-  return value as KafkaEventBusConfig['compression']
-}
-
-function parseTopicRouting(raw: unknown): KafkaEventBusConfig['topicByPayloadCase'] | undefined {
-  if (raw === undefined) {
-    return undefined
-  }
-
-  if (typeof raw !== 'string') {
-    throw new Error('kafka-topic-routing must be a string of payloadCase:topic entries separated by commas.')
-  }
-
-  const map: Partial<Record<BronzePayloadCase, string>> = {}
-  const invalidPayloadCases = new Set<string>()
-
-  const pairs = raw
-    .split(',')
-    .map((pair) => pair.trim())
-    .filter(Boolean)
-
-  for (const pair of pairs) {
-    const [payloadCase, mappedTopic] = pair.split(':').map((part) => part?.trim())
-    if (!payloadCase || !mappedTopic) {
-      throw new Error(`Invalid kafka-topic-routing entry "${pair}". Expected format payloadCase:topicName.`)
-    }
-
-    const normalizedPayloadCase = normalizePayloadCase(payloadCase)
-
-    if (!normalizedPayloadCase) {
-      invalidPayloadCases.add(payloadCase)
-      continue
-    }
-
-    map[normalizedPayloadCase] = mappedTopic
-  }
-
-  if (Object.keys(map).length === 0) {
-    throw new Error('kafka-topic-routing must define at least one payloadCase mapping.')
-  }
-
-  if (invalidPayloadCases.size > 0) {
-    throw new Error(`Unknown payload case(s) for kafka-topic-routing: ${Array.from(invalidPayloadCases).join(', ')}.`)
-  }
-
-  return map
-}
-
-function parseIncludePayloadCases(raw: unknown, flagPrefix = 'kafka'): BronzePayloadCase[] | undefined {
-  if (raw === undefined || raw === null || raw === '') {
-    return undefined
-  }
-
-  if (typeof raw !== 'string') {
-    throw new Error(`${flagPrefix}-include-payloads must be a comma separated string list of payload cases.`)
-  }
-
-  const uniqueInputs = Array.from(
-    new Set(
-      raw
-        .split(',')
-        .map((value) => value.trim())
-        .filter(Boolean)
-    )
-  )
-
-  if (uniqueInputs.length === 0) {
-    throw new Error(`${flagPrefix}-include-payloads must list at least one payload case.`)
-  }
-
-  const normalizedCases = new Set<BronzePayloadCase>()
-  const invalid: string[] = []
-
-  for (const entry of uniqueInputs) {
-    const normalized = normalizePayloadCase(entry)
-    if (!normalized) {
-      invalid.push(entry)
-      continue
-    }
-    normalizedCases.add(normalized)
-  }
-
-  if (invalid.length > 0) {
-    throw new Error(`Unknown payload case(s) for ${flagPrefix}-include-payloads: ${invalid.join(', ')}.`)
-  }
-
-  return Array.from(normalizedCases)
-}
-
-function parseStaticHeaders(raw: unknown, flagPrefix = 'kafka'): Record<string, string> | undefined {
-  if (raw === undefined || raw === null || raw === '') {
-    return undefined
-  }
-
-  if (typeof raw !== 'string') {
-    throw new Error(`${flagPrefix}-static-headers must be a comma separated string list of key:value pairs.`)
+    throw new Error(`${flagName} must be a comma separated string list of key:value pairs.`)
   }
 
   const entries = raw
@@ -191,29 +83,29 @@ function parseStaticHeaders(raw: unknown, flagPrefix = 'kafka'): Record<string, 
     .filter(Boolean)
 
   if (entries.length === 0) {
-    throw new Error(`${flagPrefix}-static-headers must list at least one key:value pair.`)
+    throw new Error(`${flagName} must list at least one key:value pair.`)
   }
 
   const headers: Record<string, string> = {}
   for (const entry of entries) {
     const separatorIndex = entry.indexOf(':')
     if (separatorIndex <= 0 || separatorIndex === entry.length - 1) {
-      throw new Error(`${flagPrefix}-static-headers entries must be key:value pairs.`)
+      throw new Error(`${flagName} entries must be key:value pairs.`)
     }
 
     const key = entry.slice(0, separatorIndex).trim()
     const value = entry.slice(separatorIndex + 1).trim()
 
     if (!key || !value) {
-      throw new Error(`${flagPrefix}-static-headers entries must be key:value pairs.`)
+      throw new Error(`${flagName} entries must be key:value pairs.`)
     }
 
-    if (RESERVED_STATIC_HEADER_KEYS.has(key)) {
-      throw new Error(`${flagPrefix}-static-headers cannot override reserved header "${key}".`)
+    if (reservedKeys.has(key)) {
+      throw new Error(`${flagName} cannot override reserved header "${key}".`)
     }
 
     if (headers[key] !== undefined) {
-      throw new Error(`Duplicate ${flagPrefix}-static-headers key "${key}".`)
+      throw new Error(`Duplicate ${flagName} key "${key}".`)
     }
 
     headers[key] = value
@@ -346,7 +238,7 @@ export function parseRabbitMQEventBusConfig(argv: Record<string, any>): EventBus
     if (routingKeyTemplate === '') {
       throw new Error('rabbitmq-routing-key-template must be a non-empty string.')
     }
-    compileKeyBuilder(routingKeyTemplate)
+    compileKeyBuilder(routingKeyTemplate, 'rabbitmq')
     rabbitmqConfig.routingKeyTemplate = routingKeyTemplate
   }
 
@@ -355,7 +247,7 @@ export function parseRabbitMQEventBusConfig(argv: Record<string, any>): EventBus
     rabbitmqConfig.includePayloadCases = includePayloadCases
   }
 
-  const staticHeaders = parseStaticHeaders(argv['rabbitmq-static-headers'])
+  const staticHeaders = parseStaticHeaders(argv['rabbitmq-static-headers'], 'rabbitmq-static-headers')
   if (staticHeaders) {
     rabbitmqConfig.staticHeaders = staticHeaders
   }
@@ -416,7 +308,7 @@ export function parseKafkaEventBusConfig(argv: Record<string, any>): EventBusCon
     kafkaConfig.metaHeadersPrefix = metaHeadersPrefix.trim()
   }
 
-  const staticHeaders = parseStaticHeaders(argv['kafka-static-headers'])
+  const staticHeaders = parseStaticHeaders(argv['kafka-static-headers'], 'kafka-static-headers')
   if (staticHeaders) {
     kafkaConfig.staticHeaders = staticHeaders
   }
@@ -464,6 +356,27 @@ export function parseKafkaEventBusConfig(argv: Record<string, any>): EventBusCon
     kafkaConfig.idempotent = idempotent
   }
 
+  const schemaRegistryUrl = argv['kafka-schema-registry-url']
+  if (schemaRegistryUrl) {
+    if (typeof schemaRegistryUrl !== 'string') {
+      throw new Error('kafka-schema-registry-url must be a string.')
+    }
+    kafkaConfig.schemaRegistry = {
+      url: schemaRegistryUrl.trim()
+    }
+    const authUsername = argv['kafka-schema-registry-auth-username']
+    const authPassword = argv['kafka-schema-registry-auth-password']
+    if (authUsername || authPassword) {
+      if (typeof authUsername !== 'string' || typeof authPassword !== 'string') {
+        throw new Error('kafka-schema-registry-auth-username and kafka-schema-registry-auth-password must be strings.')
+      }
+      kafkaConfig.schemaRegistry.auth = {
+        username: authUsername.trim(),
+        password: authPassword.trim()
+      }
+    }
+  }
+
   return {
     provider: 'kafka',
     ...kafkaConfig
@@ -508,7 +421,14 @@ export function parseSilverKafkaEventBusConfig(argv: Record<string, any>): Event
       .filter(Boolean)
 
     for (const pair of pairs) {
-      const [recordType, mappedTopic] = pair.split(':').map((part) => part?.trim())
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid kafka-silver-topic-routing entry "${pair}". Expected format recordType:topic.`)
+      }
+
+      const recordType = pair.slice(0, separatorIndex).trim()
+      const mappedTopic = pair.slice(separatorIndex + 1).trim()
+
       if (!recordType || !mappedTopic) {
         throw new Error(`Invalid kafka-silver-topic-routing entry "${pair}". Expected format recordType:topic.`)
       }
@@ -568,7 +488,11 @@ export function parseSilverKafkaEventBusConfig(argv: Record<string, any>): Event
     kafkaConfig.metaHeadersPrefix = metaHeadersPrefix
   }
 
-  const staticHeaders = parseStaticHeaders(argv['kafka-silver-static-headers'], 'kafka-silver')
+  const staticHeaders = parseStaticHeaders(
+    argv['kafka-silver-static-headers'],
+    'kafka-silver-static-headers',
+    RESERVED_SILVER_STATIC_HEADER_KEYS
+  )
   if (staticHeaders) {
     kafkaConfig.staticHeaders = staticHeaders
   }
@@ -582,7 +506,7 @@ export function parseSilverKafkaEventBusConfig(argv: Record<string, any>): Event
     if (keyTemplate === '') {
       throw new Error('kafka-silver-key-template must be a non-empty string.')
     }
-    compileSilverKeyBuilder(keyTemplate)
+    compileSilverKeyBuilder(keyTemplate, 'kafka-silver')
     kafkaConfig.keyTemplate = keyTemplate
   }
 
@@ -643,12 +567,118 @@ export function parseSilverKafkaEventBusConfig(argv: Record<string, any>): Event
   }
 }
 
+function parseKafkaBrokers(raw: unknown): string[] {
+  if (typeof raw === 'string') {
+    return raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+  } else if (Array.isArray(raw)) {
+    return raw.map((s) => String(s).trim()).filter(Boolean)
+  } else {
+    throw new Error('Kafka brokers must be a comma-separated string or array of broker URLs.')
+  }
+}
+
+function parseTopicRouting(raw: unknown): Partial<Record<BronzePayloadCase, string>> | undefined {
+  if (typeof raw !== 'string') {
+    return undefined
+  }
+
+  const map: Partial<Record<BronzePayloadCase, string>> = {}
+  const invalidPayloadCases = new Set<string>()
+
+  const pairs = raw
+    .split(',')
+    .map((pair) => pair.trim())
+    .filter(Boolean)
+
+  for (const pair of pairs) {
+    const separatorIndex = pair.indexOf(':')
+    if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+      throw new Error(`Invalid kafka-topic-routing entry "${pair}". Expected format payloadCase:topicName.`)
+    }
+
+    const payloadCase = pair.slice(0, separatorIndex).trim()
+    const topic = pair.slice(separatorIndex + 1).trim()
+
+    if (!payloadCase || !topic) {
+      throw new Error(`Invalid kafka-topic-routing entry "${pair}". Expected format payloadCase:topic.`)
+    }
+
+    const normalizedPayloadCase = normalizePayloadCase(payloadCase)
+
+    if (!normalizedPayloadCase) {
+      invalidPayloadCases.add(payloadCase)
+      continue
+    }
+
+    map[normalizedPayloadCase] = topic
+  }
+
+  if (Object.keys(map).length === 0) {
+    throw new Error('kafka-topic-routing must define at least one payloadCase mapping.')
+  }
+
+  if (invalidPayloadCases.size > 0) {
+    throw new Error(`Unknown payload case(s) for kafka-topic-routing: ${Array.from(invalidPayloadCases).join(', ')}.`)
+  }
+
+  return map
+}
+
+function parseCompression(raw: unknown, flagPrefix = 'kafka'): 'none' | 'gzip' | 'snappy' | 'lz4' | 'zstd' | undefined {
+  if (raw === undefined || raw === null || raw === '') {
+    return undefined
+  }
+
+  if (typeof raw !== 'string') {
+    throw new Error(`${flagPrefix}-compression must be a string.`)
+  }
+
+  const compression = raw.trim().toLowerCase()
+  if (!ALLOWED_COMPRESSION.has(compression)) {
+    throw new Error(`${flagPrefix}-compression must be one of ${Array.from(ALLOWED_COMPRESSION).join(',')}.`)
+  }
+
+  return compression as 'none' | 'gzip' | 'snappy' | 'lz4' | 'zstd'
+}
+
+function parseIncludePayloadCases(raw: unknown, flagPrefix = 'kafka'): BronzePayloadCase[] | undefined {
+  if (typeof raw !== 'string') {
+    return undefined
+  }
+
+  const payloadCasesSet = new Set<BronzePayloadCase>()
+  const invalidPayloadCases = new Set<string>()
+
+  const values = raw
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+
+  for (const value of values) {
+    const normalized = normalizePayloadCase(value)
+    if (normalized) {
+      payloadCasesSet.add(normalized)
+    } else {
+      invalidPayloadCases.add(value)
+    }
+  }
+
+  if (invalidPayloadCases.size > 0) {
+    throw new Error(`Unknown payload case(s) for ${flagPrefix}-include-payloads: ${Array.from(invalidPayloadCases).join(', ')}.`)
+  }
+
+  return payloadCasesSet.size > 0 ? Array.from(payloadCasesSet) : undefined
+}
+
 function parseIncludeSilverRecordTypes(raw: unknown, flagPrefix = 'kafka-silver'): SilverRecordType[] | undefined {
   if (typeof raw !== 'string') {
     return undefined
   }
 
-  const recordTypes: SilverRecordType[] = []
+  const recordTypesSet = new Set<SilverRecordType>()
   const invalidRecordTypes = new Set<string>()
 
   const values = raw
@@ -659,7 +689,7 @@ function parseIncludeSilverRecordTypes(raw: unknown, flagPrefix = 'kafka-silver'
   for (const value of values) {
     const normalized = normalizeSilverRecordType(value)
     if (normalized) {
-      recordTypes.push(normalized)
+      recordTypesSet.add(normalized)
     } else {
       invalidRecordTypes.add(value)
     }
@@ -669,7 +699,7 @@ function parseIncludeSilverRecordTypes(raw: unknown, flagPrefix = 'kafka-silver'
     throw new Error(`Unknown record type(s) for ${flagPrefix}-include-records: ${Array.from(invalidRecordTypes).join(', ')}.`)
   }
 
-  return recordTypes.length > 0 ? recordTypes : undefined
+  return recordTypesSet.size > 0 ? Array.from(recordTypesSet) : undefined
 }
 
 function parseSilverSasl(argv: Record<string, any>): SilverKafkaEventBusConfig['sasl'] | undefined {
@@ -770,7 +800,14 @@ export function parseKinesisEventBusConfig(argv: Record<string, any>): EventBusC
       .filter(Boolean)
 
     for (const pair of pairs) {
-      const [payloadCase, mappedStream] = pair.split(':').map((part) => part?.trim())
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid kinesis-stream-routing entry "${pair}". Expected format payloadCase:streamName.`)
+      }
+
+      const payloadCase = pair.slice(0, separatorIndex).trim()
+      const mappedStream = pair.slice(separatorIndex + 1).trim()
+
       if (!payloadCase || !mappedStream) {
         throw new Error(`Invalid kinesis-stream-routing entry "${pair}". Expected format payloadCase:streamName.`)
       }
@@ -837,7 +874,7 @@ export function parseKinesisEventBusConfig(argv: Record<string, any>): EventBusC
     kinesisConfig.sessionToken = sessionToken
   }
 
-  const staticHeaders = parseStaticHeaders(argv['kinesis-static-headers'])
+  const staticHeaders = parseStaticHeaders(argv['kinesis-static-headers'], 'kinesis-static-headers')
   if (staticHeaders) {
     kinesisConfig.staticHeaders = staticHeaders
   }
@@ -851,7 +888,7 @@ export function parseKinesisEventBusConfig(argv: Record<string, any>): EventBusC
     if (partitionKeyTemplate === '') {
       throw new Error('kinesis-partition-key-template must be a non-empty string.')
     }
-    compileKeyBuilder(partitionKeyTemplate)
+    compileKeyBuilder(partitionKeyTemplate, 'kinesis')
     kinesisConfig.partitionKeyTemplate = partitionKeyTemplate
   }
 
@@ -920,7 +957,14 @@ export function parseNatsEventBusConfig(argv: Record<string, any>): EventBusConf
       .filter(Boolean)
 
     for (const pair of pairs) {
-      const [payloadCase, mappedSubject] = pair.split(':').map((part) => part?.trim())
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid nats-subject-routing entry "${pair}". Expected format payloadCase:subject.`)
+      }
+
+      const payloadCase = pair.slice(0, separatorIndex).trim()
+      const mappedSubject = pair.slice(separatorIndex + 1).trim()
+
       if (!payloadCase || !mappedSubject) {
         throw new Error(`Invalid nats-subject-routing entry "${pair}". Expected format payloadCase:subject.`)
       }
@@ -951,7 +995,7 @@ export function parseNatsEventBusConfig(argv: Record<string, any>): EventBusConf
     natsConfig.includePayloadCases = includePayloadCases
   }
 
-  const staticHeaders = parseStaticHeaders(argv['nats-static-headers'])
+  const staticHeaders = parseStaticHeaders(argv['nats-static-headers'], 'nats-static-headers')
   if (staticHeaders) {
     natsConfig.staticHeaders = staticHeaders
   }
@@ -965,7 +1009,7 @@ export function parseNatsEventBusConfig(argv: Record<string, any>): EventBusConf
     if (subjectTemplate === '') {
       throw new Error('nats-subject-template must be a non-empty string.')
     }
-    compileKeyBuilder(subjectTemplate)
+    compileKeyBuilder(subjectTemplate, 'nats')
     natsConfig.subjectTemplate = subjectTemplate
   }
 
@@ -1019,7 +1063,7 @@ export function parseSilverRabbitMQEventBusConfig(argv: Record<string, any>): Ev
     if (routingKeyTemplate === '') {
       throw new Error('rabbitmq-silver-routing-key-template must be a non-empty string.')
     }
-    compileSilverKeyBuilder(routingKeyTemplate)
+    compileSilverKeyBuilder(routingKeyTemplate, 'rabbitmq-silver')
     rabbitmqConfig.routingKeyTemplate = routingKeyTemplate
   }
 
@@ -1028,7 +1072,11 @@ export function parseSilverRabbitMQEventBusConfig(argv: Record<string, any>): Ev
     rabbitmqConfig.includeRecordTypes = includeRecordTypes
   }
 
-  const staticHeaders = parseStaticHeaders(argv['rabbitmq-silver-static-headers'], 'rabbitmq-silver')
+  const staticHeaders = parseStaticHeaders(
+    argv['rabbitmq-silver-static-headers'],
+    'rabbitmq-silver-static-headers',
+    RESERVED_SILVER_STATIC_HEADER_KEYS
+  )
   if (staticHeaders) {
     rabbitmqConfig.staticHeaders = staticHeaders
   }
@@ -1077,7 +1125,14 @@ export function parseSilverKinesisEventBusConfig(argv: Record<string, any>): Eve
       .filter(Boolean)
 
     for (const pair of pairs) {
-      const [recordType, mappedStream] = pair.split(':').map((part) => part?.trim())
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid kinesis-silver-stream-routing entry "${pair}". Expected format recordType:streamName.`)
+      }
+
+      const recordType = pair.slice(0, separatorIndex).trim()
+      const mappedStream = pair.slice(separatorIndex + 1).trim()
+
       if (!recordType || !mappedStream) {
         throw new Error(`Invalid kinesis-silver-stream-routing entry "${pair}". Expected format recordType:streamName.`)
       }
@@ -1144,7 +1199,11 @@ export function parseSilverKinesisEventBusConfig(argv: Record<string, any>): Eve
     kinesisConfig.sessionToken = sessionToken
   }
 
-  const staticHeaders = parseStaticHeaders(argv['kinesis-silver-static-headers'], 'kinesis-silver')
+  const staticHeaders = parseStaticHeaders(
+    argv['kinesis-silver-static-headers'],
+    'kinesis-silver-static-headers',
+    RESERVED_SILVER_STATIC_HEADER_KEYS
+  )
   if (staticHeaders) {
     kinesisConfig.staticHeaders = staticHeaders
   }
@@ -1158,7 +1217,7 @@ export function parseSilverKinesisEventBusConfig(argv: Record<string, any>): Eve
     if (partitionKeyTemplate === '') {
       throw new Error('kinesis-silver-partition-key-template must be a non-empty string.')
     }
-    compileSilverKeyBuilder(partitionKeyTemplate)
+    compileSilverKeyBuilder(partitionKeyTemplate, 'kinesis-silver')
     kinesisConfig.partitionKeyTemplate = partitionKeyTemplate
   }
 
@@ -1227,7 +1286,14 @@ export function parseSilverNatsEventBusConfig(argv: Record<string, any>): EventB
       .filter(Boolean)
 
     for (const pair of pairs) {
-      const [recordType, mappedSubject] = pair.split(':').map((part) => part?.trim())
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid nats-silver-subject-routing entry "${pair}". Expected format recordType:subject.`)
+      }
+
+      const recordType = pair.slice(0, separatorIndex).trim()
+      const mappedSubject = pair.slice(separatorIndex + 1).trim()
+
       if (!recordType || !mappedSubject) {
         throw new Error(`Invalid nats-silver-subject-routing entry "${pair}". Expected format recordType:subject.`)
       }
@@ -1258,7 +1324,11 @@ export function parseSilverNatsEventBusConfig(argv: Record<string, any>): EventB
     natsConfig.includeRecordTypes = includeRecordTypes
   }
 
-  const staticHeaders = parseStaticHeaders(argv['nats-silver-static-headers'], 'nats-silver')
+  const staticHeaders = parseStaticHeaders(
+    argv['nats-silver-static-headers'],
+    'nats-silver-static-headers',
+    RESERVED_SILVER_STATIC_HEADER_KEYS
+  )
   if (staticHeaders) {
     natsConfig.staticHeaders = staticHeaders
   }
@@ -1272,7 +1342,7 @@ export function parseSilverNatsEventBusConfig(argv: Record<string, any>): EventB
     if (subjectTemplate === '') {
       throw new Error('nats-silver-subject-template must be a non-empty string.')
     }
-    compileSilverKeyBuilder(subjectTemplate)
+    compileSilverKeyBuilder(subjectTemplate, 'nats-silver')
     natsConfig.subjectTemplate = subjectTemplate
   }
 
@@ -1320,7 +1390,14 @@ export function parseSQSEventBusConfig(argv: Record<string, any>): EventBusConfi
       .filter(Boolean)
 
     for (const pair of pairs) {
-      const [payloadCase, mappedQueue] = pair.split(':').map((part) => part?.trim())
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid sqs-queue-routing entry "${pair}". Expected format payloadCase:queueUrl.`)
+      }
+
+      const payloadCase = pair.slice(0, separatorIndex).trim()
+      const mappedQueue = pair.slice(separatorIndex + 1).trim()
+
       if (!payloadCase || !mappedQueue) {
         throw new Error(`Invalid sqs-queue-routing entry "${pair}". Expected format payloadCase:queueUrl.`)
       }
@@ -1387,7 +1464,7 @@ export function parseSQSEventBusConfig(argv: Record<string, any>): EventBusConfi
     sqsConfig.sessionToken = sessionToken
   }
 
-  const staticMessageAttributes = parseStaticHeaders(argv['sqs-static-message-attributes'], 'sqs')
+  const staticMessageAttributes = parseStaticHeaders(argv['sqs-static-message-attributes'], 'sqs-static-message-attributes')
   if (staticMessageAttributes) {
     sqsConfig.staticMessageAttributes = staticMessageAttributes
   }
@@ -1446,7 +1523,14 @@ export function parseRedisEventBusConfig(argv: Record<string, any>): EventBusCon
       .filter(Boolean)
 
     for (const pair of pairs) {
-      const [payloadCase, mappedStream] = pair.split(':').map((part) => part?.trim())
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid redis-stream-routing entry "${pair}". Expected format payloadCase:stream.`)
+      }
+
+      const payloadCase = pair.slice(0, separatorIndex).trim()
+      const mappedStream = pair.slice(separatorIndex + 1).trim()
+
       if (!payloadCase || !mappedStream) {
         throw new Error(`Invalid redis-stream-routing entry "${pair}". Expected format payloadCase:stream.`)
       }
@@ -1477,7 +1561,7 @@ export function parseRedisEventBusConfig(argv: Record<string, any>): EventBusCon
     redisConfig.includePayloadCases = includePayloadCases
   }
 
-  const staticHeaders = parseStaticHeaders(argv['redis-static-headers'], 'redis')
+  const staticHeaders = parseStaticHeaders(argv['redis-static-headers'], 'redis-static-headers')
   if (staticHeaders) {
     redisConfig.staticHeaders = staticHeaders
   }
@@ -1549,7 +1633,14 @@ export function parseSilverRedisEventBusConfig(argv: Record<string, any>): Event
       .filter(Boolean)
 
     for (const pair of pairs) {
-      const [recordType, mappedStream] = pair.split(':').map((part) => part?.trim())
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid redis-silver-stream-routing entry "${pair}". Expected format recordType:stream.`)
+      }
+
+      const recordType = pair.slice(0, separatorIndex).trim()
+      const mappedStream = pair.slice(separatorIndex + 1).trim()
+
       if (!recordType || !mappedStream) {
         throw new Error(`Invalid redis-silver-stream-routing entry "${pair}". Expected format recordType:stream.`)
       }
@@ -1580,7 +1671,11 @@ export function parseSilverRedisEventBusConfig(argv: Record<string, any>): Event
     redisConfig.includeRecordTypes = includeRecordTypes
   }
 
-  const staticHeaders = parseStaticHeaders(argv['redis-silver-static-headers'], 'redis-silver')
+  const staticHeaders = parseStaticHeaders(
+    argv['redis-silver-static-headers'],
+    'redis-silver-static-headers',
+    RESERVED_SILVER_STATIC_HEADER_KEYS
+  )
   if (staticHeaders) {
     redisConfig.staticHeaders = staticHeaders
   }
@@ -1594,7 +1689,7 @@ export function parseSilverRedisEventBusConfig(argv: Record<string, any>): Event
     if (keyTemplate === '') {
       throw new Error('redis-silver-key-template must be a non-empty string.')
     }
-    compileSilverKeyBuilder(keyTemplate)
+    compileSilverKeyBuilder(keyTemplate, 'redis-silver')
     redisConfig.keyTemplate = keyTemplate
   }
 
@@ -1664,7 +1759,14 @@ export function parsePulsarEventBusConfig(argv: Record<string, any>): EventBusCo
       .filter(Boolean)
 
     for (const pair of pairs) {
-      const [payloadCase, mappedTopic] = pair.split(':').map((part) => part?.trim())
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid pulsar-topic-routing entry "${pair}". Expected format payloadCase:topicName.`)
+      }
+
+      const payloadCase = pair.slice(0, separatorIndex).trim()
+      const mappedTopic = pair.slice(separatorIndex + 1).trim()
+
       if (!payloadCase || !mappedTopic) {
         throw new Error(`Invalid pulsar-topic-routing entry "${pair}". Expected format payloadCase:topicName.`)
       }
@@ -1695,7 +1797,7 @@ export function parsePulsarEventBusConfig(argv: Record<string, any>): EventBusCo
     pulsarConfig.includePayloadCases = includePayloadCases
   }
 
-  const staticProperties = parseStaticHeaders(argv['pulsar-static-properties'], 'pulsar')
+  const staticProperties = parseStaticHeaders(argv['pulsar-static-properties'], 'pulsar-static-properties')
   if (staticProperties) {
     pulsarConfig.staticProperties = staticProperties
   }
@@ -1709,7 +1811,7 @@ export function parsePulsarEventBusConfig(argv: Record<string, any>): EventBusCo
     if (keyTemplate === '') {
       throw new Error('pulsar-key-template must be a non-empty string.')
     }
-    compileKeyBuilder(keyTemplate)
+    compileKeyBuilder(keyTemplate, 'pulsar')
     pulsarConfig.keyTemplate = keyTemplate
   }
 
@@ -1791,7 +1893,14 @@ export function parseSilverPulsarEventBusConfig(argv: Record<string, any>): Even
       .filter(Boolean)
 
     for (const pair of pairs) {
-      const [recordType, mappedTopic] = pair.split(':').map((part) => part?.trim())
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid pulsar-silver-topic-routing entry "${pair}". Expected format recordType:topicName.`)
+      }
+
+      const recordType = pair.slice(0, separatorIndex).trim()
+      const mappedTopic = pair.slice(separatorIndex + 1).trim()
+
       if (!recordType || !mappedTopic) {
         throw new Error(`Invalid pulsar-silver-topic-routing entry "${pair}". Expected format recordType:topicName.`)
       }
@@ -1822,7 +1931,11 @@ export function parseSilverPulsarEventBusConfig(argv: Record<string, any>): Even
     pulsarConfig.includeRecordTypes = includeRecordTypes
   }
 
-  const staticProperties = parseStaticHeaders(argv['pulsar-silver-static-properties'], 'pulsar-silver')
+  const staticProperties = parseStaticHeaders(
+    argv['pulsar-silver-static-properties'],
+    'pulsar-silver-static-properties',
+    RESERVED_SILVER_STATIC_HEADER_KEYS
+  )
   if (staticProperties) {
     pulsarConfig.staticProperties = staticProperties
   }
@@ -1836,7 +1949,7 @@ export function parseSilverPulsarEventBusConfig(argv: Record<string, any>): Even
     if (keyTemplate === '') {
       throw new Error('pulsar-silver-key-template must be a non-empty string.')
     }
-    compileSilverKeyBuilder(keyTemplate)
+    compileSilverKeyBuilder(keyTemplate, 'pulsar-silver')
     pulsarConfig.keyTemplate = keyTemplate
   }
 
@@ -1906,7 +2019,14 @@ export function parseSilverSQSEventBusConfig(argv: Record<string, any>): EventBu
       .filter(Boolean)
 
     for (const pair of pairs) {
-      const [recordType, mappedQueue] = pair.split(':').map((part) => part?.trim())
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid sqs-silver-queue-routing entry "${pair}". Expected format recordType:queueUrl.`)
+      }
+
+      const recordType = pair.slice(0, separatorIndex).trim()
+      const mappedQueue = pair.slice(separatorIndex + 1).trim()
+
       if (!recordType || !mappedQueue) {
         throw new Error(`Invalid sqs-silver-queue-routing entry "${pair}". Expected format recordType:queueUrl.`)
       }
@@ -1973,7 +2093,11 @@ export function parseSilverSQSEventBusConfig(argv: Record<string, any>): EventBu
     sqsConfig.sessionToken = sessionToken
   }
 
-  const staticMessageAttributes = parseStaticHeaders(argv['sqs-silver-static-message-attributes'], 'sqs-silver')
+  const staticMessageAttributes = parseStaticHeaders(
+    argv['sqs-silver-static-message-attributes'],
+    'sqs-silver-static-message-attributes',
+    RESERVED_SILVER_STATIC_HEADER_KEYS
+  )
   if (staticMessageAttributes) {
     sqsConfig.staticMessageAttributes = staticMessageAttributes
   }

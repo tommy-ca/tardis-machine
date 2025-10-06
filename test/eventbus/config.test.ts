@@ -1,4 +1,3 @@
-import { parseKafkaEventBusConfig } from '../../src/eventbus/config'
 import {
   parseKafkaEventBusConfig,
   parseRabbitMQEventBusConfig,

@@ -25,7 +25,8 @@ const {
   parseAzureEventHubsEventBusConfig,
   parsePubSubEventBusConfig,
   parseSilverPubSubEventBusConfig,
-  parseSilverAzureEventBusConfig
+  parseSilverAzureEventBusConfig,
+  parseConsoleEventBusConfig
 } = require('../dist/eventbus/config')
 
 const DEFAULT_PORT = 8000
@@ -608,6 +609,23 @@ const argv = yargs
     describe: 'Maximum milliseconds events can wait before forced flush'
   })
 
+  .option('console-enable', {
+    type: 'boolean',
+    describe: 'Enable console output for normalized events (for debugging)'
+  })
+  .option('console-prefix', {
+    type: 'string',
+    describe: 'Prefix for console output'
+  })
+  .option('console-include-payloads', {
+    type: 'string',
+    describe: 'Comma separated payload cases to publish to console (others dropped)'
+  })
+  .option('console-key-template', {
+    type: 'string',
+    describe: 'Template for console keys, e.g. {{exchange}}/{{payloadCase}}/{{symbol}}'
+  })
+
   .option('pubsub-silver-project-id', {
     type: 'string',
     describe: 'Google Cloud Project ID for Pub/Sub silver publishing'
@@ -817,7 +835,8 @@ async function start() {
     parseSQSEventBusConfig(argv) ||
     parsePulsarEventBusConfig(argv) ||
     parseAzureEventHubsEventBusConfig(argv) ||
-    parsePubSubEventBusConfig(argv)
+    parsePubSubEventBusConfig(argv) ||
+    parseConsoleEventBusConfig(argv)
 
   const silverEventBusConfig =
     parseSilverKafkaEventBusConfig(argv) ||

@@ -19,7 +19,8 @@ import type {
   SilverRedisEventBusConfig,
   SilverPulsarEventBusConfig,
   SilverSQSEventBusConfig,
-  SilverAzureEventBusConfig
+  SilverAzureEventBusConfig,
+  ConsoleEventBusConfig
 } from './types'
 import { compileKeyBuilder, compileSilverKeyBuilder } from './keyTemplate'
 
@@ -2567,6 +2568,50 @@ export function parseSilverPubSubEventBusConfig(argv: Record<string, any>): Even
   return {
     provider: 'pubsub-silver',
     ...pubsubConfig
+  }
+}
+
+export function parseConsoleEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const enableConsole = argv['console-enable']
+  if (!enableConsole) {
+    return undefined
+  }
+
+  const consoleConfig: ConsoleEventBusConfig = {}
+
+  const prefixRaw = argv['console-prefix']
+  if (prefixRaw !== undefined) {
+    if (typeof prefixRaw !== 'string') {
+      throw new Error('console-prefix must be a string.')
+    }
+    const prefix = prefixRaw.trim()
+    if (prefix === '') {
+      throw new Error('console-prefix must be a non-empty string.')
+    }
+    consoleConfig.prefix = prefix
+  }
+
+  const includePayloadCases = parseIncludePayloadCases(argv['console-include-payloads'], 'console')
+  if (includePayloadCases) {
+    consoleConfig.includePayloadCases = includePayloadCases
+  }
+
+  const keyTemplateRaw = argv['console-key-template']
+  if (keyTemplateRaw !== undefined) {
+    if (typeof keyTemplateRaw !== 'string') {
+      throw new Error('console-key-template must be a non-empty string.')
+    }
+    const keyTemplate = keyTemplateRaw.trim()
+    if (keyTemplate === '') {
+      throw new Error('console-key-template must be a non-empty string.')
+    }
+    compileKeyBuilder(keyTemplate, 'console')
+    consoleConfig.keyTemplate = keyTemplate
+  }
+
+  return {
+    provider: 'console',
+    ...consoleConfig
   }
 }
 

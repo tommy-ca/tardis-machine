@@ -281,6 +281,15 @@ export type PubSubEventBusConfig = {
   orderingKeyTemplate?: string
 }
 
+export type ConsoleEventBusConfig = {
+  /** Optional prefix for console output */
+  prefix?: string
+  /** Optional allow-list of payload cases to publish */
+  includePayloadCases?: BronzePayloadCase[]
+  /** Template for constructing keys (for display) */
+  keyTemplate?: string
+}
+
 export type SilverKafkaEventBusConfig = {
   brokers: string[]
   topic: string
@@ -496,6 +505,9 @@ export type EventBusConfig =
   | ({
       provider: 'pubsub'
     } & PubSubEventBusConfig)
+  | ({
+      provider: 'console'
+    } & ConsoleEventBusConfig)
   | ({
       provider: 'kafka-silver'
     } & SilverKafkaEventBusConfig)

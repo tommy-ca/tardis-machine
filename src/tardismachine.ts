@@ -23,7 +23,8 @@ import {
   SilverKinesisEventBus,
   SilverNatsEventBus,
   SilverRedisEventBus,
-  SilverAzureEventBus
+  SilverAzureEventBus,
+  ConsoleEventBus
 } from './eventbus'
 import type {
   EventBusConfig,
@@ -230,6 +231,9 @@ export class TardisMachine {
     }
     if (config.provider === 'pubsub') {
       return new PubSubEventBus(config)
+    }
+    if (config.provider === 'console') {
+      return new ConsoleEventBus(config)
     }
 
     throw new Error(`Unsupported event bus provider: ${(config as any).provider}`)

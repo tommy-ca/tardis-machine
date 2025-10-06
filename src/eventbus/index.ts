@@ -18,6 +18,7 @@ export { SilverPulsarEventBus } from './silverPulsar'
 export { SilverSQSEventBus } from './silverSqs'
 export { PubSubEventBus } from './pubsub'
 export { SilverPubSubEventBus } from './silverPubsub'
+export { ConsoleEventBus } from './console'
 export {
   parseKafkaEventBusConfig,
   parseSilverKafkaEventBusConfig,
@@ -36,7 +37,8 @@ export {
   parseSilverNatsEventBusConfig,
   parseSilverRedisEventBusConfig,
   parsePubSubEventBusConfig,
-  parseSilverPubSubEventBusConfig
+  parseSilverPubSubEventBusConfig,
+  parseConsoleEventBusConfig
 } from './config'
 export { compileKeyBuilder, compileSilverKeyBuilder } from './keyTemplate'
 export type {

@@ -12,6 +12,7 @@ const {
   parseRabbitMQEventBusConfig,
   parseKinesisEventBusConfig,
   parseNatsEventBusConfig,
+  parseRedisEventBusConfig,
   parseSilverKafkaEventBusConfig,
   parseSilverRabbitMQEventBusConfig,
   parseSilverKinesisEventBusConfig,
@@ -392,6 +393,39 @@ const argv = yargs
     describe: 'Template for NATS subjects, e.g. {{exchange}}.{{payloadCase}}.{{symbol}}'
   })
 
+  .option('redis-url', {
+    type: 'string',
+    describe: 'Redis connection URL for normalized event publishing'
+  })
+  .option('redis-stream', {
+    type: 'string',
+    describe: 'Redis stream name for normalized events'
+  })
+  .option('redis-include-payloads', {
+    type: 'string',
+    describe: 'Comma separated payload cases to publish (others dropped)'
+  })
+  .option('redis-stream-routing', {
+    type: 'string',
+    describe: 'Comma separated payloadCase:stream pairs overriding the base stream'
+  })
+  .option('redis-static-headers', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static Redis metadata'
+  })
+  .option('redis-key-template', {
+    type: 'string',
+    describe: 'Template for Redis stream keys, e.g. {{exchange}}.{{payloadCase}}.{{symbol}}'
+  })
+  .option('redis-max-batch-size', {
+    type: 'number',
+    describe: 'Maximum number of bronze events per Redis batch'
+  })
+  .option('redis-max-batch-delay-ms', {
+    type: 'number',
+    describe: 'Maximum milliseconds events can wait before forced flush'
+  })
+
   .help()
   .version()
   .usage('$0 [options]')
@@ -411,7 +445,11 @@ const { TardisMachine } = require('../dist')
 
 async function start() {
   const eventBusConfig =
-    parseKafkaEventBusConfig(argv) || parseRabbitMQEventBusConfig(argv) || parseKinesisEventBusConfig(argv) || parseNatsEventBusConfig(argv)
+    parseKafkaEventBusConfig(argv) ||
+    parseRabbitMQEventBusConfig(argv) ||
+    parseKinesisEventBusConfig(argv) ||
+    parseNatsEventBusConfig(argv) ||
+    parseRedisEventBusConfig(argv)
 
   const silverEventBusConfig =
     parseSilverKafkaEventBusConfig(argv) ||

@@ -5,7 +5,16 @@ import { App, DISABLED, TemplatedApp } from 'uWebSockets.js'
 import { replayHttp, createReplayNormalizedHttpHandler, healthCheck } from './http'
 import { createReplayNormalizedWSHandler, replayWS, createStreamNormalizedWSHandler } from './ws'
 import { debug } from './debug'
-import { KafkaEventBus, SilverKafkaEventBus, RabbitMQEventBus, KinesisEventBus, NatsEventBus } from './eventbus'
+import {
+  KafkaEventBus,
+  SilverKafkaEventBus,
+  RabbitMQEventBus,
+  KinesisEventBus,
+  NatsEventBus,
+  SilverRabbitMQEventBus,
+  SilverKinesisEventBus,
+  SilverNatsEventBus
+} from './eventbus'
 import type {
   EventBusConfig,
   NormalizedEventSink,
@@ -193,6 +202,15 @@ export class TardisMachine {
   private _createSilverEventBus(config: EventBusConfig): SilverEventSink {
     if (config.provider === 'kafka-silver') {
       return new SilverKafkaEventBus(config)
+    }
+    if (config.provider === 'rabbitmq-silver') {
+      return new SilverRabbitMQEventBus(config)
+    }
+    if (config.provider === 'kinesis-silver') {
+      return new SilverKinesisEventBus(config)
+    }
+    if (config.provider === 'nats-silver') {
+      return new SilverNatsEventBus(config)
     }
 
     throw new Error(`Unsupported silver event bus provider: ${(config as any).provider}`)

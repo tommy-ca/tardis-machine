@@ -17,6 +17,8 @@ import {
   AzureEventHubsEventBus,
   PubSubEventBus,
   MQTTEventBus,
+  ActiveMQEventBus,
+  SilverActiveMQEventBus,
   SilverMQTTEventBus,
   SilverPubSubEventBus,
   SilverPulsarEventBus,
@@ -242,6 +244,9 @@ export class TardisMachine {
     if (config.provider === 'mqtt') {
       return new MQTTEventBus(config)
     }
+    if (config.provider === 'activemq') {
+      return new ActiveMQEventBus(config)
+    }
     if (config.provider === 'console') {
       return new ConsoleEventBus(config)
     }
@@ -276,6 +281,9 @@ export class TardisMachine {
     }
     if (config.provider === 'mqtt-silver') {
       return new SilverMQTTEventBus(config)
+    }
+    if (config.provider === 'activemq-silver') {
+      return new SilverActiveMQEventBus(config)
     }
 
     throw new Error(`Unsupported silver event bus provider: ${(config as any).provider}`)

@@ -25,6 +25,8 @@ const {
   parseAzureEventHubsEventBusConfig,
   parsePubSubEventBusConfig,
   parseMQTTEventBusConfig,
+  parseActiveMQEventBusConfig,
+  parseSilverActiveMQEventBusConfig,
   parseSilverMQTTEventBusConfig,
   parseSilverPubSubEventBusConfig,
   parseSilverAzureEventBusConfig,
@@ -667,6 +669,33 @@ const argv = yargs
     describe: 'Maximum milliseconds events can wait before forced flush'
   })
 
+  .option('activemq-url', {
+    type: 'string',
+    describe: 'ActiveMQ connection URL for normalized event publishing'
+  })
+  .option('activemq-destination', {
+    type: 'string',
+    describe: 'ActiveMQ destination (queue or topic) for normalized events'
+  })
+  .option('activemq-destination-type', {
+    type: 'string',
+    choices: ['queue', 'topic'],
+    describe: 'ActiveMQ destination type',
+    default: 'queue'
+  })
+  .option('activemq-routing-key-template', {
+    type: 'string',
+    describe: 'Template for ActiveMQ routing keys, e.g. {{exchange}}.{{payloadCase}}.{{symbol}}'
+  })
+  .option('activemq-include-payloads', {
+    type: 'string',
+    describe: 'Comma separated payload cases to publish (others dropped)'
+  })
+  .option('activemq-static-headers', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static ActiveMQ headers'
+  })
+
   .option('console-enable', {
     type: 'boolean',
     describe: 'Enable console output for normalized events (for debugging)'
@@ -771,6 +800,33 @@ const argv = yargs
   .option('mqtt-silver-max-batch-delay-ms', {
     type: 'number',
     describe: 'Maximum milliseconds events can wait before forced flush for silver'
+  })
+
+  .option('activemq-silver-url', {
+    type: 'string',
+    describe: 'ActiveMQ connection URL for silver event publishing'
+  })
+  .option('activemq-silver-destination', {
+    type: 'string',
+    describe: 'ActiveMQ destination (queue or topic) for silver events'
+  })
+  .option('activemq-silver-destination-type', {
+    type: 'string',
+    choices: ['queue', 'topic'],
+    describe: 'ActiveMQ destination type for silver',
+    default: 'queue'
+  })
+  .option('activemq-silver-routing-key-template', {
+    type: 'string',
+    describe: 'Template for ActiveMQ routing keys for silver, e.g. {{exchange}}.{{recordType}}.{{symbol}}'
+  })
+  .option('activemq-silver-include-records', {
+    type: 'string',
+    describe: 'Comma separated record types to publish for silver (others dropped)'
+  })
+  .option('activemq-silver-static-headers', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static ActiveMQ headers for silver'
   })
 
   .option('redis-silver-url', {
@@ -951,6 +1007,7 @@ async function start() {
     parseAzureEventHubsEventBusConfig(argv) ||
     parsePubSubEventBusConfig(argv) ||
     parseMQTTEventBusConfig(argv) ||
+    parseActiveMQEventBusConfig(argv) ||
     parseConsoleEventBusConfig(argv)
 
   const silverEventBusConfig =
@@ -963,7 +1020,8 @@ async function start() {
     parseSilverSQSEventBusConfig(argv) ||
     parseSilverAzureEventBusConfig(argv) ||
     parseSilverPubSubEventBusConfig(argv) ||
-    parseSilverMQTTEventBusConfig(argv)
+    parseSilverMQTTEventBusConfig(argv) ||
+    parseSilverActiveMQEventBusConfig(argv)
 
   const machine = new TardisMachine({
     apiKey: argv['api-key'],

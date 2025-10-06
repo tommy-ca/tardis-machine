@@ -308,6 +308,18 @@ export type MQTTEventBusConfig = {
   topicTemplate?: string
 }
 
+export type ActiveMQEventBusConfig = {
+  url: string
+  destination: string
+  destinationType?: 'queue' | 'topic'
+  /** Optional routing key template for constructing routing keys */
+  routingKeyTemplate?: string
+  /** Optional allow-list of payload cases to publish */
+  includePayloadCases?: BronzePayloadCase[]
+  /** Static headers applied to every message */
+  staticHeaders?: Record<string, string>
+}
+
 export type ConsoleEventBusConfig = {
   /** Optional prefix for console output */
   prefix?: string
@@ -531,6 +543,18 @@ export type SilverMQTTEventBusConfig = {
   topicTemplate?: string
 }
 
+export type SilverActiveMQEventBusConfig = {
+  url: string
+  destination: string
+  destinationType?: 'queue' | 'topic'
+  /** Optional routing key template for constructing routing keys */
+  routingKeyTemplate?: string
+  /** Optional allow-list of record types to publish */
+  includeRecordTypes?: SilverRecordType[]
+  /** Static headers applied to every message */
+  staticHeaders?: Record<string, string>
+}
+
 export type EventBusConfig =
   | ({
       provider: 'kafka'
@@ -562,6 +586,9 @@ export type EventBusConfig =
   | ({
       provider: 'mqtt'
     } & MQTTEventBusConfig)
+  | ({
+      provider: 'activemq'
+    } & ActiveMQEventBusConfig)
   | ({
       provider: 'console'
     } & ConsoleEventBusConfig)
@@ -595,3 +622,6 @@ export type EventBusConfig =
   | ({
       provider: 'mqtt-silver'
     } & SilverMQTTEventBusConfig)
+  | ({
+      provider: 'activemq-silver'
+    } & SilverActiveMQEventBusConfig)

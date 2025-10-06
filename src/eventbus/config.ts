@@ -13,6 +13,8 @@ import type {
   AzureEventHubsEventBusConfig,
   PubSubEventBusConfig,
   MQTTEventBusConfig,
+  ActiveMQEventBusConfig,
+  SilverActiveMQEventBusConfig,
   SilverMQTTEventBusConfig,
   SilverPubSubEventBusConfig,
   SilverRabbitMQEventBusConfig,
@@ -2896,6 +2898,138 @@ export function parseSilverPubSubEventBusConfig(argv: Record<string, any>): Even
   return {
     provider: 'pubsub-silver',
     ...pubsubConfig
+  }
+}
+
+export function parseActiveMQEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const urlRaw = argv['activemq-url']
+  const destinationRaw = argv['activemq-destination']
+
+  if (!urlRaw || !destinationRaw) {
+    return undefined
+  }
+
+  const url = typeof urlRaw === 'string' ? urlRaw.trim() : ''
+  if (url === '') {
+    throw new Error('activemq-url must be a non-empty string.')
+  }
+
+  const destination = typeof destinationRaw === 'string' ? destinationRaw.trim() : ''
+  if (destination === '') {
+    throw new Error('activemq-destination must be a non-empty string.')
+  }
+
+  const activemqConfig: ActiveMQEventBusConfig = {
+    url,
+    destination
+  }
+
+  const destinationTypeRaw = argv['activemq-destination-type']
+  if (destinationTypeRaw !== undefined) {
+    if (typeof destinationTypeRaw !== 'string') {
+      throw new Error('activemq-destination-type must be a string.')
+    }
+    const destinationType = destinationTypeRaw.trim().toLowerCase()
+    if (!['queue', 'topic'].includes(destinationType)) {
+      throw new Error('activemq-destination-type must be one of queue,topic.')
+    }
+    activemqConfig.destinationType = destinationType as 'queue' | 'topic'
+  }
+
+  const routingKeyTemplateRaw = argv['activemq-routing-key-template']
+  if (routingKeyTemplateRaw !== undefined) {
+    if (typeof routingKeyTemplateRaw !== 'string') {
+      throw new Error('activemq-routing-key-template must be a non-empty string.')
+    }
+    const routingKeyTemplate = routingKeyTemplateRaw.trim()
+    if (routingKeyTemplate === '') {
+      throw new Error('activemq-routing-key-template must be a non-empty string.')
+    }
+    compileKeyBuilder(routingKeyTemplate, 'activemq')
+    activemqConfig.routingKeyTemplate = routingKeyTemplate
+  }
+
+  const includePayloadCases = parseIncludePayloadCases(argv['activemq-include-payloads'], 'activemq')
+  if (includePayloadCases) {
+    activemqConfig.includePayloadCases = includePayloadCases
+  }
+
+  const staticHeaders = parseStaticHeaders(argv['activemq-static-headers'], 'activemq-static-headers')
+  if (staticHeaders) {
+    activemqConfig.staticHeaders = staticHeaders
+  }
+
+  return {
+    provider: 'activemq',
+    ...activemqConfig
+  }
+}
+
+export function parseSilverActiveMQEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const urlRaw = argv['activemq-silver-url']
+  const destinationRaw = argv['activemq-silver-destination']
+
+  if (!urlRaw || !destinationRaw) {
+    return undefined
+  }
+
+  const url = typeof urlRaw === 'string' ? urlRaw.trim() : ''
+  if (url === '') {
+    throw new Error('activemq-silver-url must be a non-empty string.')
+  }
+
+  const destination = typeof destinationRaw === 'string' ? destinationRaw.trim() : ''
+  if (destination === '') {
+    throw new Error('activemq-silver-destination must be a non-empty string.')
+  }
+
+  const activemqConfig: SilverActiveMQEventBusConfig = {
+    url,
+    destination
+  }
+
+  const destinationTypeRaw = argv['activemq-silver-destination-type']
+  if (destinationTypeRaw !== undefined) {
+    if (typeof destinationTypeRaw !== 'string') {
+      throw new Error('activemq-silver-destination-type must be a string.')
+    }
+    const destinationType = destinationTypeRaw.trim().toLowerCase()
+    if (!['queue', 'topic'].includes(destinationType)) {
+      throw new Error('activemq-silver-destination-type must be one of queue,topic.')
+    }
+    activemqConfig.destinationType = destinationType as 'queue' | 'topic'
+  }
+
+  const routingKeyTemplateRaw = argv['activemq-silver-routing-key-template']
+  if (routingKeyTemplateRaw !== undefined) {
+    if (typeof routingKeyTemplateRaw !== 'string') {
+      throw new Error('activemq-silver-routing-key-template must be a non-empty string.')
+    }
+    const routingKeyTemplate = routingKeyTemplateRaw.trim()
+    if (routingKeyTemplate === '') {
+      throw new Error('activemq-silver-routing-key-template must be a non-empty string.')
+    }
+    compileSilverKeyBuilder(routingKeyTemplate, 'activemq-silver')
+    activemqConfig.routingKeyTemplate = routingKeyTemplate
+  }
+
+  const includeRecordTypes = parseIncludeSilverRecordTypes(argv['activemq-silver-include-records'], 'activemq-silver')
+  if (includeRecordTypes) {
+    activemqConfig.includeRecordTypes = includeRecordTypes
+  }
+
+  const staticHeaders = parseStaticHeaders(
+    argv['activemq-silver-static-headers'],
+    'activemq-silver-static-headers',
+    RESERVED_SILVER_STATIC_HEADER_KEYS
+  )
+  if (staticHeaders) {
+    activemqConfig.staticHeaders = staticHeaders
+  }
+
+  return {
+    provider: 'activemq-silver',
+    ...activemqConfig
   }
 }
 

@@ -20,6 +20,8 @@ export { PubSubEventBus } from './pubsub'
 export { SilverPubSubEventBus } from './silverPubsub'
 export { MQTTEventBus } from './mqtt'
 export { SilverMQTTEventBus } from './silverMqtt'
+export { ActiveMQEventBus } from './activemq'
+export { SilverActiveMQEventBus } from './silverActivemq'
 export { ConsoleEventBus } from './console'
 export { SilverConsoleEventBus } from './silverConsole'
 export {
@@ -41,6 +43,8 @@ export {
   parseSilverRedisEventBusConfig,
   parsePubSubEventBusConfig,
   parseMQTTEventBusConfig,
+  parseActiveMQEventBusConfig,
+  parseSilverActiveMQEventBusConfig,
   parseSilverMQTTEventBusConfig,
   parseSilverPubSubEventBusConfig,
   parseConsoleEventBusConfig
@@ -60,6 +64,8 @@ export type {
   PulsarEventBusConfig,
   AzureEventHubsEventBusConfig,
   PubSubEventBusConfig,
+  ActiveMQEventBusConfig,
+  SilverActiveMQEventBusConfig,
   SilverPubSubEventBusConfig,
   SilverAzureEventBusConfig,
   PublishMeta,

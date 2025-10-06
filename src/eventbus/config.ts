@@ -612,6 +612,27 @@ export function parseSilverKafkaEventBusConfig(argv: Record<string, any>): Event
     kafkaConfig.idempotent = idempotent
   }
 
+  const schemaRegistryUrl = argv['kafka-silver-schema-registry-url']
+  if (schemaRegistryUrl) {
+    if (typeof schemaRegistryUrl !== 'string') {
+      throw new Error('kafka-silver-schema-registry-url must be a string.')
+    }
+    kafkaConfig.schemaRegistry = {
+      url: schemaRegistryUrl.trim()
+    }
+    const authUsername = argv['kafka-silver-schema-registry-auth-username']
+    const authPassword = argv['kafka-silver-schema-registry-auth-password']
+    if (authUsername || authPassword) {
+      if (typeof authUsername !== 'string' || typeof authPassword !== 'string') {
+        throw new Error('kafka-silver-schema-registry-auth-username and kafka-silver-schema-registry-auth-password must be strings.')
+      }
+      kafkaConfig.schemaRegistry.auth = {
+        username: authUsername.trim(),
+        password: authPassword.trim()
+      }
+    }
+  }
+
   return {
     provider: 'kafka-silver',
     ...kafkaConfig

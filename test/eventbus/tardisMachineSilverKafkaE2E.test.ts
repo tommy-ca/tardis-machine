@@ -66,18 +66,15 @@ test('publishes replay-normalized events to Silver Kafka with Buf payloads', asy
   await server.start(PORT)
 
   try {
-    const response = await fetch(HTTP_REPLAY_NORMALIZED_URL, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        exchange: 'binance',
-        symbols: ['btcusdt'],
-        from: '2024-01-01',
-        to: '2024-01-01T00:01:00.000Z'
-      })
-    })
+    const options = {
+      exchange: 'binance',
+      symbols: ['btcusdt'],
+      dataTypes: ['trade'],
+      from: '2024-01-01',
+      to: '2024-01-01T00:01:00.000Z'
+    }
+    const params = encodeOptions(options)
+    const response = await fetch(`${HTTP_REPLAY_NORMALIZED_URL}?options=${params}`)
 
     expect(response.status).toBe(200)
 
@@ -159,4 +156,8 @@ async function waitForKafkaController(admin: any): Promise<void> {
     }
   }
   throw new Error('Kafka controller not ready')
+}
+
+function encodeOptions(options: any): string {
+  return encodeURIComponent(JSON.stringify(options))
 }

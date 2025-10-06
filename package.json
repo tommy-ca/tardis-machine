@@ -61,6 +61,7 @@
   "license": "MPL-2.0",
   "dependencies": {
     "@aws-sdk/client-kinesis": "^3.0.0",
+    "@aws-sdk/client-sqs": "^3.0.0",
     "@bufbuild/protobuf": "^2.9.0",
     "@kafkajs/confluent-schema-registry": "^3.9.0",
     "@testcontainers/redis": "^11.7.1",

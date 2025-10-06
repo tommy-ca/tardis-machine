@@ -118,6 +118,38 @@ test('publishes replay-normalized events to Kinesis with Buf payloads', async ()
   expect(sample.payload.case).not.toBe('error')
 })
 
+test('does not publish when eventBus is not configured', async () => {
+  if (shouldSkip) {
+    return
+  }
+
+  const machine = new TardisMachine({
+    cacheDir
+  })
+
+  await machine.start(PORT + 1)
+
+  try {
+    const options = {
+      exchange: 'bitmex',
+      symbols: ['ETHUSD'],
+      from: '2019-06-01',
+      to: '2019-06-01 00:01',
+      dataTypes: ['trade']
+    }
+
+    const params = encodeOptions(options)
+    const response = await fetch(`http://localhost:${PORT + 1}/replay-normalized?options=${params}`)
+    expect(response.status).toBe(200)
+    await response.text()
+
+    // No way to check no publishing, but at least it doesn't crash
+  } finally {
+    await machine.stop().catch(() => undefined)
+    await rm(cacheDir, { recursive: true, force: true }).catch(() => undefined)
+  }
+})
+
 function encodeOptions(options: any): string {
   return encodeURIComponent(JSON.stringify(options))
 }

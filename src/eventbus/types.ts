@@ -242,6 +242,23 @@ export type PulsarEventBusConfig = {
   keyTemplate?: string
 }
 
+export type AzureEventHubsEventBusConfig = {
+  connectionString: string
+  eventHubName: string
+  /** Optional map for routing payload cases to dedicated event hubs */
+  eventHubByPayloadCase?: Partial<Record<BronzePayloadCase, string>>
+  /** Optional allow-list of payload cases to publish */
+  includePayloadCases?: BronzePayloadCase[]
+  /** Static properties applied to every event */
+  staticProperties?: Record<string, string>
+  /** Maximum number of Bronze events to send per batch */
+  maxBatchSize?: number
+  /** Maximum milliseconds events can wait before forced flush */
+  maxBatchDelayMs?: number
+  /** Template for constructing partition keys */
+  partitionKeyTemplate?: string
+}
+
 export type SilverKafkaEventBusConfig = {
   brokers: string[]
   topic: string
@@ -417,6 +434,9 @@ export type EventBusConfig =
   | ({
       provider: 'pulsar'
     } & PulsarEventBusConfig)
+  | ({
+      provider: 'azure-event-hubs'
+    } & AzureEventHubsEventBusConfig)
   | ({
       provider: 'kafka-silver'
     } & SilverKafkaEventBusConfig)

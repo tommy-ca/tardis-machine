@@ -12,6 +12,7 @@ export { RedisEventBus } from './redis'
 export { SilverRedisEventBus } from './silverRedis'
 export { SQSEventBus } from './sqs'
 export { PulsarEventBus } from './pulsar'
+export { AzureEventHubsEventBus } from './azure'
 export { SilverPulsarEventBus } from './silverPulsar'
 export { SilverSQSEventBus } from './silverSqs'
 export {
@@ -23,6 +24,7 @@ export {
   parseRedisEventBusConfig,
   parseSQSEventBusConfig,
   parsePulsarEventBusConfig,
+  parseAzureEventHubsEventBusConfig,
   parseSilverPulsarEventBusConfig,
   parseSilverSQSEventBusConfig,
   parseSilverRabbitMQEventBusConfig,
@@ -43,6 +45,7 @@ export type {
   SilverNatsEventBusConfig,
   SQSEventBusConfig,
   PulsarEventBusConfig,
+  AzureEventHubsEventBusConfig,
   PublishMeta,
   NormalizedEventSink,
   SilverEventSink

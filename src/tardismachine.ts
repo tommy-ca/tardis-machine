@@ -14,6 +14,7 @@ import {
   RedisEventBus,
   SQSEventBus,
   PulsarEventBus,
+  AzureEventHubsEventBus,
   SilverPulsarEventBus,
   SilverSQSEventBus,
   SilverRabbitMQEventBus,
@@ -216,6 +217,9 @@ export class TardisMachine {
     }
     if (config.provider === 'pulsar') {
       return new PulsarEventBus(config)
+    }
+    if (config.provider === 'azure-event-hubs') {
+      return new AzureEventHubsEventBus(config)
     }
 
     throw new Error(`Unsupported event bus provider: ${(config as any).provider}`)

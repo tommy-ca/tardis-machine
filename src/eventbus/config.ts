@@ -10,6 +10,7 @@ import type {
   RedisEventBusConfig,
   SQSEventBusConfig,
   PulsarEventBusConfig,
+  AzureEventHubsEventBusConfig,
   SilverRabbitMQEventBusConfig,
   SilverKinesisEventBusConfig,
   SilverNatsEventBusConfig,
@@ -1840,6 +1841,116 @@ export function parsePulsarEventBusConfig(argv: Record<string, any>): EventBusCo
   return {
     provider: 'pulsar',
     ...pulsarConfig
+  }
+}
+
+export function parseAzureEventHubsEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const connectionStringRaw = argv['event-hubs-connection-string']
+  const eventHubNameRaw = argv['event-hubs-event-hub-name']
+
+  if (!connectionStringRaw || !eventHubNameRaw) {
+    return undefined
+  }
+
+  const connectionString = typeof connectionStringRaw === 'string' ? connectionStringRaw.trim() : ''
+  if (connectionString === '') {
+    throw new Error('event-hubs-connection-string must be a non-empty string.')
+  }
+
+  const eventHubName = typeof eventHubNameRaw === 'string' ? eventHubNameRaw.trim() : ''
+  if (eventHubName === '') {
+    throw new Error('event-hubs-event-hub-name must be a non-empty string.')
+  }
+
+  const azureConfig: AzureEventHubsEventBusConfig = {
+    connectionString,
+    eventHubName
+  }
+
+  const eventHubRoutingRaw = argv['event-hubs-event-hub-routing']
+  if (eventHubRoutingRaw !== undefined) {
+    if (typeof eventHubRoutingRaw !== 'string') {
+      throw new Error('event-hubs-event-hub-routing must be a string of payloadCase:eventHubName entries separated by commas.')
+    }
+
+    const map: Partial<Record<BronzePayloadCase, string>> = {}
+    const invalidPayloadCases = new Set<string>()
+
+    const pairs = eventHubRoutingRaw
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    for (const pair of pairs) {
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid event-hubs-event-hub-routing entry "${pair}". Expected format payloadCase:eventHubName.`)
+      }
+
+      const payloadCase = pair.slice(0, separatorIndex).trim()
+      const mappedEventHub = pair.slice(separatorIndex + 1).trim()
+
+      if (!payloadCase || !mappedEventHub) {
+        throw new Error(`Invalid event-hubs-event-hub-routing entry "${pair}". Expected format payloadCase:eventHubName.`)
+      }
+
+      const normalizedPayloadCase = normalizePayloadCase(payloadCase)
+
+      if (!normalizedPayloadCase) {
+        invalidPayloadCases.add(payloadCase)
+        continue
+      }
+
+      map[normalizedPayloadCase] = mappedEventHub
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('event-hubs-event-hub-routing must define at least one payloadCase mapping.')
+    }
+
+    if (invalidPayloadCases.size > 0) {
+      throw new Error(`Unknown payload case(s) for event-hubs-event-hub-routing: ${Array.from(invalidPayloadCases).join(', ')}.`)
+    }
+
+    azureConfig.eventHubByPayloadCase = map
+  }
+
+  const includePayloadCases = parseIncludePayloadCases(argv['event-hubs-include-payloads'], 'event-hubs')
+  if (includePayloadCases) {
+    azureConfig.includePayloadCases = includePayloadCases
+  }
+
+  const staticProperties = parseStaticHeaders(argv['event-hubs-static-properties'], 'event-hubs-static-properties')
+  if (staticProperties) {
+    azureConfig.staticProperties = staticProperties
+  }
+
+  const partitionKeyTemplateRaw = argv['event-hubs-partition-key-template']
+  if (partitionKeyTemplateRaw !== undefined) {
+    if (typeof partitionKeyTemplateRaw !== 'string') {
+      throw new Error('event-hubs-partition-key-template must be a non-empty string.')
+    }
+    const partitionKeyTemplate = partitionKeyTemplateRaw.trim()
+    if (partitionKeyTemplate === '') {
+      throw new Error('event-hubs-partition-key-template must be a non-empty string.')
+    }
+    compileKeyBuilder(partitionKeyTemplate, 'event-hubs')
+    azureConfig.partitionKeyTemplate = partitionKeyTemplate
+  }
+
+  const maxBatchSize = parsePositiveInteger(argv['event-hubs-max-batch-size'], 'event-hubs-max-batch-size')
+  if (maxBatchSize !== undefined) {
+    azureConfig.maxBatchSize = maxBatchSize
+  }
+
+  const maxBatchDelayMs = parsePositiveInteger(argv['event-hubs-max-batch-delay-ms'], 'event-hubs-max-batch-delay-ms')
+  if (maxBatchDelayMs !== undefined) {
+    azureConfig.maxBatchDelayMs = maxBatchDelayMs
+  }
+
+  return {
+    provider: 'azure-event-hubs',
+    ...azureConfig
   }
 }
 

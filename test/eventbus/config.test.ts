@@ -6,6 +6,7 @@ import {
   parseRedisEventBusConfig,
   parseSQSEventBusConfig,
   parsePulsarEventBusConfig,
+  parseAzureEventHubsEventBusConfig,
   parseSilverKafkaEventBusConfig,
   parseSilverAzureEventBusConfig,
   parseSilverPulsarEventBusConfig,
@@ -1108,7 +1109,156 @@ describe('parsePulsarEventBusConfig', () => {
   })
 })
 
-describe('parseSilverPulsarEventBusConfig', () => {
+describe('parseAzureEventHubsEventBusConfig', () => {
+  test('returns undefined when azure connection string or event hub name missing', () => {
+    expect(parseAzureEventHubsEventBusConfig({})).toBeUndefined()
+    expect(parseAzureEventHubsEventBusConfig({ 'azure-connection-string': 'Endpoint=sb://...' })).toBeUndefined()
+    expect(parseAzureEventHubsEventBusConfig({ 'azure-event-hub-name': 'events' })).toBeUndefined()
+  })
+
+  test('builds azure config with routing and properties', () => {
+    const config = parseAzureEventHubsEventBusConfig({
+      'azure-connection-string': 'Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=key;SharedAccessKey=value',
+      'azure-event-hub-name': 'bronze.events',
+      'azure-event-hub-routing': 'trade:bronze.trade,bookChange:bronze.books',
+      'azure-include-payloads': 'trade,bookChange',
+      'azure-static-properties': 'env:prod,region:us-east-1',
+      'azure-partition-key-template': '{{exchange}}.{{payloadCase}}.{{symbol}}',
+      'azure-max-batch-size': 50,
+      'azure-max-batch-delay-ms': 25
+    })
+
+    expect(config).toEqual({
+      provider: 'azure-event-hubs',
+      connectionString: 'Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=key;SharedAccessKey=value',
+      eventHubName: 'bronze.events',
+      eventHubByPayloadCase: {
+        trade: 'bronze.trade',
+        bookChange: 'bronze.books'
+      },
+      includePayloadCases: ['trade', 'bookChange'],
+      staticProperties: {
+        env: 'prod',
+        region: 'us-east-1'
+      },
+      partitionKeyTemplate: '{{exchange}}.{{payloadCase}}.{{symbol}}',
+      maxBatchSize: 50,
+      maxBatchDelayMs: 25
+    })
+  })
+
+  test('applies batch tuning options when provided', () => {
+    const config = parseAzureEventHubsEventBusConfig({
+      'azure-connection-string': 'Endpoint=sb://...',
+      'azure-event-hub-name': 'bronze.events',
+      'azure-max-batch-size': 75,
+      'azure-max-batch-delay-ms': 100
+    })
+
+    expect(config).toMatchObject({
+      maxBatchSize: 75,
+      maxBatchDelayMs: 100
+    })
+  })
+
+  test('parses azure partition key template string', () => {
+    const config = parseAzureEventHubsEventBusConfig({
+      'azure-connection-string': 'Endpoint=sb://...',
+      'azure-event-hub-name': 'bronze.events',
+      'azure-partition-key-template': '{{exchange}}.{{payloadCase}}.{{symbol}}'
+    })
+
+    expect(config).toMatchObject({
+      partitionKeyTemplate: '{{exchange}}.{{payloadCase}}.{{symbol}}'
+    })
+  })
+
+  test('parses azure static properties', () => {
+    const config = parseAzureEventHubsEventBusConfig({
+      'azure-connection-string': 'Endpoint=sb://...',
+      'azure-event-hub-name': 'bronze.events',
+      'azure-static-properties': 'env:prod, region:us-east-1,trace-id:abc123 '
+    })
+
+    expect(config).toMatchObject({
+      staticProperties: {
+        env: 'prod',
+        region: 'us-east-1',
+        'trace-id': 'abc123'
+      }
+    })
+  })
+
+  test('parses allowed payload cases list', () => {
+    const config = parseAzureEventHubsEventBusConfig({
+      'azure-connection-string': 'Endpoint=sb://...',
+      'azure-event-hub-name': 'bronze.events',
+      'azure-include-payloads': 'trade, bookChange, trade'
+    })
+
+    expect(config).toMatchObject({ includePayloadCases: ['trade', 'bookChange'] })
+  })
+
+  test('accepts snake_case payload names in include list', () => {
+    const config = parseAzureEventHubsEventBusConfig({
+      'azure-connection-string': 'Endpoint=sb://...',
+      'azure-event-hub-name': 'bronze.events',
+      'azure-include-payloads': 'book_change'
+    })
+
+    expect(config).toMatchObject({ includePayloadCases: ['bookChange'] })
+  })
+
+  test('rejects unknown payload case names', () => {
+    expect(() =>
+      parseAzureEventHubsEventBusConfig({
+        'azure-connection-string': 'Endpoint=sb://...',
+        'azure-event-hub-name': 'bronze.events',
+        'azure-include-payloads': 'trade, candles'
+      })
+    ).toThrow('Unknown payload case(s) for azure-include-payloads: candles.')
+  })
+
+  test('rejects unknown payload cases in event hub routing', () => {
+    expect(() =>
+      parseAzureEventHubsEventBusConfig({
+        'azure-connection-string': 'Endpoint=sb://...',
+        'azure-event-hub-name': 'bronze.events',
+        'azure-event-hub-routing': 'trade:bronze.trade,candles:bronze.candles'
+      })
+    ).toThrow('Unknown payload case(s) for azure-event-hub-routing: candles.')
+  })
+
+  test('throws on invalid event hub routing entry', () => {
+    expect(() =>
+      parseAzureEventHubsEventBusConfig({
+        'azure-connection-string': 'Endpoint=sb://...',
+        'azure-event-hub-name': 'bronze.events',
+        'azure-event-hub-routing': 'trade-only'
+      })
+    ).toThrow('Invalid azure-event-hub-routing entry "trade-only". Expected format payloadCase:eventHubName.')
+  })
+
+  test('rejects blank connection string', () => {
+    expect(() =>
+      parseAzureEventHubsEventBusConfig({
+        'azure-connection-string': '   ',
+        'azure-event-hub-name': 'bronze.events'
+      })
+    ).toThrow('azure-connection-string must be a non-empty string.')
+  })
+
+  test('rejects blank event hub name', () => {
+    expect(() =>
+      parseAzureEventHubsEventBusConfig({
+        'azure-connection-string': 'Endpoint=sb://...',
+        'azure-event-hub-name': '   '
+      })
+    ).toThrow('azure-event-hub-name must be a non-empty string.')
+  })
+})
+
+describe('parseSilverAzureEventBusConfig', () => {
   test('returns undefined when pulsar silver service url or topic missing', () => {
     expect(parseSilverPulsarEventBusConfig({})).toBeUndefined()
     expect(parseSilverPulsarEventBusConfig({ 'pulsar-silver-service-url': 'pulsar://localhost:6650' })).toBeUndefined()

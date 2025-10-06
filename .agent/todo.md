@@ -44,9 +44,9 @@
 
 ## New Feature: Schema Registry Support for Kafka
 
-- [ ] Research Schema Registry client libraries for Node.js
-- [ ] Add schema registry configuration to KafkaEventBusConfig
-- [ ] Implement schema registration in KafkaEventBus.start()
-- [ ] Modify publish to use schema ID in message value
-- [ ] Add E2E test with schema registry using Testcontainers
-- [ ] Update documentation for schema registry usage
+- [x] Research Schema Registry client libraries for Node.js
+- [x] Add schema registry configuration to KafkaEventBusConfig
+- [x] Implement schema registration in KafkaEventBus.start()
+- [x] Modify publish to use schema ID in message value
+- [x] Add E2E test with schema registry using Testcontainers
+- [x] Update documentation for schema registry usage

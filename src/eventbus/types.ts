@@ -136,6 +136,10 @@ export type NatsEventBusConfig = {
   staticHeaders?: Record<string, string>
   /** Template for constructing NATS message subjects */
   subjectTemplate?: string
+  /** NATS user for authentication */
+  user?: string
+  /** NATS password for authentication */
+  pass?: string
 }
 
 export type EventBusConfig =

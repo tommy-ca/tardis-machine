@@ -94,7 +94,7 @@ Normalized event schemas live under `schemas/proto`, and generated TypeScript bi
 
 ### Event Bus Integration Test Prerequisites
 
-Event bus publishing is covered by integration tests in `test/eventbus`. These rely on Testcontainers and require a local Docker daemon with at least 2 CPU cores, 4 GB of memory, and the ability to pull the `confluentinc/cp-kafka:7.5.3`, `rabbitmq:3-management-alpine`, and `localstack/localstack:3.0` images. Ensure Docker is running before invoking `npm test`; otherwise event bus suites will be skipped after a timeout.
+Event bus publishing is covered by integration tests in `test/eventbus`. These rely on Testcontainers and require a local Docker daemon with at least 2 CPU cores, 4 GB of memory, and the ability to pull the `confluentinc/cp-kafka:7.5.3`, `rabbitmq:3-management-alpine`, `localstack/localstack:3.0`, and `nats:2.10` images. Ensure Docker is running before invoking `npm test`; otherwise event bus suites will be skipped after a timeout.
 
 ### Event Bus Maintenance Checklist
 

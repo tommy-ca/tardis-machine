@@ -12,7 +12,7 @@ const PORT = 8095
 const HTTP_REPLAY_NORMALIZED_URL = `http://localhost:${PORT}/replay-normalized`
 const subject = 'bronze.events.e2e'
 const cacheDir = './.cache-nats-e2e'
-const natsImage = 'nats:2.10-alpine'
+const natsImage = 'nats:2.10'
 const startTimeoutMs = 180000
 
 let container: StartedNatsContainer
@@ -143,6 +143,6 @@ async function collectEvents(connection: NatsConnection, subject: string, minCou
 }
 
 async function startNatsContainer() {
-  const container = new NatsContainer(natsImage).withStartupTimeout(startTimeoutMs)
+  const container = new NatsContainer(natsImage).withStartupTimeout(startTimeoutMs).withCommand(['nats-server', '--no_auth'])
   return container.start()
 }

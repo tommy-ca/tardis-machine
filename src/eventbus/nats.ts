@@ -27,7 +27,7 @@ export class NatsEventBus implements NormalizedEventSink {
   }
 
   async start(): Promise<void> {
-    this.connection = await connect({ servers: this.config.servers })
+    this.connection = await connect({ servers: this.config.servers, user: this.config.user, pass: this.config.pass })
   }
 
   async publish(message: NormalizedMessage, meta: PublishMeta): Promise<void> {

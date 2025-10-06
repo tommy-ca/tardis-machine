@@ -25,6 +25,7 @@ const {
   parseAzureEventHubsEventBusConfig,
   parsePubSubEventBusConfig,
   parseMQTTEventBusConfig,
+  parseSilverMQTTEventBusConfig,
   parseSilverPubSubEventBusConfig,
   parseSilverAzureEventBusConfig,
   parseConsoleEventBusConfig
@@ -716,6 +717,62 @@ const argv = yargs
     describe: 'Maximum milliseconds events can wait before forced flush for silver'
   })
 
+  .option('mqtt-silver-url', {
+    type: 'string',
+    describe: 'MQTT broker URL for silver event publishing'
+  })
+  .option('mqtt-silver-topic', {
+    type: 'string',
+    describe: 'MQTT topic name for silver events'
+  })
+  .option('mqtt-silver-include-records', {
+    type: 'string',
+    describe: 'Comma separated record types to publish for silver (others dropped)'
+  })
+  .option('mqtt-silver-topic-routing', {
+    type: 'string',
+    describe: 'Comma separated recordType:topic pairs overriding the base topic for silver'
+  })
+  .option('mqtt-silver-qos', {
+    type: 'number',
+    choices: [0, 1, 2],
+    describe: 'MQTT QoS level for silver',
+    default: 0
+  })
+  .option('mqtt-silver-retain', {
+    type: 'boolean',
+    describe: 'Set retain flag on MQTT messages for silver',
+    default: false
+  })
+  .option('mqtt-silver-client-id', {
+    type: 'string',
+    describe: 'MQTT client ID for silver'
+  })
+  .option('mqtt-silver-username', {
+    type: 'string',
+    describe: 'MQTT username for authentication for silver'
+  })
+  .option('mqtt-silver-password', {
+    type: 'string',
+    describe: 'MQTT password for authentication for silver'
+  })
+  .option('mqtt-silver-static-user-properties', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static MQTT user properties for silver'
+  })
+  .option('mqtt-silver-topic-template', {
+    type: 'string',
+    describe: 'Template for MQTT topic for silver, e.g. {{exchange}}/{{recordType}}/{{symbol}}'
+  })
+  .option('mqtt-silver-max-batch-size', {
+    type: 'number',
+    describe: 'Maximum number of silver events per MQTT batch'
+  })
+  .option('mqtt-silver-max-batch-delay-ms', {
+    type: 'number',
+    describe: 'Maximum milliseconds events can wait before forced flush for silver'
+  })
+
   .option('redis-silver-url', {
     type: 'string',
     describe: 'Redis connection URL for silver event publishing'
@@ -905,7 +962,8 @@ async function start() {
     parseSilverPulsarEventBusConfig(argv) ||
     parseSilverSQSEventBusConfig(argv) ||
     parseSilverAzureEventBusConfig(argv) ||
-    parseSilverPubSubEventBusConfig(argv)
+    parseSilverPubSubEventBusConfig(argv) ||
+    parseSilverMQTTEventBusConfig(argv)
 
   const machine = new TardisMachine({
     apiKey: argv['api-key'],

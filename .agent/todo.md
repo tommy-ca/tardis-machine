@@ -107,6 +107,20 @@
 - [x] Add CLI support for Silver PubSub event bus options.
 - [x] Add unit tests for Silver PubSub config parsing.
 
+## New Feature: MQTT Event Bus
+
+- [x] Implement MQTT publishing for normalized events.
+- [x] Wire MQTT into TardisMachine event bus creation.
+- [x] Add integration test verifying MQTT publish using Testcontainers.
+- [x] Add CLI support for MQTT event bus options.
+- [x] Add unit tests for MQTT config parsing.
+- [x] Add regression test ensuring MQTT publishing can be toggled off.
+- [x] Implement Silver MQTT publishing for normalized events.
+- [x] Wire Silver MQTT into TardisMachine event bus creation.
+- [x] Add integration test verifying Silver MQTT publish using Testcontainers.
+- [x] Add CLI support for Silver MQTT event bus options.
+- [x] Add unit tests for Silver MQTT config parsing.
+
 ## Maintenance Tasks
 
 - [x] Run buf:lint and buf:format to ensure proto schemas are clean

@@ -504,6 +504,33 @@ export type SilverPubSubEventBusConfig = {
   orderingKeyTemplate?: string
 }
 
+export type SilverMQTTEventBusConfig = {
+  url: string
+  topic: string
+  /** Optional map for routing record types to dedicated topics */
+  topicByRecordType?: Partial<Record<SilverRecordType, string>>
+  /** Optional allow-list of record types to publish */
+  includeRecordTypes?: SilverRecordType[]
+  /** MQTT QoS level */
+  qos?: 0 | 1 | 2
+  /** Retain flag for MQTT messages */
+  retain?: boolean
+  /** MQTT client ID */
+  clientId?: string
+  /** MQTT username */
+  username?: string
+  /** MQTT password */
+  password?: string
+  /** Static user properties applied to every message */
+  staticUserProperties?: Record<string, string>
+  /** Maximum number of Silver events to send per batch */
+  maxBatchSize?: number
+  /** Maximum milliseconds events can wait before forced flush */
+  maxBatchDelayMs?: number
+  /** Template for constructing MQTT topic */
+  topicTemplate?: string
+}
+
 export type EventBusConfig =
   | ({
       provider: 'kafka'
@@ -565,3 +592,6 @@ export type EventBusConfig =
   | ({
       provider: 'pubsub-silver'
     } & SilverPubSubEventBusConfig)
+  | ({
+      provider: 'mqtt-silver'
+    } & SilverMQTTEventBusConfig)

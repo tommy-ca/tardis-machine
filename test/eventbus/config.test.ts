@@ -8,6 +8,8 @@ import {
   parsePulsarEventBusConfig,
   parseAzureEventHubsEventBusConfig,
   parsePubSubEventBusConfig,
+  parseMQTTEventBusConfig,
+  parseSilverMQTTEventBusConfig,
   parseSilverPubSubEventBusConfig,
   parseSilverKafkaEventBusConfig,
   parseSilverAzureEventBusConfig,
@@ -2038,6 +2040,273 @@ describe('parseSilverPubSubEventBusConfig', () => {
         'pubsub-silver-topic': '   '
       })
     ).toThrow('pubsub-silver-topic must be a non-empty string.')
+  })
+})
+
+describe('parseMQTTEventBusConfig', () => {
+  test('returns undefined when mqtt url or topic missing', () => {
+    expect(parseMQTTEventBusConfig({})).toBeUndefined()
+    expect(parseMQTTEventBusConfig({ 'mqtt-url': 'mqtt://localhost:1883' })).toBeUndefined()
+    expect(parseMQTTEventBusConfig({ 'mqtt-topic': 'events' })).toBeUndefined()
+  })
+
+  test('builds mqtt config with routing and auth', () => {
+    const config = parseMQTTEventBusConfig({
+      'mqtt-url': 'mqtt://localhost:1883',
+      'mqtt-topic': 'bronze.events',
+      'mqtt-client-id': 'custom-client',
+      'mqtt-username': 'user',
+      'mqtt-password': 'pass',
+      'mqtt-topic-routing': 'trade:bronze.trade,bookChange:bronze.books',
+      'mqtt-include-payloads': 'trade,bookChange',
+      'mqtt-static-user-properties': 'env:prod,region:us-east-1',
+      'mqtt-topic-template': '{{exchange}}.{{payloadCase}}.{{symbol}}',
+      'mqtt-max-batch-size': 256,
+      'mqtt-max-batch-delay-ms': 50,
+      'mqtt-qos': 1,
+      'mqtt-retain': true
+    })
+
+    expect(config).toEqual({
+      provider: 'mqtt',
+      url: 'mqtt://localhost:1883',
+      topic: 'bronze.events',
+      clientId: 'custom-client',
+      username: 'user',
+      password: 'pass',
+      topicByPayloadCase: {
+        trade: 'bronze.trade',
+        bookChange: 'bronze.books'
+      },
+      includePayloadCases: ['trade', 'bookChange'],
+      staticUserProperties: {
+        env: 'prod',
+        region: 'us-east-1'
+      },
+      topicTemplate: '{{exchange}}.{{payloadCase}}.{{symbol}}',
+      maxBatchSize: 256,
+      maxBatchDelayMs: 50,
+      qos: 1,
+      retain: true
+    })
+  })
+
+  test('applies batch tuning options when provided', () => {
+    const config = parseMQTTEventBusConfig({
+      'mqtt-url': 'mqtt://localhost:1883',
+      'mqtt-topic': 'bronze.events',
+      'mqtt-max-batch-size': 512,
+      'mqtt-max-batch-delay-ms': 125
+    })
+
+    expect(config).toMatchObject({
+      maxBatchSize: 512,
+      maxBatchDelayMs: 125
+    })
+  })
+
+  test('rejects invalid mqtt qos', () => {
+    expect(() =>
+      parseMQTTEventBusConfig({
+        'mqtt-url': 'mqtt://localhost:1883',
+        'mqtt-topic': 'bronze.events',
+        'mqtt-qos': 3
+      })
+    ).toThrow('mqtt-qos must be 0, 1, or 2.')
+  })
+
+  test('rejects blank mqtt topic strings', () => {
+    expect(() =>
+      parseMQTTEventBusConfig({
+        'mqtt-url': 'mqtt://localhost:1883',
+        'mqtt-topic': '   '
+      })
+    ).toThrow('mqtt-topic must be a non-empty string.')
+  })
+
+  test('rejects unknown payload case names', () => {
+    expect(() =>
+      parseMQTTEventBusConfig({
+        'mqtt-url': 'mqtt://localhost:1883',
+        'mqtt-topic': 'bronze.events',
+        'mqtt-include-payloads': 'trade, candles'
+      })
+    ).toThrow('Unknown payload case(s) for mqtt-include-payloads: candles.')
+  })
+
+  test('rejects unknown payload cases in topic routing', () => {
+    expect(() =>
+      parseMQTTEventBusConfig({
+        'mqtt-url': 'mqtt://localhost:1883',
+        'mqtt-topic': 'bronze.events',
+        'mqtt-topic-routing': 'trade:bronze.trade, candles:bronze.candles'
+      })
+    ).toThrow('Unknown payload case(s) for mqtt-topic-routing: candles.')
+  })
+
+  test('accepts snake_case payload names in topic routing', () => {
+    const config = parseMQTTEventBusConfig({
+      'mqtt-url': 'mqtt://localhost:1883',
+      'mqtt-topic': 'bronze.events',
+      'mqtt-topic-routing': 'book_snapshot:bronze.snapshots, grouped_book_snapshot:bronze.grouped'
+    })
+
+    expect(config).toMatchObject({
+      topicByPayloadCase: {
+        bookSnapshot: 'bronze.snapshots',
+        groupedBookSnapshot: 'bronze.grouped'
+      }
+    })
+  })
+
+  test('rejects invalid mqtt static user property entries', () => {
+    expect(() =>
+      parseMQTTEventBusConfig({
+        'mqtt-url': 'mqtt://localhost:1883',
+        'mqtt-topic': 'bronze.events',
+        'mqtt-static-user-properties': 'env'
+      })
+    ).toThrow('mqtt-static-user-properties entries must be key:value pairs.')
+
+    expect(() =>
+      parseMQTTEventBusConfig({
+        'mqtt-url': 'mqtt://localhost:1883',
+        'mqtt-topic': 'bronze.events',
+        'mqtt-static-user-properties': 'payloadCase:overwritten'
+      })
+    ).toThrow('mqtt-static-user-properties cannot override reserved header "payloadCase".')
+  })
+
+  test('rejects unknown topic template placeholders', () => {
+    expect(() =>
+      parseMQTTEventBusConfig({
+        'mqtt-url': 'mqtt://localhost:1883',
+        'mqtt-topic': 'bronze.events',
+        'mqtt-topic-template': '{{unknown}}'
+      })
+    ).toThrow('Unknown mqtt-topic-template placeholder "{{unknown}}".')
+  })
+
+  test('throws on invalid topic routing entry', () => {
+    expect(() =>
+      parseMQTTEventBusConfig({
+        'mqtt-url': 'mqtt://localhost:1883',
+        'mqtt-topic': 'bronze.events',
+        'mqtt-topic-routing': 'trade-only'
+      })
+    ).toThrow('Invalid mqtt-topic-routing entry "trade-only". Expected format payloadCase:topicName.')
+  })
+})
+
+describe('parseSilverMQTTEventBusConfig', () => {
+  test('returns undefined when mqtt-silver url or topic missing', () => {
+    expect(parseSilverMQTTEventBusConfig({})).toBeUndefined()
+    expect(parseSilverMQTTEventBusConfig({ 'mqtt-silver-url': 'mqtt://localhost:1883' })).toBeUndefined()
+    expect(parseSilverMQTTEventBusConfig({ 'mqtt-silver-topic': 'events' })).toBeUndefined()
+  })
+
+  test('builds silver mqtt config with routing and auth', () => {
+    const config = parseSilverMQTTEventBusConfig({
+      'mqtt-silver-url': 'mqtt://localhost:1883',
+      'mqtt-silver-topic': 'silver.events',
+      'mqtt-silver-client-id': 'custom-client',
+      'mqtt-silver-username': 'user',
+      'mqtt-silver-password': 'pass',
+      'mqtt-silver-topic-routing': 'trade:silver.trade,book_change:silver.books',
+      'mqtt-silver-include-records': 'trade,book_change',
+      'mqtt-silver-static-user-properties': 'env:prod,region:us-east-1',
+      'mqtt-silver-topic-template': '{{exchange}}.{{recordType}}.{{symbol}}',
+      'mqtt-silver-max-batch-size': 256,
+      'mqtt-silver-max-batch-delay-ms': 50,
+      'mqtt-silver-qos': 1,
+      'mqtt-silver-retain': true
+    })
+
+    expect(config).toEqual({
+      provider: 'mqtt-silver',
+      url: 'mqtt://localhost:1883',
+      topic: 'silver.events',
+      clientId: 'custom-client',
+      username: 'user',
+      password: 'pass',
+      topicByRecordType: {
+        trade: 'silver.trade',
+        book_change: 'silver.books'
+      },
+      includeRecordTypes: ['trade', 'book_change'],
+      staticUserProperties: {
+        env: 'prod',
+        region: 'us-east-1'
+      },
+      topicTemplate: '{{exchange}}.{{recordType}}.{{symbol}}',
+      maxBatchSize: 256,
+      maxBatchDelayMs: 50,
+      qos: 1,
+      retain: true
+    })
+  })
+
+  test('applies batch tuning options when provided', () => {
+    const config = parseSilverMQTTEventBusConfig({
+      'mqtt-silver-url': 'mqtt://localhost:1883',
+      'mqtt-silver-topic': 'silver.events',
+      'mqtt-silver-max-batch-size': 512,
+      'mqtt-silver-max-batch-delay-ms': 125
+    })
+
+    expect(config).toMatchObject({
+      maxBatchSize: 512,
+      maxBatchDelayMs: 125
+    })
+  })
+
+  test('rejects invalid mqtt-silver qos', () => {
+    expect(() =>
+      parseSilverMQTTEventBusConfig({
+        'mqtt-silver-url': 'mqtt://localhost:1883',
+        'mqtt-silver-topic': 'silver.events',
+        'mqtt-silver-qos': 3
+      })
+    ).toThrow('mqtt-silver-qos must be 0, 1, or 2.')
+  })
+
+  test('rejects blank mqtt-silver topic strings', () => {
+    expect(() =>
+      parseSilverMQTTEventBusConfig({
+        'mqtt-silver-url': 'mqtt://localhost:1883',
+        'mqtt-silver-topic': '   '
+      })
+    ).toThrow('mqtt-silver-topic must be a non-empty string.')
+  })
+
+  test('rejects unknown record type names', () => {
+    expect(() =>
+      parseSilverMQTTEventBusConfig({
+        'mqtt-silver-url': 'mqtt://localhost:1883',
+        'mqtt-silver-topic': 'silver.events',
+        'mqtt-silver-include-records': 'trade, candles'
+      })
+    ).toThrow('Unknown record type(s) for mqtt-silver-include-records: candles.')
+  })
+
+  test('rejects unknown record types in topic routing', () => {
+    expect(() =>
+      parseSilverMQTTEventBusConfig({
+        'mqtt-silver-url': 'mqtt://localhost:1883',
+        'mqtt-silver-topic': 'silver.events',
+        'mqtt-silver-topic-routing': 'candles:silver.candles'
+      })
+    ).toThrow('Unknown record type(s) for mqtt-silver-topic-routing: candles.')
+  })
+
+  test('throws on invalid topic routing entry', () => {
+    expect(() =>
+      parseSilverMQTTEventBusConfig({
+        'mqtt-silver-url': 'mqtt://localhost:1883',
+        'mqtt-silver-topic': 'silver.events',
+        'mqtt-silver-topic-routing': 'trade-only'
+      })
+    ).toThrow('Invalid mqtt-silver-topic-routing entry "trade-only". Expected format recordType:topicName.')
   })
 })
 

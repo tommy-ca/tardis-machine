@@ -13,6 +13,7 @@ import type {
   AzureEventHubsEventBusConfig,
   PubSubEventBusConfig,
   MQTTEventBusConfig,
+  SilverMQTTEventBusConfig,
   SilverPubSubEventBusConfig,
   SilverRabbitMQEventBusConfig,
   SilverKinesisEventBusConfig,
@@ -2601,7 +2602,7 @@ export function parseMQTTEventBusConfig(argv: Record<string, any>): EventBusConf
     if (topicTemplate === '') {
       throw new Error('mqtt-topic-template must be a non-empty string.')
     }
-    compileKeyBuilder(topicTemplate, 'mqtt')
+    compileKeyBuilder(topicTemplate, 'mqtt', 'topic')
     mqttConfig.topicTemplate = topicTemplate
   }
 
@@ -2617,6 +2618,169 @@ export function parseMQTTEventBusConfig(argv: Record<string, any>): EventBusConf
 
   return {
     provider: 'mqtt',
+    ...mqttConfig
+  }
+}
+
+export function parseSilverMQTTEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const urlRaw = argv['mqtt-silver-url']
+  const topicRaw = argv['mqtt-silver-topic']
+
+  if (!urlRaw || !topicRaw) {
+    return undefined
+  }
+
+  const url = typeof urlRaw === 'string' ? urlRaw.trim() : ''
+  if (url === '') {
+    throw new Error('mqtt-silver-url must be a non-empty string.')
+  }
+
+  const topic = typeof topicRaw === 'string' ? topicRaw.trim() : ''
+  if (topic === '') {
+    throw new Error('mqtt-silver-topic must be a non-empty string.')
+  }
+
+  const mqttConfig: SilverMQTTEventBusConfig = {
+    url,
+    topic
+  }
+
+  const topicRoutingRaw = argv['mqtt-silver-topic-routing']
+  if (topicRoutingRaw !== undefined) {
+    if (typeof topicRoutingRaw !== 'string') {
+      throw new Error('mqtt-silver-topic-routing must be a string of recordType:topic entries separated by commas.')
+    }
+
+    const map: Partial<Record<SilverRecordType, string>> = {}
+    const invalidRecordTypes = new Set<string>()
+
+    const pairs = topicRoutingRaw
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    for (const pair of pairs) {
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid mqtt-silver-topic-routing entry "${pair}". Expected format recordType:topicName.`)
+      }
+
+      const recordType = pair.slice(0, separatorIndex).trim()
+      const mappedTopic = pair.slice(separatorIndex + 1).trim()
+
+      if (!recordType || !mappedTopic) {
+        throw new Error(`Invalid mqtt-silver-topic-routing entry "${pair}". Expected format recordType:topicName.`)
+      }
+
+      const normalizedRecordType = normalizeSilverRecordType(recordType)
+
+      if (!normalizedRecordType) {
+        invalidRecordTypes.add(recordType)
+        continue
+      }
+
+      map[normalizedRecordType] = mappedTopic
+    }
+
+    if (invalidRecordTypes.size > 0) {
+      throw new Error(`Unknown record type(s) for mqtt-silver-topic-routing: ${Array.from(invalidRecordTypes).join(', ')}.`)
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('mqtt-silver-topic-routing must define at least one recordType mapping.')
+    }
+
+    mqttConfig.topicByRecordType = map
+  }
+
+  const includeRecordTypes = parseIncludeSilverRecordTypes(argv['mqtt-silver-include-records'], 'mqtt-silver')
+  if (includeRecordTypes) {
+    mqttConfig.includeRecordTypes = includeRecordTypes
+  }
+
+  const qosRaw = argv['mqtt-silver-qos']
+  if (qosRaw !== undefined) {
+    if (typeof qosRaw === 'number') {
+      if (qosRaw < 0 || qosRaw > 2) {
+        throw new Error('mqtt-silver-qos must be 0, 1, or 2.')
+      }
+      mqttConfig.qos = qosRaw as 0 | 1 | 2
+    } else {
+      throw new Error('mqtt-silver-qos must be a number.')
+    }
+  }
+
+  const retainRaw = argv['mqtt-silver-retain']
+  if (retainRaw !== undefined) {
+    mqttConfig.retain = parseBooleanOption(retainRaw, 'mqtt-silver-retain')
+  }
+
+  const clientIdRaw = argv['mqtt-silver-client-id']
+  if (clientIdRaw !== undefined) {
+    if (typeof clientIdRaw !== 'string') {
+      throw new Error('mqtt-silver-client-id must be a string.')
+    }
+    const clientId = clientIdRaw.trim()
+    if (clientId === '') {
+      throw new Error('mqtt-silver-client-id must be a non-empty string.')
+    }
+    mqttConfig.clientId = clientId
+  }
+
+  const usernameRaw = argv['mqtt-silver-username']
+  if (usernameRaw !== undefined) {
+    if (typeof usernameRaw !== 'string') {
+      throw new Error('mqtt-silver-username must be a string.')
+    }
+    const username = usernameRaw.trim()
+    if (username === '') {
+      throw new Error('mqtt-silver-username must be a non-empty string.')
+    }
+    mqttConfig.username = username
+  }
+
+  const passwordRaw = argv['mqtt-silver-password']
+  if (passwordRaw !== undefined) {
+    if (typeof passwordRaw !== 'string') {
+      throw new Error('mqtt-silver-password must be a string.')
+    }
+    const password = passwordRaw.trim()
+    if (password === '') {
+      throw new Error('mqtt-silver-password must be a non-empty string.')
+    }
+    mqttConfig.password = password
+  }
+
+  const staticUserProperties = parseStaticHeaders(argv['mqtt-silver-static-user-properties'], 'mqtt-silver-static-user-properties')
+  if (staticUserProperties) {
+    mqttConfig.staticUserProperties = staticUserProperties
+  }
+
+  const topicTemplateRaw = argv['mqtt-silver-topic-template']
+  if (topicTemplateRaw !== undefined) {
+    if (typeof topicTemplateRaw !== 'string') {
+      throw new Error('mqtt-silver-topic-template must be a non-empty string.')
+    }
+    const topicTemplate = topicTemplateRaw.trim()
+    if (topicTemplate === '') {
+      throw new Error('mqtt-silver-topic-template must be a non-empty string.')
+    }
+    compileSilverKeyBuilder(topicTemplate, 'mqtt-silver')
+    mqttConfig.topicTemplate = topicTemplate
+  }
+
+  const maxBatchSize = parsePositiveInteger(argv['mqtt-silver-max-batch-size'], 'mqtt-silver-max-batch-size')
+  if (maxBatchSize !== undefined) {
+    mqttConfig.maxBatchSize = maxBatchSize
+  }
+
+  const maxBatchDelayMs = parsePositiveInteger(argv['mqtt-silver-max-batch-delay-ms'], 'mqtt-silver-max-batch-delay-ms')
+  if (maxBatchDelayMs !== undefined) {
+    mqttConfig.maxBatchDelayMs = maxBatchDelayMs
+  }
+
+  return {
+    provider: 'mqtt-silver',
     ...mqttConfig
   }
 }

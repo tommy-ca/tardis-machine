@@ -31,16 +31,16 @@ const BASE_SILVER_ACCESSORS: Record<string, SilverAccessor> = {
   origin: (record) => originToString(record.origin)
 }
 
-export function compileKeyBuilder(template: string, prefix = 'kafka'): KeyBuilder {
+export function compileKeyBuilder(template: string, prefix = 'kafka', templateType = 'key'): KeyBuilder {
   if (typeof template !== 'string') {
-    throw new Error(`${prefix}-key-template must be a non-empty string.`)
+    throw new Error(`${prefix}-${templateType}-template must be a non-empty string.`)
   }
 
   if (template.trim() === '') {
-    throw new Error(`${prefix}-key-template must be a non-empty string.`)
+    throw new Error(`${prefix}-${templateType}-template must be a non-empty string.`)
   }
 
-  const segments = parseTemplate(template, prefix)
+  const segments = parseTemplate(template, prefix, templateType)
 
   return (event, payloadCase, dataType) =>
     segments.map((segment) => (typeof segment === 'string' ? segment : segment(event, payloadCase, dataType))).join('')
@@ -61,7 +61,7 @@ export function compileSilverKeyBuilder(template: string, prefix = 'kafka-silver
     segments.map((segment) => (typeof segment === 'string' ? segment : segment(record, recordType, dataType))).join('')
 }
 
-function parseTemplate(template: string, prefix = 'kafka'): Segment[] {
+function parseTemplate(template: string, prefix = 'kafka', templateType = 'key'): Segment[] {
   const segments: Segment[] = []
   let lastIndex = 0
 
@@ -74,7 +74,7 @@ function parseTemplate(template: string, prefix = 'kafka'): Segment[] {
     }
 
     const token = match[1].trim()
-    segments.push(resolveAccessor(token, prefix))
+    segments.push(resolveAccessor(token, prefix, templateType))
 
     lastIndex = match.index + match[0].length
   }
@@ -119,9 +119,9 @@ function parseSilverTemplate(template: string, prefix = 'kafka-silver'): SilverS
   return segments
 }
 
-function resolveAccessor(token: string, prefix = 'kafka'): Accessor {
+function resolveAccessor(token: string, prefix = 'kafka', templateType = 'key'): Accessor {
   if (!token) {
-    throw new Error(`${prefix}-key-template placeholders cannot be empty.`)
+    throw new Error(`${prefix}-${templateType}-template placeholders cannot be empty.`)
   }
 
   const baseAccessor = BASE_ACCESSORS[token]
@@ -132,12 +132,12 @@ function resolveAccessor(token: string, prefix = 'kafka'): Accessor {
   if (token.startsWith(META_PREFIX)) {
     const key = token.slice(META_PREFIX.length)
     if (!META_KEY_PATTERN.test(key)) {
-      throw new Error(`Invalid ${prefix}-key-template meta placeholder "{{${token}}}".`)
+      throw new Error(`Invalid ${prefix}-${templateType}-template meta placeholder "{{${token}}}".`)
     }
     return (event) => event.meta?.[key] ?? ''
   }
 
-  throw new Error(`Unknown ${prefix}-key-template placeholder "{{${token}}}".`)
+  throw new Error(`Unknown ${prefix}-${templateType}-template placeholder "{{${token}}}".`)
 }
 
 function resolveSilverAccessor(token: string, prefix = 'kafka-silver'): SilverAccessor {

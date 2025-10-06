@@ -61,10 +61,11 @@
   "license": "MPL-2.0",
   "dependencies": {
     "@bufbuild/protobuf": "^2.9.0",
-    "kafkajs": "^2.2.4",
+    "amqplib": "^0.10.9",
     "debug": "^4.4.1",
     "find-my-way": "^9.3.0",
     "is-docker": "^2.2.1",
+    "kafkajs": "^2.2.4",
     "tardis-dev": "^14.1.1",
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.52.0",
     "yargs": "^17.5.1"
@@ -72,6 +73,8 @@
   "devDependencies": {
     "@bufbuild/buf": "^1.57.2",
     "@bufbuild/protoc-gen-es": "^2.9.0",
+    "@testcontainers/kafka": "^11.7.1",
+    "@types/amqplib": "^0.10.7",
     "@types/debug": "^4.1.12",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.1.0",
@@ -85,9 +88,8 @@
     "lint-staged": "^16.1.2",
     "node-fetch": "^2.6.1",
     "prettier": "^3.6.2",
-    "split2": "^4.2.0",
     "protobufjs": "^7.5.4",
-    "@testcontainers/kafka": "^11.7.1",
+    "split2": "^4.2.0",
     "testcontainers": "^11.7.1",
     "ts-jest": "^29.4.0",
     "typescript": "^5.9.2",

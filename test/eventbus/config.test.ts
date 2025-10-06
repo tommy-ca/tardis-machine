@@ -4,6 +4,7 @@ import {
   parseKinesisEventBusConfig,
   parseNatsEventBusConfig,
   parseRedisEventBusConfig,
+  parseSQSEventBusConfig,
   parseSilverKafkaEventBusConfig
 } from '../../src/eventbus/config'
 
@@ -712,5 +713,202 @@ describe('parseSilverKafkaEventBusConfig', () => {
         'kafka-silver-topic-routing': 'trade-only'
       })
     ).toThrow('Invalid kafka-silver-topic-routing entry "trade-only". Expected format recordType:topic.')
+  })
+})
+
+describe('parseSQSEventBusConfig', () => {
+  test('returns undefined when sqs queue url or region missing', () => {
+    expect(parseSQSEventBusConfig({})).toBeUndefined()
+    expect(parseSQSEventBusConfig({ 'sqs-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue' })).toBeUndefined()
+    expect(parseSQSEventBusConfig({ 'sqs-region': 'us-east-1' })).toBeUndefined()
+  })
+
+  test('builds sqs config with routing and credentials', () => {
+    const config = parseSQSEventBusConfig({
+      'sqs-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+      'sqs-region': 'us-east-1',
+      'sqs-queue-routing':
+        'trade:https://sqs.us-east-1.amazonaws.com/123456789012/trade-queue,bookChange:https://sqs.us-east-1.amazonaws.com/123456789012/books-queue',
+      'sqs-include-payloads': 'trade,bookChange',
+      'sqs-access-key-id': 'AKIAIOSFODNN7EXAMPLE',
+      'sqs-secret-access-key': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+      'sqs-session-token': 'session-token',
+      'sqs-static-message-attributes': 'env:prod,region:us-east-1',
+      'sqs-max-batch-size': 5,
+      'sqs-max-batch-delay-ms': 100
+    })
+
+    expect(config).toEqual({
+      provider: 'sqs',
+      queueUrl: 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+      region: 'us-east-1',
+      queueByPayloadCase: {
+        trade: 'https://sqs.us-east-1.amazonaws.com/123456789012/trade-queue',
+        bookChange: 'https://sqs.us-east-1.amazonaws.com/123456789012/books-queue'
+      },
+      includePayloadCases: ['trade', 'bookChange'],
+      accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+      secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+      sessionToken: 'session-token',
+      staticMessageAttributes: {
+        env: 'prod',
+        region: 'us-east-1'
+      },
+      maxBatchSize: 5,
+      maxBatchDelayMs: 100
+    })
+  })
+
+  test('applies batch tuning options when provided', () => {
+    const config = parseSQSEventBusConfig({
+      'sqs-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+      'sqs-region': 'us-east-1',
+      'sqs-max-batch-size': 8,
+      'sqs-max-batch-delay-ms': 200
+    })
+
+    expect(config).toMatchObject({
+      maxBatchSize: 8,
+      maxBatchDelayMs: 200
+    })
+  })
+
+  test('parses sqs static message attributes', () => {
+    const config = parseSQSEventBusConfig({
+      'sqs-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+      'sqs-region': 'us-east-1',
+      'sqs-static-message-attributes': 'env:prod, region:us-east-1,trace-id:abc123 '
+    })
+
+    expect(config).toMatchObject({
+      staticMessageAttributes: {
+        env: 'prod',
+        region: 'us-east-1',
+        'trace-id': 'abc123'
+      }
+    })
+  })
+
+  test('parses allowed payload cases list', () => {
+    const config = parseSQSEventBusConfig({
+      'sqs-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+      'sqs-region': 'us-east-1',
+      'sqs-include-payloads': 'trade, bookChange, trade'
+    })
+
+    expect(config).toMatchObject({ includePayloadCases: ['trade', 'bookChange'] })
+  })
+
+  test('accepts snake_case payload names in include list', () => {
+    const config = parseSQSEventBusConfig({
+      'sqs-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+      'sqs-region': 'us-east-1',
+      'sqs-include-payloads': 'book_change, TRADE_BAR, quote'
+    })
+
+    expect(config).toMatchObject({
+      includePayloadCases: ['bookChange', 'tradeBar', 'quote']
+    })
+  })
+
+  test('accepts snake_case payload names in queue routing', () => {
+    const config = parseSQSEventBusConfig({
+      'sqs-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+      'sqs-region': 'us-east-1',
+      'sqs-queue-routing':
+        'book_snapshot:https://sqs.us-east-1.amazonaws.com/123456789012/snapshots, grouped_book_snapshot:https://sqs.us-east-1.amazonaws.com/123456789012/grouped'
+    })
+
+    expect(config).toMatchObject({
+      queueByPayloadCase: {
+        bookSnapshot: 'https://sqs.us-east-1.amazonaws.com/123456789012/snapshots',
+        groupedBookSnapshot: 'https://sqs.us-east-1.amazonaws.com/123456789012/grouped'
+      }
+    })
+  })
+
+  test('rejects non-positive batch tuning values', () => {
+    expect(() =>
+      parseSQSEventBusConfig({
+        'sqs-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+        'sqs-region': 'us-east-1',
+        'sqs-max-batch-size': 0
+      })
+    ).toThrow('sqs-max-batch-size must be a positive integer.')
+
+    expect(() =>
+      parseSQSEventBusConfig({
+        'sqs-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+        'sqs-region': 'us-east-1',
+        'sqs-max-batch-delay-ms': -1
+      })
+    ).toThrow('sqs-max-batch-delay-ms must be a positive integer.')
+  })
+
+  test('rejects blank sqs queue url strings', () => {
+    expect(() =>
+      parseSQSEventBusConfig({
+        'sqs-queue-url': '   ',
+        'sqs-region': 'us-east-1'
+      })
+    ).toThrow('sqs-queue-url must be a non-empty string.')
+  })
+
+  test('rejects blank sqs region strings', () => {
+    expect(() =>
+      parseSQSEventBusConfig({
+        'sqs-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+        'sqs-region': '   '
+      })
+    ).toThrow('sqs-region must be a non-empty string.')
+  })
+
+  test('rejects unknown payload case names', () => {
+    expect(() =>
+      parseSQSEventBusConfig({
+        'sqs-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+        'sqs-region': 'us-east-1',
+        'sqs-include-payloads': 'trade, candles'
+      })
+    ).toThrow('Unknown payload case(s) for sqs-include-payloads: candles.')
+  })
+
+  test('rejects unknown payload cases in queue routing', () => {
+    expect(() =>
+      parseSQSEventBusConfig({
+        'sqs-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+        'sqs-region': 'us-east-1',
+        'sqs-queue-routing':
+          'trade:https://sqs.us-east-1.amazonaws.com/123456789012/trade, candles:https://sqs.us-east-1.amazonaws.com/123456789012/candles'
+      })
+    ).toThrow('Unknown payload case(s) for sqs-queue-routing: candles.')
+  })
+
+  test('rejects invalid sqs static message attribute entries', () => {
+    expect(() =>
+      parseSQSEventBusConfig({
+        'sqs-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+        'sqs-region': 'us-east-1',
+        'sqs-static-message-attributes': 'env'
+      })
+    ).toThrow('sqs-static-message-attributes entries must be key:value pairs.')
+
+    expect(() =>
+      parseSQSEventBusConfig({
+        'sqs-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+        'sqs-region': 'us-east-1',
+        'sqs-static-message-attributes': 'payloadCase:overwritten'
+      })
+    ).toThrow('sqs-static-message-attributes cannot override reserved header "payloadCase".')
+  })
+
+  test('throws on invalid queue routing entry', () => {
+    expect(() =>
+      parseSQSEventBusConfig({
+        'sqs-queue-url': 'https://sqs.us-east-1.amazonaws.com/123456789012/my-queue',
+        'sqs-region': 'us-east-1',
+        'sqs-queue-routing': 'trade-only'
+      })
+    ).toThrow('Invalid sqs-queue-routing entry "trade-only". Expected format payloadCase:queueUrl.')
   })
 })

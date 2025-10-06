@@ -10,6 +10,7 @@ export { NatsEventBus } from './nats'
 export { SilverNatsEventBus } from './silverNats'
 export { RedisEventBus } from './redis'
 export { SilverRedisEventBus } from './silverRedis'
+export { SQSEventBus } from './sqs'
 export {
   parseKafkaEventBusConfig,
   parseSilverKafkaEventBusConfig,
@@ -17,6 +18,7 @@ export {
   parseKinesisEventBusConfig,
   parseNatsEventBusConfig,
   parseRedisEventBusConfig,
+  parseSQSEventBusConfig,
   parseSilverRabbitMQEventBusConfig,
   parseSilverKinesisEventBusConfig,
   parseSilverNatsEventBusConfig,
@@ -33,6 +35,7 @@ export type {
   SilverKinesisEventBusConfig,
   NatsEventBusConfig,
   SilverNatsEventBusConfig,
+  SQSEventBusConfig,
   PublishMeta,
   NormalizedEventSink,
   SilverEventSink

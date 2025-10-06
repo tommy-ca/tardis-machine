@@ -8,6 +8,7 @@ import type {
   KinesisEventBusConfig,
   NatsEventBusConfig,
   RedisEventBusConfig,
+  SQSEventBusConfig,
   SilverRabbitMQEventBusConfig,
   SilverKinesisEventBusConfig,
   SilverNatsEventBusConfig,
@@ -1275,6 +1276,132 @@ export function parseSilverNatsEventBusConfig(argv: Record<string, any>): EventB
   return {
     provider: 'nats-silver',
     ...natsConfig
+  }
+}
+
+export function parseSQSEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const queueUrlRaw = argv['sqs-queue-url']
+  const regionRaw = argv['sqs-region']
+
+  if (!queueUrlRaw || !regionRaw) {
+    return undefined
+  }
+
+  const queueUrl = typeof queueUrlRaw === 'string' ? queueUrlRaw.trim() : ''
+  if (queueUrl === '') {
+    throw new Error('sqs-queue-url must be a non-empty string.')
+  }
+
+  const region = typeof regionRaw === 'string' ? regionRaw.trim() : ''
+  if (region === '') {
+    throw new Error('sqs-region must be a non-empty string.')
+  }
+
+  const sqsConfig: SQSEventBusConfig = {
+    queueUrl,
+    region
+  }
+
+  const queueRoutingRaw = argv['sqs-queue-routing']
+  if (queueRoutingRaw !== undefined) {
+    if (typeof queueRoutingRaw !== 'string') {
+      throw new Error('sqs-queue-routing must be a string of payloadCase:queueUrl entries separated by commas.')
+    }
+
+    const map: Partial<Record<BronzePayloadCase, string>> = {}
+    const invalidPayloadCases = new Set<string>()
+
+    const pairs = queueRoutingRaw
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    for (const pair of pairs) {
+      const [payloadCase, mappedQueue] = pair.split(':').map((part) => part?.trim())
+      if (!payloadCase || !mappedQueue) {
+        throw new Error(`Invalid sqs-queue-routing entry "${pair}". Expected format payloadCase:queueUrl.`)
+      }
+
+      const normalizedPayloadCase = normalizePayloadCase(payloadCase)
+
+      if (!normalizedPayloadCase) {
+        invalidPayloadCases.add(payloadCase)
+        continue
+      }
+
+      map[normalizedPayloadCase] = mappedQueue
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('sqs-queue-routing must define at least one payloadCase mapping.')
+    }
+
+    if (invalidPayloadCases.size > 0) {
+      throw new Error(`Unknown payload case(s) for sqs-queue-routing: ${Array.from(invalidPayloadCases).join(', ')}.`)
+    }
+
+    sqsConfig.queueByPayloadCase = map
+  }
+
+  const includePayloadCases = parseIncludePayloadCases(argv['sqs-include-payloads'], 'sqs')
+  if (includePayloadCases) {
+    sqsConfig.includePayloadCases = includePayloadCases
+  }
+
+  const accessKeyIdRaw = argv['sqs-access-key-id']
+  if (accessKeyIdRaw !== undefined) {
+    if (typeof accessKeyIdRaw !== 'string') {
+      throw new Error('sqs-access-key-id must be a string.')
+    }
+    const accessKeyId = accessKeyIdRaw.trim()
+    if (accessKeyId === '') {
+      throw new Error('sqs-access-key-id must be a non-empty string.')
+    }
+    sqsConfig.accessKeyId = accessKeyId
+  }
+
+  const secretAccessKeyRaw = argv['sqs-secret-access-key']
+  if (secretAccessKeyRaw !== undefined) {
+    if (typeof secretAccessKeyRaw !== 'string') {
+      throw new Error('sqs-secret-access-key must be a string.')
+    }
+    const secretAccessKey = secretAccessKeyRaw.trim()
+    if (secretAccessKey === '') {
+      throw new Error('sqs-secret-access-key must be a non-empty string.')
+    }
+    sqsConfig.secretAccessKey = secretAccessKey
+  }
+
+  const sessionTokenRaw = argv['sqs-session-token']
+  if (sessionTokenRaw !== undefined) {
+    if (typeof sessionTokenRaw !== 'string') {
+      throw new Error('sqs-session-token must be a string.')
+    }
+    const sessionToken = sessionTokenRaw.trim()
+    if (sessionToken === '') {
+      throw new Error('sqs-session-token must be a non-empty string.')
+    }
+    sqsConfig.sessionToken = sessionToken
+  }
+
+  const staticMessageAttributes = parseStaticHeaders(argv['sqs-static-message-attributes'], 'sqs')
+  if (staticMessageAttributes) {
+    sqsConfig.staticMessageAttributes = staticMessageAttributes
+  }
+
+  const maxBatchSize = parsePositiveInteger(argv['sqs-max-batch-size'], 'sqs-max-batch-size')
+  if (maxBatchSize !== undefined) {
+    sqsConfig.maxBatchSize = maxBatchSize
+  }
+
+  const maxBatchDelayMs = parsePositiveInteger(argv['sqs-max-batch-delay-ms'], 'sqs-max-batch-delay-ms')
+  if (maxBatchDelayMs !== undefined) {
+    sqsConfig.maxBatchDelayMs = maxBatchDelayMs
+  }
+
+  return {
+    provider: 'sqs',
+    ...sqsConfig
   }
 }
 

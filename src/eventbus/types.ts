@@ -200,6 +200,27 @@ export type RedisEventBusConfig = {
   keyTemplate?: string
 }
 
+export type SQSEventBusConfig = {
+  queueUrl: string
+  region: string
+  /** Optional map for routing payload cases to dedicated queues */
+  queueByPayloadCase?: Partial<Record<BronzePayloadCase, string>>
+  /** Optional allow-list of payload cases to publish */
+  includePayloadCases?: BronzePayloadCase[]
+  /** AWS access key ID */
+  accessKeyId?: string
+  /** AWS secret access key */
+  secretAccessKey?: string
+  /** AWS session token (for temporary credentials) */
+  sessionToken?: string
+  /** Static message attributes applied to every message */
+  staticMessageAttributes?: Record<string, string>
+  /** Maximum number of Bronze events to send per SQS batch */
+  maxBatchSize?: number
+  /** Maximum milliseconds events can wait before forced flush */
+  maxBatchDelayMs?: number
+}
+
 export type SilverKafkaEventBusConfig = {
   brokers: string[]
   topic: string
@@ -327,6 +348,9 @@ export type EventBusConfig =
   | ({
       provider: 'redis'
     } & RedisEventBusConfig)
+  | ({
+      provider: 'sqs'
+    } & SQSEventBusConfig)
   | ({
       provider: 'kafka-silver'
     } & SilverKafkaEventBusConfig)

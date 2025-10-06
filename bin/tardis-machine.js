@@ -13,6 +13,7 @@ const {
   parseKinesisEventBusConfig,
   parseNatsEventBusConfig,
   parseRedisEventBusConfig,
+  parseSQSEventBusConfig,
   parseSilverKafkaEventBusConfig,
   parseSilverRabbitMQEventBusConfig,
   parseSilverKinesisEventBusConfig,
@@ -439,6 +440,47 @@ const argv = yargs
     describe: 'Maximum milliseconds events can wait before forced flush'
   })
 
+  .option('sqs-queue-url', {
+    type: 'string',
+    describe: 'SQS queue URL for normalized event publishing'
+  })
+  .option('sqs-region', {
+    type: 'string',
+    describe: 'AWS region for SQS queue'
+  })
+  .option('sqs-include-payloads', {
+    type: 'string',
+    describe: 'Comma separated payload cases to publish (others dropped)'
+  })
+  .option('sqs-queue-routing', {
+    type: 'string',
+    describe: 'Comma separated payloadCase:queueUrl pairs overriding the base queue'
+  })
+  .option('sqs-access-key-id', {
+    type: 'string',
+    describe: 'AWS access key ID for SQS'
+  })
+  .option('sqs-secret-access-key', {
+    type: 'string',
+    describe: 'AWS secret access key for SQS'
+  })
+  .option('sqs-session-token', {
+    type: 'string',
+    describe: 'AWS session token for temporary SQS credentials'
+  })
+  .option('sqs-static-message-attributes', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static SQS message attributes'
+  })
+  .option('sqs-max-batch-size', {
+    type: 'number',
+    describe: 'Maximum number of bronze events per SQS batch'
+  })
+  .option('sqs-max-batch-delay-ms', {
+    type: 'number',
+    describe: 'Maximum milliseconds events can wait before forced flush'
+  })
+
   .option('redis-silver-url', {
     type: 'string',
     describe: 'Redis connection URL for silver event publishing'
@@ -495,7 +537,8 @@ async function start() {
     parseRabbitMQEventBusConfig(argv) ||
     parseKinesisEventBusConfig(argv) ||
     parseNatsEventBusConfig(argv) ||
-    parseRedisEventBusConfig(argv)
+    parseRedisEventBusConfig(argv) ||
+    parseSQSEventBusConfig(argv)
 
   const silverEventBusConfig =
     parseSilverKafkaEventBusConfig(argv) ||

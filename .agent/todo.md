@@ -13,3 +13,7 @@
 - [x] Harden Kafka config parsing for boolean env values.
 - [x] Add regression tests covering blank topic inputs.
 - [x] Add Kafka static header publishing capability.
+- [x] Implement Kinesis publishing for normalized events.
+- [x] Wire Kinesis into TardisMachine event bus creation.
+- [x] Add integration test verifying Kinesis publish using LocalStack.
+- [x] Add regression test ensuring Kinesis publishing can be toggled off.

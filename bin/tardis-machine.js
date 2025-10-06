@@ -12,7 +12,10 @@ const {
   parseRabbitMQEventBusConfig,
   parseKinesisEventBusConfig,
   parseNatsEventBusConfig,
-  parseSilverKafkaEventBusConfig
+  parseSilverKafkaEventBusConfig,
+  parseSilverRabbitMQEventBusConfig,
+  parseSilverKinesisEventBusConfig,
+  parseSilverNatsEventBusConfig
 } = require('../dist/eventbus/config')
 
 const DEFAULT_PORT = 8000
@@ -195,6 +198,103 @@ const argv = yargs
     describe: 'Kafka SASL password for silver'
   })
 
+  .option('rabbitmq-silver-url', {
+    type: 'string',
+    describe: 'RabbitMQ connection URL for silver event publishing'
+  })
+  .option('rabbitmq-silver-exchange', {
+    type: 'string',
+    describe: 'RabbitMQ exchange name for silver events'
+  })
+  .option('rabbitmq-silver-exchange-type', {
+    type: 'string',
+    choices: ['direct', 'topic', 'headers', 'fanout'],
+    describe: 'RabbitMQ exchange type for silver',
+    default: 'direct'
+  })
+  .option('rabbitmq-silver-routing-key-template', {
+    type: 'string',
+    describe: 'Template for RabbitMQ routing keys for silver, e.g. {{exchange}}.{{recordType}}.{{symbol}}'
+  })
+  .option('rabbitmq-silver-include-records', {
+    type: 'string',
+    describe: 'Comma separated record types to publish for silver (others dropped)'
+  })
+  .option('rabbitmq-silver-static-headers', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static RabbitMQ headers for silver'
+  })
+
+  .option('kinesis-silver-stream-name', {
+    type: 'string',
+    describe: 'Kinesis stream name for silver events'
+  })
+  .option('kinesis-silver-region', {
+    type: 'string',
+    describe: 'AWS region for Kinesis stream for silver'
+  })
+  .option('kinesis-silver-include-records', {
+    type: 'string',
+    describe: 'Comma separated record types to publish for silver (others dropped)'
+  })
+  .option('kinesis-silver-stream-routing', {
+    type: 'string',
+    describe: 'Comma separated recordType:streamName pairs overriding the base stream for silver'
+  })
+  .option('kinesis-silver-access-key-id', {
+    type: 'string',
+    describe: 'AWS access key ID for Kinesis silver'
+  })
+  .option('kinesis-silver-secret-access-key', {
+    type: 'string',
+    describe: 'AWS secret access key for Kinesis silver'
+  })
+  .option('kinesis-silver-session-token', {
+    type: 'string',
+    describe: 'AWS session token for temporary Kinesis credentials for silver'
+  })
+  .option('kinesis-silver-static-headers', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static Kinesis metadata for silver'
+  })
+  .option('kinesis-silver-partition-key-template', {
+    type: 'string',
+    describe: 'Template for Kinesis partition keys for silver, e.g. {{exchange}}/{{recordType}}/{{symbol}}'
+  })
+  .option('kinesis-silver-max-batch-size', {
+    type: 'number',
+    describe: 'Maximum number of silver events per Kinesis batch'
+  })
+  .option('kinesis-silver-max-batch-delay-ms', {
+    type: 'number',
+    describe: 'Maximum milliseconds events can wait before forced flush for silver'
+  })
+
+  .option('nats-silver-servers', {
+    type: 'string',
+    describe: 'Comma separated NATS server URLs for silver event publishing'
+  })
+  .option('nats-silver-subject', {
+    type: 'string',
+    describe: 'NATS subject for silver events'
+  })
+  .option('nats-silver-include-records', {
+    type: 'string',
+    describe: 'Comma separated record types to publish for silver (others dropped)'
+  })
+  .option('nats-silver-subject-routing', {
+    type: 'string',
+    describe: 'Comma separated recordType:subject pairs overriding the base subject for silver'
+  })
+  .option('nats-silver-static-headers', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static NATS headers for silver'
+  })
+  .option('nats-silver-subject-template', {
+    type: 'string',
+    describe: 'Template for NATS subjects for silver, e.g. {{exchange}}.{{recordType}}.{{symbol}}'
+  })
+
   .option('rabbitmq-url', {
     type: 'string',
     describe: 'RabbitMQ connection URL for normalized event publishing'
@@ -313,7 +413,11 @@ async function start() {
   const eventBusConfig =
     parseKafkaEventBusConfig(argv) || parseRabbitMQEventBusConfig(argv) || parseKinesisEventBusConfig(argv) || parseNatsEventBusConfig(argv)
 
-  const silverEventBusConfig = parseSilverKafkaEventBusConfig(argv)
+  const silverEventBusConfig =
+    parseSilverKafkaEventBusConfig(argv) ||
+    parseSilverRabbitMQEventBusConfig(argv) ||
+    parseSilverKinesisEventBusConfig(argv) ||
+    parseSilverNatsEventBusConfig(argv)
 
   const machine = new TardisMachine({
     apiKey: argv['api-key'],

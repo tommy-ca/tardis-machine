@@ -135,6 +135,17 @@
 - Tune publishing throughput via `--pubsub-max-batch-size` (events per batch) and `--pubsub-max-batch-delay-ms` (max milliseconds to wait before flushing).
 - Attach deployment metadata with `--pubsub-static-attributes`, supplying comma separated `key:value` pairs that become constant Pub/Sub attributes on every message.
 
+### MQTT Publishing
+
+- Publish normalized market data to MQTT brokers by supplying `--mqtt-url` and `--mqtt-topic` flags.
+- Use `--mqtt-topic-routing` to route specific payload cases (e.g. `trade`, `bookChange`) to dedicated topics via a comma separated `payloadCase:topic` list. Payload case names must match the normalized Bronze cases (`trade`, `bookChange`, `bookSnapshot`, `groupedBookSnapshot`, `quote`, `derivativeTicker`, `liquidation`, `optionSummary`, `bookTicker`, `tradeBar`, `error`, `disconnect`).
+- Reduce downstream load by specifying `--mqtt-include-payloads` with a comma separated payload case allow-list (others are dropped before batching).
+- Configure MQTT QoS with `--mqtt-qos` (0, 1, or 2) and retain flag with `--mqtt-retain`.
+- Provide authentication with `--mqtt-username` and `--mqtt-password`.
+- Shape topics with `--mqtt-topic-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{payloadCase}}`, or `{{meta.request_id}}`.
+- Tune publishing throughput via `--mqtt-max-batch-size` (events per batch) and `--mqtt-max-batch-delay-ms` (max milliseconds to wait before flushing).
+- Attach deployment metadata with `--mqtt-static-user-properties`, supplying comma separated `key:value` pairs that become constant MQTT user properties on every message.
+
 ### Silver Layer Publishing
 
 The Silver layer provides analytics-ready data with fixed scales and strong typing, complementing the existing Bronze layer. Silver records are published to event buses using the same infrastructure but with dedicated configuration flags.
@@ -269,6 +280,8 @@ Event bus publishing is covered by integration tests in `test/eventbus`. Most te
 - For Google Cloud Pub/Sub: Review batching knobs regularly: `--pubsub-max-batch-size` should stay below Pub/Sub batch limits (1000 messages), and `--pubsub-max-batch-delay-ms` must align with downstream latency budgets.
 - For Silver Google Cloud Pub/Sub: Ensure `--pubsub-silver-project-id` and topic names are correct; ensure GCP credentials have publish permissions on the specified topics.
 - For Silver Google Cloud Pub/Sub: Review batching knobs regularly: `--pubsub-silver-max-batch-size` should stay below Pub/Sub batch limits (1000 messages), and `--pubsub-silver-max-batch-delay-ms` must align with downstream latency budgets.
+- For MQTT: Ensure `--mqtt-url` points to a healthy MQTT broker and topics are appropriately configured for your routing needs.
+- For MQTT: Review batching knobs regularly: `--mqtt-max-batch-size` and `--mqtt-max-batch-delay-ms` should align with throughput requirements.
 - Confirm header contracts after schema updates by consuming a sample message and validating Buf-decoded payloads alongside the emitted `recordType` and `dataType` headers for Silver layer.
 - Track retries via application logs; repeated send attempt warnings indicate sustained pressure and should trigger broker-side health checks.
 - Re-run `npm run buf:generate` and rebuild whenever `schemas/proto` changes to keep binary payloads matching the deployed Buf schema version.

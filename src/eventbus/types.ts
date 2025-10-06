@@ -281,6 +281,33 @@ export type PubSubEventBusConfig = {
   orderingKeyTemplate?: string
 }
 
+export type MQTTEventBusConfig = {
+  url: string
+  topic: string
+  /** Optional map for routing payload cases to dedicated topics */
+  topicByPayloadCase?: Partial<Record<BronzePayloadCase, string>>
+  /** Optional allow-list of payload cases to publish */
+  includePayloadCases?: BronzePayloadCase[]
+  /** MQTT QoS level */
+  qos?: 0 | 1 | 2
+  /** Retain flag for MQTT messages */
+  retain?: boolean
+  /** MQTT client ID */
+  clientId?: string
+  /** MQTT username */
+  username?: string
+  /** MQTT password */
+  password?: string
+  /** Static user properties applied to every message */
+  staticUserProperties?: Record<string, string>
+  /** Maximum number of Bronze events to send per batch */
+  maxBatchSize?: number
+  /** Maximum milliseconds events can wait before forced flush */
+  maxBatchDelayMs?: number
+  /** Template for constructing MQTT topic */
+  topicTemplate?: string
+}
+
 export type ConsoleEventBusConfig = {
   /** Optional prefix for console output */
   prefix?: string
@@ -505,6 +532,9 @@ export type EventBusConfig =
   | ({
       provider: 'pubsub'
     } & PubSubEventBusConfig)
+  | ({
+      provider: 'mqtt'
+    } & MQTTEventBusConfig)
   | ({
       provider: 'console'
     } & ConsoleEventBusConfig)

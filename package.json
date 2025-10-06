@@ -72,6 +72,7 @@
     "find-my-way": "^9.3.0",
     "is-docker": "^2.2.1",
     "kafkajs": "^2.2.4",
+    "mqtt": "^5.0.0",
     "nats": "^2.29.3",
     "pulsar-client": "^1.14.0",
     "redis": "^5.8.3",
@@ -88,6 +89,7 @@
 
     "@testcontainers/rabbitmq": "^11.7.1",
     "@types/amqplib": "^0.10.7",
+    "@types/mqtt": "^2.5.0",
     "@types/debug": "^4.1.12",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.1.0",

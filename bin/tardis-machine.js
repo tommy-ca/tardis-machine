@@ -24,6 +24,7 @@ const {
   parseSilverRedisEventBusConfig,
   parseAzureEventHubsEventBusConfig,
   parsePubSubEventBusConfig,
+  parseMQTTEventBusConfig,
   parseSilverPubSubEventBusConfig,
   parseSilverAzureEventBusConfig,
   parseConsoleEventBusConfig
@@ -609,6 +610,62 @@ const argv = yargs
     describe: 'Maximum milliseconds events can wait before forced flush'
   })
 
+  .option('mqtt-url', {
+    type: 'string',
+    describe: 'MQTT broker URL for normalized event publishing'
+  })
+  .option('mqtt-topic', {
+    type: 'string',
+    describe: 'MQTT topic name for normalized events'
+  })
+  .option('mqtt-include-payloads', {
+    type: 'string',
+    describe: 'Comma separated payload cases to publish (others dropped)'
+  })
+  .option('mqtt-topic-routing', {
+    type: 'string',
+    describe: 'Comma separated payloadCase:topic pairs overriding the base topic'
+  })
+  .option('mqtt-qos', {
+    type: 'number',
+    choices: [0, 1, 2],
+    describe: 'MQTT QoS level',
+    default: 0
+  })
+  .option('mqtt-retain', {
+    type: 'boolean',
+    describe: 'Set retain flag on MQTT messages',
+    default: false
+  })
+  .option('mqtt-client-id', {
+    type: 'string',
+    describe: 'MQTT client ID'
+  })
+  .option('mqtt-username', {
+    type: 'string',
+    describe: 'MQTT username for authentication'
+  })
+  .option('mqtt-password', {
+    type: 'string',
+    describe: 'MQTT password for authentication'
+  })
+  .option('mqtt-static-user-properties', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static MQTT user properties'
+  })
+  .option('mqtt-topic-template', {
+    type: 'string',
+    describe: 'Template for MQTT topic, e.g. {{exchange}}/{{payloadCase}}/{{symbol}}'
+  })
+  .option('mqtt-max-batch-size', {
+    type: 'number',
+    describe: 'Maximum number of bronze events per MQTT batch'
+  })
+  .option('mqtt-max-batch-delay-ms', {
+    type: 'number',
+    describe: 'Maximum milliseconds events can wait before forced flush'
+  })
+
   .option('console-enable', {
     type: 'boolean',
     describe: 'Enable console output for normalized events (for debugging)'
@@ -836,6 +893,7 @@ async function start() {
     parsePulsarEventBusConfig(argv) ||
     parseAzureEventHubsEventBusConfig(argv) ||
     parsePubSubEventBusConfig(argv) ||
+    parseMQTTEventBusConfig(argv) ||
     parseConsoleEventBusConfig(argv)
 
   const silverEventBusConfig =

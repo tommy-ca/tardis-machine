@@ -12,6 +12,7 @@ import type {
   PulsarEventBusConfig,
   AzureEventHubsEventBusConfig,
   PubSubEventBusConfig,
+  MQTTEventBusConfig,
   SilverPubSubEventBusConfig,
   SilverRabbitMQEventBusConfig,
   SilverKinesisEventBusConfig,
@@ -2454,6 +2455,169 @@ export function parsePubSubEventBusConfig(argv: Record<string, any>): EventBusCo
   return {
     provider: 'pubsub',
     ...pubsubConfig
+  }
+}
+
+export function parseMQTTEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const urlRaw = argv['mqtt-url']
+  const topicRaw = argv['mqtt-topic']
+
+  if (!urlRaw || !topicRaw) {
+    return undefined
+  }
+
+  const url = typeof urlRaw === 'string' ? urlRaw.trim() : ''
+  if (url === '') {
+    throw new Error('mqtt-url must be a non-empty string.')
+  }
+
+  const topic = typeof topicRaw === 'string' ? topicRaw.trim() : ''
+  if (topic === '') {
+    throw new Error('mqtt-topic must be a non-empty string.')
+  }
+
+  const mqttConfig: MQTTEventBusConfig = {
+    url,
+    topic
+  }
+
+  const topicRoutingRaw = argv['mqtt-topic-routing']
+  if (topicRoutingRaw !== undefined) {
+    if (typeof topicRoutingRaw !== 'string') {
+      throw new Error('mqtt-topic-routing must be a string of payloadCase:topic entries separated by commas.')
+    }
+
+    const map: Partial<Record<BronzePayloadCase, string>> = {}
+    const invalidPayloadCases = new Set<string>()
+
+    const pairs = topicRoutingRaw
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    for (const pair of pairs) {
+      const separatorIndex = pair.indexOf(':')
+      if (separatorIndex <= 0 || separatorIndex === pair.length - 1) {
+        throw new Error(`Invalid mqtt-topic-routing entry "${pair}". Expected format payloadCase:topicName.`)
+      }
+
+      const payloadCase = pair.slice(0, separatorIndex).trim()
+      const mappedTopic = pair.slice(separatorIndex + 1).trim()
+
+      if (!payloadCase || !mappedTopic) {
+        throw new Error(`Invalid mqtt-topic-routing entry "${pair}". Expected format payloadCase:topicName.`)
+      }
+
+      const normalizedPayloadCase = normalizePayloadCase(payloadCase)
+
+      if (!normalizedPayloadCase) {
+        invalidPayloadCases.add(payloadCase)
+        continue
+      }
+
+      map[normalizedPayloadCase] = mappedTopic
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('mqtt-topic-routing must define at least one payloadCase mapping.')
+    }
+
+    if (invalidPayloadCases.size > 0) {
+      throw new Error(`Unknown payload case(s) for mqtt-topic-routing: ${Array.from(invalidPayloadCases).join(', ')}.`)
+    }
+
+    mqttConfig.topicByPayloadCase = map
+  }
+
+  const includePayloadCases = parseIncludePayloadCases(argv['mqtt-include-payloads'], 'mqtt')
+  if (includePayloadCases) {
+    mqttConfig.includePayloadCases = includePayloadCases
+  }
+
+  const qosRaw = argv['mqtt-qos']
+  if (qosRaw !== undefined) {
+    if (typeof qosRaw === 'number') {
+      if (qosRaw < 0 || qosRaw > 2) {
+        throw new Error('mqtt-qos must be 0, 1, or 2.')
+      }
+      mqttConfig.qos = qosRaw as 0 | 1 | 2
+    } else {
+      throw new Error('mqtt-qos must be a number.')
+    }
+  }
+
+  const retainRaw = argv['mqtt-retain']
+  if (retainRaw !== undefined) {
+    mqttConfig.retain = parseBooleanOption(retainRaw, 'mqtt-retain')
+  }
+
+  const clientIdRaw = argv['mqtt-client-id']
+  if (clientIdRaw !== undefined) {
+    if (typeof clientIdRaw !== 'string') {
+      throw new Error('mqtt-client-id must be a string.')
+    }
+    const clientId = clientIdRaw.trim()
+    if (clientId === '') {
+      throw new Error('mqtt-client-id must be a non-empty string.')
+    }
+    mqttConfig.clientId = clientId
+  }
+
+  const usernameRaw = argv['mqtt-username']
+  if (usernameRaw !== undefined) {
+    if (typeof usernameRaw !== 'string') {
+      throw new Error('mqtt-username must be a string.')
+    }
+    const username = usernameRaw.trim()
+    if (username === '') {
+      throw new Error('mqtt-username must be a non-empty string.')
+    }
+    mqttConfig.username = username
+  }
+
+  const passwordRaw = argv['mqtt-password']
+  if (passwordRaw !== undefined) {
+    if (typeof passwordRaw !== 'string') {
+      throw new Error('mqtt-password must be a string.')
+    }
+    const password = passwordRaw.trim()
+    if (password === '') {
+      throw new Error('mqtt-password must be a non-empty string.')
+    }
+    mqttConfig.password = password
+  }
+
+  const staticUserProperties = parseStaticHeaders(argv['mqtt-static-user-properties'], 'mqtt-static-user-properties')
+  if (staticUserProperties) {
+    mqttConfig.staticUserProperties = staticUserProperties
+  }
+
+  const topicTemplateRaw = argv['mqtt-topic-template']
+  if (topicTemplateRaw !== undefined) {
+    if (typeof topicTemplateRaw !== 'string') {
+      throw new Error('mqtt-topic-template must be a non-empty string.')
+    }
+    const topicTemplate = topicTemplateRaw.trim()
+    if (topicTemplate === '') {
+      throw new Error('mqtt-topic-template must be a non-empty string.')
+    }
+    compileKeyBuilder(topicTemplate, 'mqtt')
+    mqttConfig.topicTemplate = topicTemplate
+  }
+
+  const maxBatchSize = parsePositiveInteger(argv['mqtt-max-batch-size'], 'mqtt-max-batch-size')
+  if (maxBatchSize !== undefined) {
+    mqttConfig.maxBatchSize = maxBatchSize
+  }
+
+  const maxBatchDelayMs = parsePositiveInteger(argv['mqtt-max-batch-delay-ms'], 'mqtt-max-batch-delay-ms')
+  if (maxBatchDelayMs !== undefined) {
+    mqttConfig.maxBatchDelayMs = maxBatchDelayMs
+  }
+
+  return {
+    provider: 'mqtt',
+    ...mqttConfig
   }
 }
 

@@ -16,6 +16,7 @@ import {
   PulsarEventBus,
   AzureEventHubsEventBus,
   PubSubEventBus,
+  MQTTEventBus,
   SilverPubSubEventBus,
   SilverPulsarEventBus,
   SilverSQSEventBus,
@@ -236,6 +237,9 @@ export class TardisMachine {
     }
     if (config.provider === 'pubsub') {
       return new PubSubEventBus(config)
+    }
+    if (config.provider === 'mqtt') {
+      return new MQTTEventBus(config)
     }
     if (config.provider === 'console') {
       return new ConsoleEventBus(config)

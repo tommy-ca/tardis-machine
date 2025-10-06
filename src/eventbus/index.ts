@@ -18,6 +18,7 @@ export { SilverPulsarEventBus } from './silverPulsar'
 export { SilverSQSEventBus } from './silverSqs'
 export { PubSubEventBus } from './pubsub'
 export { SilverPubSubEventBus } from './silverPubsub'
+export { MQTTEventBus } from './mqtt'
 export { ConsoleEventBus } from './console'
 export { SilverConsoleEventBus } from './silverConsole'
 export {
@@ -38,6 +39,7 @@ export {
   parseSilverNatsEventBusConfig,
   parseSilverRedisEventBusConfig,
   parsePubSubEventBusConfig,
+  parseMQTTEventBusConfig,
   parseSilverPubSubEventBusConfig,
   parseConsoleEventBusConfig
 } from './config'

@@ -11,6 +11,7 @@ import {
   RabbitMQEventBus,
   KinesisEventBus,
   NatsEventBus,
+  RedisEventBus,
   SilverRabbitMQEventBus,
   SilverKinesisEventBus,
   SilverNatsEventBus
@@ -199,6 +200,9 @@ export class TardisMachine {
     }
     if (config.provider === 'nats') {
       return new NatsEventBus(config)
+    }
+    if (config.provider === 'redis') {
+      return new RedisEventBus(config)
     }
 
     throw new Error(`Unsupported event bus provider: ${(config as any).provider}`)

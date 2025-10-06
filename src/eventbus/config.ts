@@ -7,6 +7,7 @@ import type {
   RabbitMQEventBusConfig,
   KinesisEventBusConfig,
   NatsEventBusConfig,
+  RedisEventBusConfig,
   SilverRabbitMQEventBusConfig,
   SilverKinesisEventBusConfig,
   SilverNatsEventBusConfig
@@ -1252,6 +1253,109 @@ export function parseSilverNatsEventBusConfig(argv: Record<string, any>): EventB
   return {
     provider: 'nats-silver',
     ...natsConfig
+  }
+}
+
+export function parseRedisEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const urlRaw = argv['redis-url']
+  const streamRaw = argv['redis-stream']
+
+  if (!urlRaw || !streamRaw) {
+    return undefined
+  }
+
+  const url = typeof urlRaw === 'string' ? urlRaw.trim() : ''
+  if (url === '') {
+    throw new Error('redis-url must be a non-empty string.')
+  }
+
+  const stream = typeof streamRaw === 'string' ? streamRaw.trim() : ''
+  if (stream === '') {
+    throw new Error('redis-stream must be a non-empty string.')
+  }
+
+  const redisConfig: RedisEventBusConfig = {
+    url,
+    stream
+  }
+
+  const streamRoutingRaw = argv['redis-stream-routing']
+  if (streamRoutingRaw !== undefined) {
+    if (typeof streamRoutingRaw !== 'string') {
+      throw new Error('redis-stream-routing must be a string of payloadCase:stream entries separated by commas.')
+    }
+
+    const map: Partial<Record<BronzePayloadCase, string>> = {}
+    const invalidPayloadCases = new Set<string>()
+
+    const pairs = streamRoutingRaw
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    for (const pair of pairs) {
+      const [payloadCase, mappedStream] = pair.split(':').map((part) => part?.trim())
+      if (!payloadCase || !mappedStream) {
+        throw new Error(`Invalid redis-stream-routing entry "${pair}". Expected format payloadCase:stream.`)
+      }
+
+      const normalizedPayloadCase = normalizePayloadCase(payloadCase)
+
+      if (!normalizedPayloadCase) {
+        invalidPayloadCases.add(payloadCase)
+        continue
+      }
+
+      map[normalizedPayloadCase] = mappedStream
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('redis-stream-routing must define at least one payloadCase mapping.')
+    }
+
+    if (invalidPayloadCases.size > 0) {
+      throw new Error(`Unknown payload case(s) for redis-stream-routing: ${Array.from(invalidPayloadCases).join(', ')}.`)
+    }
+
+    redisConfig.streamByPayloadCase = map
+  }
+
+  const includePayloadCases = parseIncludePayloadCases(argv['redis-include-payloads'])
+  if (includePayloadCases) {
+    redisConfig.includePayloadCases = includePayloadCases
+  }
+
+  const staticHeaders = parseStaticHeaders(argv['redis-static-headers'])
+  if (staticHeaders) {
+    redisConfig.staticHeaders = staticHeaders
+  }
+
+  const keyTemplateRaw = argv['redis-key-template']
+  if (keyTemplateRaw !== undefined) {
+    if (typeof keyTemplateRaw !== 'string') {
+      throw new Error('redis-key-template must be a non-empty string.')
+    }
+    const keyTemplate = keyTemplateRaw.trim()
+    if (keyTemplate === '') {
+      throw new Error('redis-key-template must be a non-empty string.')
+    }
+    compileKeyBuilder(keyTemplate)
+    redisConfig.keyTemplate = keyTemplate
+  }
+
+  const maxBatchSize = parsePositiveInteger(argv['redis-max-batch-size'], 'redis-max-batch-size')
+  if (maxBatchSize !== undefined) {
+    redisConfig.maxBatchSize = maxBatchSize
+  }
+
+  const maxBatchDelayMs = parsePositiveInteger(argv['redis-max-batch-delay-ms'], 'redis-max-batch-delay-ms')
+  if (maxBatchDelayMs !== undefined) {
+    redisConfig.maxBatchDelayMs = maxBatchDelayMs
+  }
+
+  return {
+    provider: 'redis',
+    ...redisConfig
   }
 }
 

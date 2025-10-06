@@ -173,6 +173,23 @@ export type NatsEventBusConfig = {
   pass?: string
 }
 
+export type RedisEventBusConfig = {
+  url: string
+  stream: string
+  /** Optional map for routing payload cases to dedicated streams */
+  streamByPayloadCase?: Partial<Record<BronzePayloadCase, string>>
+  /** Optional allow-list of payload cases to publish */
+  includePayloadCases?: BronzePayloadCase[]
+  /** Static headers applied to every message */
+  staticHeaders?: Record<string, string>
+  /** Maximum number of Bronze events to send per Redis batch */
+  maxBatchSize?: number
+  /** Maximum milliseconds events can wait before forced flush */
+  maxBatchDelayMs?: number
+  /** Template for constructing Redis stream keys */
+  keyTemplate?: string
+}
+
 export type SilverKafkaEventBusConfig = {
   brokers: string[]
   topic: string
@@ -270,6 +287,9 @@ export type EventBusConfig =
   | ({
       provider: 'nats'
     } & NatsEventBusConfig)
+  | ({
+      provider: 'redis'
+    } & RedisEventBusConfig)
   | ({
       provider: 'kafka-silver'
     } & SilverKafkaEventBusConfig)

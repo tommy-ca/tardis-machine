@@ -8,12 +8,14 @@ export { KinesisEventBus } from './kinesis'
 export { SilverKinesisEventBus } from './silverKinesis'
 export { NatsEventBus } from './nats'
 export { SilverNatsEventBus } from './silverNats'
+export { RedisEventBus } from './redis'
 export {
   parseKafkaEventBusConfig,
   parseSilverKafkaEventBusConfig,
   parseRabbitMQEventBusConfig,
   parseKinesisEventBusConfig,
   parseNatsEventBusConfig,
+  parseRedisEventBusConfig,
   parseSilverRabbitMQEventBusConfig,
   parseSilverKinesisEventBusConfig,
   parseSilverNatsEventBusConfig

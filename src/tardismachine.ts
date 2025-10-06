@@ -125,7 +125,7 @@ export class TardisMachine {
     } as any)
   }
 
-  public async start(port: number = 0): Promise<number> {
+  public async start(port: number = 0): Promise<{ httpPort: number; wsPort: number }> {
     if (this._eventBus) {
       await this._eventBus.start()
     }
@@ -155,19 +155,24 @@ export class TardisMachine {
       await clearCache()
     }
 
-    const actualPort = await new Promise<number>((resolve, reject) => {
+    const actualPort = await new Promise<{ httpPort: number; wsPort: number }>((resolve, reject) => {
       try {
         this._httpServer.on('error', reject)
         this._httpServer.listen(port, () => {
           const address = this._httpServer.address()
           const httpPort = typeof address === 'string' ? parseInt(address.split(':').pop()!) : address?.port
-          this._wsServer.listen((httpPort || port) + 1, (listenSocket) => {
-            if (listenSocket) {
-              resolve(httpPort || port)
-            } else {
-              reject(new Error('ws server did not start'))
-            }
-          })
+          const tryWsPort = (wsPort: number) => {
+            this._wsServer.listen(wsPort, (listenSocket) => {
+              if (listenSocket) {
+                resolve({ httpPort: httpPort || port, wsPort })
+              } else if (wsPort < (httpPort || port) + 10) {
+                tryWsPort(wsPort + 1)
+              } else {
+                reject(new Error('ws server did not start'))
+              }
+            })
+          }
+          tryWsPort((httpPort || port) + 1)
         })
       } catch (e) {
         reject(e)

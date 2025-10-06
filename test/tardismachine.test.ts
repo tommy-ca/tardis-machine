@@ -22,11 +22,12 @@ describe('tardis-machine', () => {
 
   beforeAll(async () => {
     tardisMachine = new TardisMachine({ cacheDir: './.cache' })
-    PORT = await tardisMachine.start(0) // start server on random port
+    const { httpPort, wsPort } = await tardisMachine.start(0) // start server on random port
+    PORT = httpPort
     HTTP_REPLAY_DATA_FEEDS_URL = `http://localhost:${PORT}/replay`
     HTTP_REPLAY_NORMALIZED_URL = `http://localhost:${PORT}/replay-normalized`
-    WS_REPLAY_NORMALIZED_URL = `ws://localhost:${PORT + 1}/ws-replay-normalized`
-    WS_REPLAY_URL = `ws://localhost:${PORT + 1}/ws-replay`
+    WS_REPLAY_NORMALIZED_URL = `ws://localhost:${wsPort}/ws-replay-normalized`
+    WS_REPLAY_URL = `ws://localhost:${wsPort}/ws-replay`
   })
 
   afterAll(async () => {

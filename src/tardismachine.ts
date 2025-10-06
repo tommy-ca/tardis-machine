@@ -168,28 +168,30 @@ export class TardisMachine {
     })
   }
 
-  public async stop() {
+  public async stop(): Promise<void> {
+    if (this._eventLoopTimerId !== undefined) {
+      clearInterval(this._eventLoopTimerId)
+      this._eventLoopTimerId = undefined
+    }
+
     this._wsServer.close()
 
     await new Promise<void>((resolve, reject) => {
       this._httpServer.close((err) => {
-        err ? reject(err) : resolve()
+        if (err) reject(err)
+        else resolve()
       })
     })
 
     // Wait a bit for ports to be released
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    if (this._eventLoopTimerId !== undefined) {
-      clearInterval(this._eventLoopTimerId)
-    }
-
     if (this._eventBus) {
-      await this._eventBus.close()
+      await this._eventBus.close().catch(() => undefined)
     }
 
     if (this._silverEventBus) {
-      await this._silverEventBus.close()
+      await this._silverEventBus.close().catch(() => undefined)
     }
   }
 

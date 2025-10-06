@@ -39,6 +39,7 @@
 - Use existing Buf CLI workflows and TypeScript generation via `@bufbuild/protoc-gen-es`.
 - Generated TypeScript code under `src/generated` feeds Silver publisher encoding.
 - Maintain compatibility tests under `test/proto` to ensure schema and generated code fidelity.
+- Support Confluent Schema Registry for Kafka publishing, registering Protobuf schemas and encoding messages with schema IDs for better schema evolution.
 
 ## Testing Strategy
 
@@ -56,3 +57,4 @@
 - CLI exposes `--kafka-silver-*` options (brokers, topic, topic routing, client id, SSL, SASL) to enable publishing.
 - Publishing is optional; when Silver Kafka options are missing, the server behaves exactly as before.
 - Payload filtering allow-lists via `--kafka-silver-include-records` drop unlisted record types before they reach batching logic, minimizing broker load.
+- Schema Registry support allows registering Protobuf schemas and encoding messages with schema IDs for compatibility and evolution (optional via `--kafka-silver-schema-registry-url`).

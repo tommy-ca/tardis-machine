@@ -6,6 +6,8 @@ import { compileKeyBuilder } from './keyTemplate'
 import type { BronzeEvent, BronzePayloadCase, NormalizedEventSink, NormalizedMessage, PublishMeta, PulsarEventBusConfig } from './types'
 import { wait } from '../helpers'
 import { debug } from '../debug'
+import * as fs from 'fs'
+import * as path from 'path'
 
 const log = debug.extend('eventbus')
 
@@ -23,6 +25,7 @@ export class PulsarEventBus implements NormalizedEventSink {
   private closed = false
   private readonly staticProperties?: Array<[string, string]>
   private readonly allowedPayloadCases?: Set<BronzePayloadCase>
+  private schema?: { schemaType: 'Protobuf'; name?: string; schema?: string; properties?: Record<string, string> }
 
   constructor(private readonly config: PulsarEventBusConfig) {
     const keyBuilder = config.keyTemplate ? compileKeyBuilder(config.keyTemplate) : undefined
@@ -40,6 +43,15 @@ export class PulsarEventBus implements NormalizedEventSink {
   }
 
   async start() {
+    if (this.config.schemaRegistry) {
+      const schemaPath = path.join(__dirname, '../../schemas/proto/lakehouse/bronze/v1/normalized_event.proto')
+      const schema = fs.readFileSync(schemaPath, 'utf8')
+      this.schema = {
+        schemaType: 'Protobuf' as const,
+        name: 'NormalizedEvent',
+        schema: schema
+      }
+    }
     // Producers will be created on demand
   }
 
@@ -156,7 +168,8 @@ export class PulsarEventBus implements NormalizedEventSink {
     if (!producer) {
       producer = await this.client.createProducer({
         topic,
-        sendTimeoutMs: 30000
+        sendTimeoutMs: 30000,
+        schema: this.schema
       })
       this.producers.set(topic, producer)
     }

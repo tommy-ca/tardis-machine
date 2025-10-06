@@ -176,6 +176,70 @@ test('does not publish when Pulsar service URL is invalid', async () => {
   }
 })
 
+test('publishes replay-normalized events to Pulsar with schema registry', async () => {
+  if (shouldSkip) {
+    return
+  }
+
+  const machine = new TardisMachine({
+    cacheDir,
+    eventBus: {
+      provider: 'pulsar',
+      serviceUrl: pulsarUrl,
+      topic: topic + '-schema',
+      maxBatchSize: 5,
+      maxBatchDelayMs: 25,
+      schemaRegistry: {}
+    }
+  })
+
+  await machine.start(PORT + 3)
+
+  const client = new Client({ serviceUrl: pulsarUrl })
+  const consumer = await client.subscribe({
+    topic: topic + '-schema',
+    subscription: 'test-subscription-schema',
+    subscriptionType: 'Exclusive'
+  })
+
+  const eventsPromise = collectEvents(consumer, 5, 120000)
+  let events: NormalizedEvent[] = []
+
+  try {
+    const options = {
+      exchange: 'bitmex',
+      symbols: ['ETHUSD'],
+      from: '2019-06-01',
+      to: '2019-06-01 00:01',
+      dataTypes: ['trade']
+    }
+
+    const params = encodeOptions(options)
+    const response = await fetch(`http://localhost:${PORT + 3}/replay-normalized?options=${params}`)
+    expect(response.status).toBe(200)
+    await response.text()
+
+    events = await eventsPromise
+  } finally {
+    await eventsPromise.catch(() => undefined)
+    await machine.stop().catch(() => undefined)
+    await consumer.close().catch(() => undefined)
+    await client.close().catch(() => undefined)
+    await rm(cacheDir, { recursive: true, force: true }).catch(() => undefined)
+  }
+
+  expect(events.length).toBeGreaterThanOrEqual(1)
+  const replayEvents = events.filter((event) => event.origin === Origin.REPLAY)
+  expect(replayEvents.length).toBeGreaterThan(0)
+
+  const sample = replayEvents[0]
+  expect(sample.meta?.transport).toBe('http')
+  expect(sample.meta?.route).toBe('/replay-normalized')
+  expect(sample.meta?.request_id).toBeDefined()
+  expect(sample.meta?.app_version).toBeDefined()
+  expect(sample.payload.case).not.toBe('error')
+})
+
 async function startPulsarContainer(): Promise<StartedTestContainer> {
   const container = new GenericContainer(pulsarImage).withExposedPorts(6650).withStartupTimeout(startTimeoutMs)
 

@@ -78,6 +78,7 @@
     "@testcontainers/kafka": "^11.7.1",
     "@testcontainers/localstack": "^11.7.1",
     "@testcontainers/rabbitmq": "^11.7.1",
+    "@testcontainers/nats": "^11.7.1",
     "@types/amqplib": "^0.10.7",
     "@types/debug": "^4.1.12",
     "@types/jest": "^30.0.0",

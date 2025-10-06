@@ -7,7 +7,7 @@ const cluster = require('cluster')
 const numCPUs = require('os').cpus().length
 const isDocker = require('is-docker')
 const pkg = require('../package.json')
-const { parseKafkaEventBusConfig, parseRabbitMQEventBusConfig } = require('../dist/eventbus/config')
+const { parseKafkaEventBusConfig, parseRabbitMQEventBusConfig, parseKinesisEventBusConfig } = require('../dist/eventbus/config')
 
 const DEFAULT_PORT = 8000
 const argv = yargs
@@ -144,6 +144,51 @@ const argv = yargs
     describe: 'Comma separated key:value pairs applied as static RabbitMQ headers'
   })
 
+  .option('kinesis-stream-name', {
+    type: 'string',
+    describe: 'Kinesis stream name for normalized events'
+  })
+  .option('kinesis-region', {
+    type: 'string',
+    describe: 'AWS region for Kinesis stream'
+  })
+  .option('kinesis-include-payloads', {
+    type: 'string',
+    describe: 'Comma separated payload cases to publish (others dropped)'
+  })
+  .option('kinesis-stream-routing', {
+    type: 'string',
+    describe: 'Comma separated payloadCase:streamName pairs overriding the base stream'
+  })
+  .option('kinesis-access-key-id', {
+    type: 'string',
+    describe: 'AWS access key ID for Kinesis'
+  })
+  .option('kinesis-secret-access-key', {
+    type: 'string',
+    describe: 'AWS secret access key for Kinesis'
+  })
+  .option('kinesis-session-token', {
+    type: 'string',
+    describe: 'AWS session token for temporary Kinesis credentials'
+  })
+  .option('kinesis-static-headers', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static Kinesis metadata'
+  })
+  .option('kinesis-partition-key-template', {
+    type: 'string',
+    describe: 'Template for Kinesis partition keys, e.g. {{exchange}}/{{payloadCase}}/{{symbol}}'
+  })
+  .option('kinesis-max-batch-size', {
+    type: 'number',
+    describe: 'Maximum number of bronze events per Kinesis batch'
+  })
+  .option('kinesis-max-batch-delay-ms', {
+    type: 'number',
+    describe: 'Maximum milliseconds events can wait before forced flush'
+  })
+
   .help()
   .version()
   .usage('$0 [options]')
@@ -162,7 +207,7 @@ if (enableDebug) {
 const { TardisMachine } = require('../dist')
 
 async function start() {
-  const eventBusConfig = parseKafkaEventBusConfig(argv) || parseRabbitMQEventBusConfig(argv)
+  const eventBusConfig = parseKafkaEventBusConfig(argv) || parseRabbitMQEventBusConfig(argv) || parseKinesisEventBusConfig(argv)
 
   const machine = new TardisMachine({
     apiKey: argv['api-key'],

@@ -1,4 +1,4 @@
-import type { BronzePayloadCase, EventBusConfig, KafkaEventBusConfig, RabbitMQEventBusConfig } from './types'
+import type { BronzePayloadCase, EventBusConfig, KafkaEventBusConfig, RabbitMQEventBusConfig, KinesisEventBusConfig } from './types'
 import { compileKeyBuilder } from './keyTemplate'
 
 const ALLOWED_COMPRESSION = new Set(['none', 'gzip', 'snappy', 'lz4', 'zstd'])
@@ -455,6 +455,145 @@ function normalizePayloadCase(raw: string): BronzePayloadCase | undefined {
 
 function toPayloadCaseKey(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/gi, '')
+}
+
+export function parseKinesisEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const streamNameRaw = argv['kinesis-stream-name']
+  const regionRaw = argv['kinesis-region']
+
+  if (!streamNameRaw || !regionRaw) {
+    return undefined
+  }
+
+  const streamName = typeof streamNameRaw === 'string' ? streamNameRaw.trim() : ''
+  if (streamName === '') {
+    throw new Error('kinesis-stream-name must be a non-empty string.')
+  }
+
+  const region = typeof regionRaw === 'string' ? regionRaw.trim() : ''
+  if (region === '') {
+    throw new Error('kinesis-region must be a non-empty string.')
+  }
+
+  const kinesisConfig: KinesisEventBusConfig = {
+    streamName,
+    region
+  }
+
+  const streamRoutingRaw = argv['kinesis-stream-routing']
+  if (streamRoutingRaw !== undefined) {
+    if (typeof streamRoutingRaw !== 'string') {
+      throw new Error('kinesis-stream-routing must be a string of payloadCase:streamName entries separated by commas.')
+    }
+
+    const map: Partial<Record<BronzePayloadCase, string>> = {}
+    const invalidPayloadCases = new Set<string>()
+
+    const pairs = streamRoutingRaw
+      .split(',')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+
+    for (const pair of pairs) {
+      const [payloadCase, mappedStream] = pair.split(':').map((part) => part?.trim())
+      if (!payloadCase || !mappedStream) {
+        throw new Error(`Invalid kinesis-stream-routing entry "${pair}". Expected format payloadCase:streamName.`)
+      }
+
+      const normalizedPayloadCase = normalizePayloadCase(payloadCase)
+
+      if (!normalizedPayloadCase) {
+        invalidPayloadCases.add(payloadCase)
+        continue
+      }
+
+      map[normalizedPayloadCase] = mappedStream
+    }
+
+    if (Object.keys(map).length === 0) {
+      throw new Error('kinesis-stream-routing must define at least one payloadCase mapping.')
+    }
+
+    if (invalidPayloadCases.size > 0) {
+      throw new Error(`Unknown payload case(s) for kinesis-stream-routing: ${Array.from(invalidPayloadCases).join(', ')}.`)
+    }
+
+    kinesisConfig.streamByPayloadCase = map
+  }
+
+  const includePayloadCases = parseIncludePayloadCases(argv['kinesis-include-payloads'])
+  if (includePayloadCases) {
+    kinesisConfig.includePayloadCases = includePayloadCases
+  }
+
+  const accessKeyIdRaw = argv['kinesis-access-key-id']
+  if (accessKeyIdRaw !== undefined) {
+    if (typeof accessKeyIdRaw !== 'string') {
+      throw new Error('kinesis-access-key-id must be a string.')
+    }
+    const accessKeyId = accessKeyIdRaw.trim()
+    if (accessKeyId === '') {
+      throw new Error('kinesis-access-key-id must be a non-empty string.')
+    }
+    kinesisConfig.accessKeyId = accessKeyId
+  }
+
+  const secretAccessKeyRaw = argv['kinesis-secret-access-key']
+  if (secretAccessKeyRaw !== undefined) {
+    if (typeof secretAccessKeyRaw !== 'string') {
+      throw new Error('kinesis-secret-access-key must be a string.')
+    }
+    const secretAccessKey = secretAccessKeyRaw.trim()
+    if (secretAccessKey === '') {
+      throw new Error('kinesis-secret-access-key must be a non-empty string.')
+    }
+    kinesisConfig.secretAccessKey = secretAccessKey
+  }
+
+  const sessionTokenRaw = argv['kinesis-session-token']
+  if (sessionTokenRaw !== undefined) {
+    if (typeof sessionTokenRaw !== 'string') {
+      throw new Error('kinesis-session-token must be a string.')
+    }
+    const sessionToken = sessionTokenRaw.trim()
+    if (sessionToken === '') {
+      throw new Error('kinesis-session-token must be a non-empty string.')
+    }
+    kinesisConfig.sessionToken = sessionToken
+  }
+
+  const staticHeaders = parseStaticHeaders(argv['kinesis-static-headers'])
+  if (staticHeaders) {
+    kinesisConfig.staticHeaders = staticHeaders
+  }
+
+  const partitionKeyTemplateRaw = argv['kinesis-partition-key-template']
+  if (partitionKeyTemplateRaw !== undefined) {
+    if (typeof partitionKeyTemplateRaw !== 'string') {
+      throw new Error('kinesis-partition-key-template must be a non-empty string.')
+    }
+    const partitionKeyTemplate = partitionKeyTemplateRaw.trim()
+    if (partitionKeyTemplate === '') {
+      throw new Error('kinesis-partition-key-template must be a non-empty string.')
+    }
+    compileKeyBuilder(partitionKeyTemplate)
+    kinesisConfig.partitionKeyTemplate = partitionKeyTemplate
+  }
+
+  const maxBatchSize = parsePositiveInteger(argv['kinesis-max-batch-size'], 'kinesis-max-batch-size')
+  if (maxBatchSize !== undefined) {
+    kinesisConfig.maxBatchSize = maxBatchSize
+  }
+
+  const maxBatchDelayMs = parsePositiveInteger(argv['kinesis-max-batch-delay-ms'], 'kinesis-max-batch-delay-ms')
+  if (maxBatchDelayMs !== undefined) {
+    kinesisConfig.maxBatchDelayMs = maxBatchDelayMs
+  }
+
+  return {
+    provider: 'kinesis',
+    ...kinesisConfig
+  }
 }
 
 export type { KafkaEventBusConfig }

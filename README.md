@@ -51,7 +51,7 @@
 
 ## Event Bus Publishing
 
-- Publish normalized market data encoded with Buf-managed Protobufs to Kafka or RabbitMQ by supplying the respective flags.
+- Publish normalized market data encoded with Buf-managed Protobufs to Kafka, RabbitMQ, or AWS Kinesis by supplying the respective flags.
 - Use `--kafka-topic-routing` to route specific payload cases (e.g. `trade`, `bookChange`) to dedicated topics via a comma separated `payloadCase:topic` list. Payload case names must match the normalized Bronze cases (`trade`, `bookChange`, `bookSnapshot`, `groupedBookSnapshot`, `quote`, `derivativeTicker`, `liquidation`, `optionSummary`, `bookTicker`, `tradeBar`, `error`, `disconnect`).
 - Include real-time `quote` payloads alongside trades, book snapshots, and other normalized events.
 - Reduce downstream load by specifying `--kafka-include-payloads` with a comma separated payload case allow-list (others are dropped before batching).
@@ -70,13 +70,23 @@
 - Reduce downstream load by specifying `--rabbitmq-include-payloads` with a comma separated payload case allow-list (others are dropped).
 - Attach deployment metadata with `--rabbitmq-static-headers`, supplying comma separated `key:value` pairs that become constant RabbitMQ headers on every message.
 
+### Kinesis Publishing
+
+- Publish normalized market data to AWS Kinesis by supplying `--kinesis-stream-name` and `--kinesis-region` flags.
+- Use `--kinesis-stream-routing` to route specific payload cases (e.g. `trade`, `bookChange`) to dedicated streams via a comma separated `payloadCase:streamName` list. Payload case names must match the normalized Bronze cases (`trade`, `bookChange`, `bookSnapshot`, `groupedBookSnapshot`, `quote`, `derivativeTicker`, `liquidation`, `optionSummary`, `bookTicker`, `tradeBar`, `error`, `disconnect`).
+- Reduce downstream load by specifying `--kinesis-include-payloads` with a comma separated payload case allow-list (others are dropped before batching).
+- Provide AWS credentials via `--kinesis-access-key-id` and `--kinesis-secret-access-key`, or rely on IAM roles/instance profiles.
+- Shape partition keys with `--kinesis-partition-key-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{payloadCase}}`, or `{{meta.request_id}}`.
+- Tune publishing throughput via `--kinesis-max-batch-size` (events per batch) and `--kinesis-max-batch-delay-ms` (max milliseconds to wait before flushing).
+- Attach deployment metadata with `--kinesis-static-headers`, supplying comma separated `key:value` pairs that become constant metadata on every record.
+
 ### Keeping Schemas and Builds in Sync
 
 Normalized event schemas live under `schemas/proto`, and generated TypeScript bindings are emitted into `src/generated`. Whenever schemas change, run `npm run buf:generate` to refresh the Buf-generated sources and `npm run build` to update the compiled `dist/` artifacts that power the CLI entry point.
 
 ### Event Bus Integration Test Prerequisites
 
-Event bus publishing is covered by integration tests in `test/eventbus`. These rely on Testcontainers and require a local Docker daemon with at least 2 CPU cores, 4 GB of memory, and the ability to pull the `confluentinc/cp-kafka:7.5.3` and `rabbitmq:3-management-alpine` images. Ensure Docker is running before invoking `npm test`; otherwise event bus suites will be skipped after a timeout.
+Event bus publishing is covered by integration tests in `test/eventbus`. These rely on Testcontainers and require a local Docker daemon with at least 2 CPU cores, 4 GB of memory, and the ability to pull the `confluentinc/cp-kafka:7.5.3`, `rabbitmq:3-management-alpine`, and `localstack/localstack:3.0` images. Ensure Docker is running before invoking `npm test`; otherwise event bus suites will be skipped after a timeout.
 
 ### Event Bus Maintenance Checklist
 
@@ -84,6 +94,8 @@ Event bus publishing is covered by integration tests in `test/eventbus`. These r
 - For Kafka: Confirm `--kafka-acks` and `--kafka-idempotent` match broker durability targets (idempotence requires Kafka >= 0.11 with `acks=all`).
 - For Kafka: Review batching knobs regularly: `--kafka-max-batch-size` should stay below broker `message.max.bytes`, and `--kafka-max-batch-delay-ms` must align with downstream latency budgets.
 - For RabbitMQ: Ensure `--rabbitmq-url` points to a healthy RabbitMQ cluster and `--rabbitmq-exchange` exists or can be auto-created.
+- For Kinesis: Confirm `--kinesis-region` and stream name are correct; ensure IAM permissions allow `PutRecords` on the specified stream.
+- For Kinesis: Review batching knobs regularly: `--kinesis-max-batch-size` should stay below Kinesis `PutRecords` limits (500 records), and `--kinesis-max-batch-delay-ms` must align with downstream latency budgets.
 - Confirm header contracts after schema updates by consuming a sample message and validating Buf-decoded payloads alongside the emitted `payloadCase` and `meta.*` headers.
 - Track retries via application logs; repeated send attempt warnings indicate sustained pressure and should trigger broker-side health checks.
 - Re-run `npm run buf:generate` and rebuild whenever `schemas/proto` changes to keep binary payloads matching the deployed Buf schema version.

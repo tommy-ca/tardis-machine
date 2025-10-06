@@ -60,6 +60,7 @@
   ],
   "license": "MPL-2.0",
   "dependencies": {
+    "@aws-sdk/client-kinesis": "^3.0.0",
     "@bufbuild/protobuf": "^2.9.0",
     "amqplib": "^0.10.9",
     "debug": "^4.4.1",
@@ -74,6 +75,7 @@
     "@bufbuild/buf": "^1.57.2",
     "@bufbuild/protoc-gen-es": "^2.9.0",
     "@testcontainers/kafka": "^11.7.1",
+    "@testcontainers/localstack": "^11.7.1",
     "@testcontainers/rabbitmq": "^11.7.1",
     "@types/amqplib": "^0.10.7",
     "@types/debug": "^4.1.12",

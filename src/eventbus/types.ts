@@ -102,6 +102,29 @@ export type RabbitMQEventBusConfig = {
   staticHeaders?: Record<string, string>
 }
 
+export type KinesisEventBusConfig = {
+  streamName: string
+  region: string
+  /** Optional map for routing payload cases to dedicated streams */
+  streamByPayloadCase?: Partial<Record<BronzePayloadCase, string>>
+  /** Optional allow-list of payload cases to publish */
+  includePayloadCases?: BronzePayloadCase[]
+  /** AWS access key ID */
+  accessKeyId?: string
+  /** AWS secret access key */
+  secretAccessKey?: string
+  /** AWS session token (for temporary credentials) */
+  sessionToken?: string
+  /** Static metadata applied to every record */
+  staticHeaders?: Record<string, string>
+  /** Maximum number of Bronze events to send per Kinesis batch */
+  maxBatchSize?: number
+  /** Maximum milliseconds events can wait before forced flush */
+  maxBatchDelayMs?: number
+  /** Template for constructing Kinesis partition keys */
+  partitionKeyTemplate?: string
+}
+
 export type EventBusConfig =
   | ({
       provider: 'kafka'
@@ -109,3 +132,6 @@ export type EventBusConfig =
   | ({
       provider: 'rabbitmq'
     } & RabbitMQEventBusConfig)
+  | ({
+      provider: 'kinesis'
+    } & KinesisEventBusConfig)

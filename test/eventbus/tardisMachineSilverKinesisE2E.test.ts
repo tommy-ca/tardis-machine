@@ -14,8 +14,7 @@ import { TradeRecordSchema, Origin } from '../../src/generated/lakehouse/silver/
 
 jest.setTimeout(240000)
 
-const PORT = 8096
-const HTTP_REPLAY_NORMALIZED_URL = `http://localhost:${PORT}/replay-normalized`
+const HTTP_REPLAY_NORMALIZED_URL = `http://localhost:0/replay-normalized`
 const streamName = 'silver-events-e2e'
 const cacheDir = './.cache-silver-kinesis-e2e'
 const localstackImage = 'localstack/localstack:3.0'
@@ -81,23 +80,23 @@ test('publishes replay-normalized events to Silver Kinesis with Buf payloads', a
     }
   })
 
-  await server.start(PORT)
+  const port = await server.start(0)
 
   try {
     const options = {
-      exchange: 'binance',
-      symbols: ['btcusdt'],
+      exchange: 'bitmex',
+      symbols: ['ETHUSD'],
       dataTypes: ['trade'],
-      from: '2020-01-01',
-      to: '2020-01-01T00:05:00.000Z'
+      from: '2019-06-01',
+      to: '2019-06-01 00:01'
     }
     const params = encodeOptions(options)
-    const response = await fetch(`${HTTP_REPLAY_NORMALIZED_URL}?options=${params}`)
+    const response = await fetch(`http://localhost:${port}/replay-normalized?options=${params}`)
 
     expect(response.status).toBe(200)
 
     // Wait for publishing to complete
-    await new Promise((resolve) => setTimeout(resolve, 5000))
+    await new Promise((resolve) => setTimeout(resolve, 10000))
 
     // Get records from Kinesis
     const describeResponse = await kinesis.send(

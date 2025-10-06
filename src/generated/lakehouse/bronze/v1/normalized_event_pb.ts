@@ -2,290 +2,304 @@
 // @generated from file lakehouse/bronze/v1/normalized_event.proto (package lakehouse.bronze.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
-import type { Message } from "@bufbuild/protobuf";
+import type { GenEnum, GenFile, GenMessage } from '@bufbuild/protobuf/codegenv2'
+import { enumDesc, fileDesc, messageDesc } from '@bufbuild/protobuf/codegenv2'
+import type { Timestamp } from '@bufbuild/protobuf/wkt'
+import { file_google_protobuf_timestamp } from '@bufbuild/protobuf/wkt'
+import type { Message } from '@bufbuild/protobuf'
 
 /**
  * Describes the file lakehouse/bronze/v1/normalized_event.proto.
  */
-export const file_lakehouse_bronze_v1_normalized_event: GenFile = /*@__PURE__*/
-  fileDesc("CipsYWtlaG91c2UvYnJvbnplL3YxL25vcm1hbGl6ZWRfZXZlbnQucHJvdG8SE2xha2Vob3VzZS5icm9uemUudjEi9wcKD05vcm1hbGl6ZWRFdmVudBIOCgZzb3VyY2UYASABKAkSEAoIZXhjaGFuZ2UYAiABKAkSDgoGc3ltYm9sGAMgASgJEiwKCGxvY2FsX3RzGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBItCglpbmdlc3RfdHMYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEisKBm9yaWdpbhgGIAEoDjIbLmxha2Vob3VzZS5icm9uemUudjEuT3JpZ2luEjwKBG1ldGEYCiADKAsyLi5sYWtlaG91c2UuYnJvbnplLnYxLk5vcm1hbGl6ZWRFdmVudC5NZXRhRW50cnkSKwoFdHJhZGUYZCABKAsyGi5sYWtlaG91c2UuYnJvbnplLnYxLlRyYWRlSAASNgoLYm9va19jaGFuZ2UYZSABKAsyHy5sYWtlaG91c2UuYnJvbnplLnYxLkJvb2tDaGFuZ2VIABI6Cg1ib29rX3NuYXBzaG90GGYgASgLMiEubGFrZWhvdXNlLmJyb256ZS52MS5Cb29rU25hcHNob3RIABIrCgVxdW90ZRhnIAEoCzIaLmxha2Vob3VzZS5icm9uemUudjEuUXVvdGVIABJCChFkZXJpdmF0aXZlX3RpY2tlchhoIAEoCzIlLmxha2Vob3VzZS5icm9uemUudjEuRGVyaXZhdGl2ZVRpY2tlckgAEjcKC2xpcXVpZGF0aW9uGGkgASgLMiAubGFrZWhvdXNlLmJyb256ZS52MS5MaXF1aWRhdGlvbkgAEjwKDm9wdGlvbl9zdW1tYXJ5GGogASgLMiIubGFrZWhvdXNlLmJyb256ZS52MS5PcHRpb25TdW1tYXJ5SAASNgoLYm9va190aWNrZXIYayABKAsyHy5sYWtlaG91c2UuYnJvbnplLnYxLkJvb2tUaWNrZXJIABJJChVncm91cGVkX2Jvb2tfc25hcHNob3QYbCABKAsyKC5sYWtlaG91c2UuYnJvbnplLnYxLkdyb3VwZWRCb29rU25hcHNob3RIABIyCgl0cmFkZV9iYXIYbSABKAsyHS5sYWtlaG91c2UuYnJvbnplLnYxLlRyYWRlQmFySAASMwoFZXJyb3IYlgEgASgLMiEubGFrZWhvdXNlLmJyb256ZS52MS5Db250cm9sRXJyb3JIABI9CgpkaXNjb25uZWN0GJcBIAEoCzImLmxha2Vob3VzZS5icm9uemUudjEuQ29udHJvbERpc2Nvbm5lY3RIABorCglNZXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIJCgdwYXlsb2FkIqYBCgVUcmFkZRIQCgh0cmFkZV9pZBgBIAEoCRIRCglwcmljZV9zdHIYAiABKAkSDwoHcXR5X3N0chgDIAEoCRInCgRzaWRlGAQgASgOMhkubGFrZWhvdXNlLmJyb256ZS52MS5TaWRlEhAKCHNlcXVlbmNlGAUgASgDEiwKCGV2ZW50X3RzGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLVAQoKQm9va0NoYW5nZRInCgRzaWRlGAEgASgOMhkubGFrZWhvdXNlLmJyb256ZS52MS5TaWRlEisKBmFjdGlvbhgCIAEoDjIbLmxha2Vob3VzZS5icm9uemUudjEuQWN0aW9uEhEKCXByaWNlX3N0chgDIAEoCRIPCgdxdHlfc3RyGAQgASgJEg0KBWxldmVsGAUgASgFEhAKCHNlcXVlbmNlGAYgASgDEiwKCGV2ZW50X3RzGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCK+AgoMQm9va1NuYXBzaG90Eg0KBWRlcHRoGAEgASgNEjUKBGJpZHMYAiADKAsyJy5sYWtlaG91c2UuYnJvbnplLnYxLkJvb2tTbmFwc2hvdC5MZXZlbBI1CgRhc2tzGAMgAygLMicubGFrZWhvdXNlLmJyb256ZS52MS5Cb29rU25hcHNob3QuTGV2ZWwSLAoIZXZlbnRfdHMYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCGdyb3VwaW5nGAsgASgNEhMKC2ludGVydmFsX21zGAwgASgNEh0KFXJlbW92ZV9jcm9zc2VkX2xldmVscxgNIAEoCBIQCghzZXF1ZW5jZRgOIAEoAxorCgVMZXZlbBIRCglwcmljZV9zdHIYASABKAkSDwoHcXR5X3N0chgCIAEoCSLTAgoTR3JvdXBlZEJvb2tTbmFwc2hvdBINCgVkZXB0aBgBIAEoDRI8CgRiaWRzGAIgAygLMi4ubGFrZWhvdXNlLmJyb256ZS52MS5Hcm91cGVkQm9va1NuYXBzaG90LkxldmVsEjwKBGFza3MYAyADKAsyLi5sYWtlaG91c2UuYnJvbnplLnYxLkdyb3VwZWRCb29rU25hcHNob3QuTGV2ZWwSLAoIZXZlbnRfdHMYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCGdyb3VwaW5nGAsgASgNEhMKC2ludGVydmFsX21zGAwgASgNEh0KFXJlbW92ZV9jcm9zc2VkX2xldmVscxgNIAEoCBIQCghzZXF1ZW5jZRgOIAEoAxorCgVMZXZlbBIRCglwcmljZV9zdHIYASABKAkSDwoHcXR5X3N0chgCIAEoCSKoAgoIVHJhZGVCYXISKgoEa2luZBgBIAEoDjIcLmxha2Vob3VzZS5icm9uemUudjEuQmFyS2luZBIQCghpbnRlcnZhbBgCIAEoBBITCgtpbnRlcnZhbF9tcxgDIAEoDRIQCghvcGVuX3N0chgEIAEoCRIQCghoaWdoX3N0chgFIAEoCRIPCgdsb3dfc3RyGAYgASgJEhEKCWNsb3NlX3N0chgHIAEoCRISCgp2b2x1bWVfc3RyGAggASgJEhMKC3RyYWRlX2NvdW50GAkgASgEEiwKCGV2ZW50X3RzGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIqCgZlbmRfdHMYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIo0BCgVRdW90ZRIVCg1iaWRfcHJpY2Vfc3RyGAEgASgJEhMKC2JpZF9xdHlfc3RyGAIgASgJEhUKDWFza19wcmljZV9zdHIYAyABKAkSEwoLYXNrX3F0eV9zdHIYBCABKAkSLAoIZXZlbnRfdHMYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIosBChBEZXJpdmF0aXZlVGlja2VyEhYKDm1hcmtfcHJpY2Vfc3RyGAEgASgJEhcKD2luZGV4X3ByaWNlX3N0chgCIAEoCRIYChBmdW5kaW5nX3JhdGVfc3RyGAMgASgJEiwKCGV2ZW50X3RzGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKaAQoLTGlxdWlkYXRpb24SJwoEc2lkZRgBIAEoDjIZLmxha2Vob3VzZS5icm9uemUudjEuU2lkZRIRCglwcmljZV9zdHIYAiABKAkSDwoHcXR5X3N0chgDIAEoCRIQCghvcmRlcl9pZBgEIAEoCRIsCghldmVudF90cxgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiqAEKDU9wdGlvblN1bW1hcnkSDgoGaXZfc3RyGAEgASgJEhEKCWRlbHRhX3N0chgCIAEoCRIRCglnYW1tYV9zdHIYAyABKAkSEQoJdGhldGFfc3RyGAQgASgJEhAKCHZlZ2Ffc3RyGAUgASgJEg4KBm9pX3N0chgGIAEoCRIsCghldmVudF90cxgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAipgEKCkJvb2tUaWNrZXISGgoSYmVzdF9iaWRfcHJpY2Vfc3RyGAEgASgJEhgKEGJlc3RfYmlkX3F0eV9zdHIYAiABKAkSGgoSYmVzdF9hc2tfcHJpY2Vfc3RyGAMgASgJEhgKEGJlc3RfYXNrX3F0eV9zdHIYBCABKAkSLAoIZXZlbnRfdHMYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wImgKDENvbnRyb2xFcnJvchIPCgdkZXRhaWxzGAEgASgJEhkKEXN1YnNlcXVlbnRfZXJyb3JzGAIgASgNEiwKBGNvZGUYAyABKA4yHi5sYWtlaG91c2UuYnJvbnplLnYxLkVycm9yQ29kZSI3ChFDb250cm9sRGlzY29ubmVjdBIOCgZyZWFzb24YASABKAkSEgoKY2xvc2VfY29kZRgCIAEoDSo5CgRTaWRlEhQKEFNJREVfVU5TUEVDSUZJRUQQABIMCghTSURFX0JVWRABEg0KCVNJREVfU0VMTBACKkYKBkFjdGlvbhIWChJBQ1RJT05fVU5TUEVDSUZJRUQQABIRCg1BQ1RJT05fVVBTRVJUEAESEQoNQUNUSU9OX0RFTEVURRACKlwKBk9yaWdpbhIWChJPUklHSU5fVU5TUEVDSUZJRUQQABITCg9PUklHSU5fUkVBTFRJTUUQARIRCg1PUklHSU5fUkVQTEFZEAISEgoOT1JJR0lOX0FSQ0hJVkUQAypeCgdCYXJLaW5kEhgKFEJBUl9LSU5EX1VOU1BFQ0lGSUVEEAASEQoNQkFSX0tJTkRfVElDSxABEhEKDUJBUl9LSU5EX1RJTUUQAhITCg9CQVJfS0lORF9WT0xVTUUQAyqYAQoJRXJyb3JDb2RlEhoKFkVSUk9SX0NPREVfVU5TUEVDSUZJRUQQABIZChVFUlJPUl9DT0RFX1dTX0NPTk5FQ1QQARIWChJFUlJPUl9DT0RFX1dTX1NFTkQQAhIaChZFUlJPUl9DT0RFX1NPVVJDRV9BVVRIEAMSIAocRVJST1JfQ09ERV9TT1VSQ0VfUkFURV9MSU1JVBAEYgZwcm90bzM", [file_google_protobuf_timestamp]);
+export const file_lakehouse_bronze_v1_normalized_event: GenFile =
+  /*@__PURE__*/
+  fileDesc(
+    'CipsYWtlaG91c2UvYnJvbnplL3YxL25vcm1hbGl6ZWRfZXZlbnQucHJvdG8SE2xha2Vob3VzZS5icm9uemUudjEi9wcKD05vcm1hbGl6ZWRFdmVudBIOCgZzb3VyY2UYASABKAkSEAoIZXhjaGFuZ2UYAiABKAkSDgoGc3ltYm9sGAMgASgJEiwKCGxvY2FsX3RzGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBItCglpbmdlc3RfdHMYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEisKBm9yaWdpbhgGIAEoDjIbLmxha2Vob3VzZS5icm9uemUudjEuT3JpZ2luEjwKBG1ldGEYCiADKAsyLi5sYWtlaG91c2UuYnJvbnplLnYxLk5vcm1hbGl6ZWRFdmVudC5NZXRhRW50cnkSKwoFdHJhZGUYZCABKAsyGi5sYWtlaG91c2UuYnJvbnplLnYxLlRyYWRlSAASNgoLYm9va19jaGFuZ2UYZSABKAsyHy5sYWtlaG91c2UuYnJvbnplLnYxLkJvb2tDaGFuZ2VIABI6Cg1ib29rX3NuYXBzaG90GGYgASgLMiEubGFrZWhvdXNlLmJyb256ZS52MS5Cb29rU25hcHNob3RIABIrCgVxdW90ZRhnIAEoCzIaLmxha2Vob3VzZS5icm9uemUudjEuUXVvdGVIABJCChFkZXJpdmF0aXZlX3RpY2tlchhoIAEoCzIlLmxha2Vob3VzZS5icm9uemUudjEuRGVyaXZhdGl2ZVRpY2tlckgAEjcKC2xpcXVpZGF0aW9uGGkgASgLMiAubGFrZWhvdXNlLmJyb256ZS52MS5MaXF1aWRhdGlvbkgAEjwKDm9wdGlvbl9zdW1tYXJ5GGogASgLMiIubGFrZWhvdXNlLmJyb256ZS52MS5PcHRpb25TdW1tYXJ5SAASNgoLYm9va190aWNrZXIYayABKAsyHy5sYWtlaG91c2UuYnJvbnplLnYxLkJvb2tUaWNrZXJIABJJChVncm91cGVkX2Jvb2tfc25hcHNob3QYbCABKAsyKC5sYWtlaG91c2UuYnJvbnplLnYxLkdyb3VwZWRCb29rU25hcHNob3RIABIyCgl0cmFkZV9iYXIYbSABKAsyHS5sYWtlaG91c2UuYnJvbnplLnYxLlRyYWRlQmFySAASMwoFZXJyb3IYlgEgASgLMiEubGFrZWhvdXNlLmJyb256ZS52MS5Db250cm9sRXJyb3JIABI9CgpkaXNjb25uZWN0GJcBIAEoCzImLmxha2Vob3VzZS5icm9uemUudjEuQ29udHJvbERpc2Nvbm5lY3RIABorCglNZXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIJCgdwYXlsb2FkIqYBCgVUcmFkZRIQCgh0cmFkZV9pZBgBIAEoCRIRCglwcmljZV9zdHIYAiABKAkSDwoHcXR5X3N0chgDIAEoCRInCgRzaWRlGAQgASgOMhkubGFrZWhvdXNlLmJyb256ZS52MS5TaWRlEhAKCHNlcXVlbmNlGAUgASgDEiwKCGV2ZW50X3RzGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLVAQoKQm9va0NoYW5nZRInCgRzaWRlGAEgASgOMhkubGFrZWhvdXNlLmJyb256ZS52MS5TaWRlEisKBmFjdGlvbhgCIAEoDjIbLmxha2Vob3VzZS5icm9uemUudjEuQWN0aW9uEhEKCXByaWNlX3N0chgDIAEoCRIPCgdxdHlfc3RyGAQgASgJEg0KBWxldmVsGAUgASgFEhAKCHNlcXVlbmNlGAYgASgDEiwKCGV2ZW50X3RzGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCK+AgoMQm9va1NuYXBzaG90Eg0KBWRlcHRoGAEgASgNEjUKBGJpZHMYAiADKAsyJy5sYWtlaG91c2UuYnJvbnplLnYxLkJvb2tTbmFwc2hvdC5MZXZlbBI1CgRhc2tzGAMgAygLMicubGFrZWhvdXNlLmJyb256ZS52MS5Cb29rU25hcHNob3QuTGV2ZWwSLAoIZXZlbnRfdHMYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCGdyb3VwaW5nGAsgASgNEhMKC2ludGVydmFsX21zGAwgASgNEh0KFXJlbW92ZV9jcm9zc2VkX2xldmVscxgNIAEoCBIQCghzZXF1ZW5jZRgOIAEoAxorCgVMZXZlbBIRCglwcmljZV9zdHIYASABKAkSDwoHcXR5X3N0chgCIAEoCSLTAgoTR3JvdXBlZEJvb2tTbmFwc2hvdBINCgVkZXB0aBgBIAEoDRI8CgRiaWRzGAIgAygLMi4ubGFrZWhvdXNlLmJyb256ZS52MS5Hcm91cGVkQm9va1NuYXBzaG90LkxldmVsEjwKBGFza3MYAyADKAsyLi5sYWtlaG91c2UuYnJvbnplLnYxLkdyb3VwZWRCb29rU25hcHNob3QuTGV2ZWwSLAoIZXZlbnRfdHMYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCGdyb3VwaW5nGAsgASgNEhMKC2ludGVydmFsX21zGAwgASgNEh0KFXJlbW92ZV9jcm9zc2VkX2xldmVscxgNIAEoCBIQCghzZXF1ZW5jZRgOIAEoAxorCgVMZXZlbBIRCglwcmljZV9zdHIYASABKAkSDwoHcXR5X3N0chgCIAEoCSKoAgoIVHJhZGVCYXISKgoEa2luZBgBIAEoDjIcLmxha2Vob3VzZS5icm9uemUudjEuQmFyS2luZBIQCghpbnRlcnZhbBgCIAEoBBITCgtpbnRlcnZhbF9tcxgDIAEoDRIQCghvcGVuX3N0chgEIAEoCRIQCghoaWdoX3N0chgFIAEoCRIPCgdsb3dfc3RyGAYgASgJEhEKCWNsb3NlX3N0chgHIAEoCRISCgp2b2x1bWVfc3RyGAggASgJEhMKC3RyYWRlX2NvdW50GAkgASgEEiwKCGV2ZW50X3RzGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIqCgZlbmRfdHMYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIo0BCgVRdW90ZRIVCg1iaWRfcHJpY2Vfc3RyGAEgASgJEhMKC2JpZF9xdHlfc3RyGAIgASgJEhUKDWFza19wcmljZV9zdHIYAyABKAkSEwoLYXNrX3F0eV9zdHIYBCABKAkSLAoIZXZlbnRfdHMYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIosBChBEZXJpdmF0aXZlVGlja2VyEhYKDm1hcmtfcHJpY2Vfc3RyGAEgASgJEhcKD2luZGV4X3ByaWNlX3N0chgCIAEoCRIYChBmdW5kaW5nX3JhdGVfc3RyGAMgASgJEiwKCGV2ZW50X3RzGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKaAQoLTGlxdWlkYXRpb24SJwoEc2lkZRgBIAEoDjIZLmxha2Vob3VzZS5icm9uemUudjEuU2lkZRIRCglwcmljZV9zdHIYAiABKAkSDwoHcXR5X3N0chgDIAEoCRIQCghvcmRlcl9pZBgEIAEoCRIsCghldmVudF90cxgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiqAEKDU9wdGlvblN1bW1hcnkSDgoGaXZfc3RyGAEgASgJEhEKCWRlbHRhX3N0chgCIAEoCRIRCglnYW1tYV9zdHIYAyABKAkSEQoJdGhldGFfc3RyGAQgASgJEhAKCHZlZ2Ffc3RyGAUgASgJEg4KBm9pX3N0chgGIAEoCRIsCghldmVudF90cxgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAipgEKCkJvb2tUaWNrZXISGgoSYmVzdF9iaWRfcHJpY2Vfc3RyGAEgASgJEhgKEGJlc3RfYmlkX3F0eV9zdHIYAiABKAkSGgoSYmVzdF9hc2tfcHJpY2Vfc3RyGAMgASgJEhgKEGJlc3RfYXNrX3F0eV9zdHIYBCABKAkSLAoIZXZlbnRfdHMYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wImgKDENvbnRyb2xFcnJvchIPCgdkZXRhaWxzGAEgASgJEhkKEXN1YnNlcXVlbnRfZXJyb3JzGAIgASgNEiwKBGNvZGUYAyABKA4yHi5sYWtlaG91c2UuYnJvbnplLnYxLkVycm9yQ29kZSI3ChFDb250cm9sRGlzY29ubmVjdBIOCgZyZWFzb24YASABKAkSEgoKY2xvc2VfY29kZRgCIAEoDSo5CgRTaWRlEhQKEFNJREVfVU5TUEVDSUZJRUQQABIMCghTSURFX0JVWRABEg0KCVNJREVfU0VMTBACKkYKBkFjdGlvbhIWChJBQ1RJT05fVU5TUEVDSUZJRUQQABIRCg1BQ1RJT05fVVBTRVJUEAESEQoNQUNUSU9OX0RFTEVURRACKlwKBk9yaWdpbhIWChJPUklHSU5fVU5TUEVDSUZJRUQQABITCg9PUklHSU5fUkVBTFRJTUUQARIRCg1PUklHSU5fUkVQTEFZEAISEgoOT1JJR0lOX0FSQ0hJVkUQAypeCgdCYXJLaW5kEhgKFEJBUl9LSU5EX1VOU1BFQ0lGSUVEEAASEQoNQkFSX0tJTkRfVElDSxABEhEKDUJBUl9LSU5EX1RJTUUQAhITCg9CQVJfS0lORF9WT0xVTUUQAyqYAQoJRXJyb3JDb2RlEhoKFkVSUk9SX0NPREVfVU5TUEVDSUZJRUQQABIZChVFUlJPUl9DT0RFX1dTX0NPTk5FQ1QQARIWChJFUlJPUl9DT0RFX1dTX1NFTkQQAhIaChZFUlJPUl9DT0RFX1NPVVJDRV9BVVRIEAMSIAocRVJST1JfQ09ERV9TT1VSQ0VfUkFURV9MSU1JVBAEYgZwcm90bzM',
+    [file_google_protobuf_timestamp]
+  )
 
 /**
  * Bronze envelope for normalized data and control messages
  *
  * @generated from message lakehouse.bronze.v1.NormalizedEvent
  */
-export type NormalizedEvent = Message<"lakehouse.bronze.v1.NormalizedEvent"> & {
+export type NormalizedEvent = Message<'lakehouse.bronze.v1.NormalizedEvent'> & {
   /**
    * tardis-machine | tardis-node | archive
    *
    * @generated from field: string source = 1;
    */
-  source: string;
+  source: string
 
   /**
    * e.g., "binance"
    *
    * @generated from field: string exchange = 2;
    */
-  exchange: string;
+  exchange: string
 
   /**
    * e.g., "btcusdt" (optional for some controls)
    *
    * @generated from field: string symbol = 3;
    */
-  symbol: string;
+  symbol: string
 
   /**
    * server/local timestamp at ingress
    *
    * @generated from field: google.protobuf.Timestamp local_ts = 4;
    */
-  localTs?: Timestamp;
+  localTs?: Timestamp
 
   /**
    * Optional pipeline ingest timestamp (may be set by producer or consumer layer)
    *
    * @generated from field: google.protobuf.Timestamp ingest_ts = 5;
    */
-  ingestTs?: Timestamp;
+  ingestTs?: Timestamp
 
   /**
    * Origin of the data (realtime, replay, archive)
    *
    * @generated from field: lakehouse.bronze.v1.Origin origin = 6;
    */
-  origin: Origin;
+  origin: Origin
 
   /**
    * optional extras (session, shard, etc.)
    *
    * @generated from field: map<string, string> meta = 10;
    */
-  meta: { [key: string]: string };
+  meta: { [key: string]: string }
 
   /**
    * @generated from oneof lakehouse.bronze.v1.NormalizedEvent.payload
    */
-  payload: {
-    /**
-     * @generated from field: lakehouse.bronze.v1.Trade trade = 100;
-     */
-    value: Trade;
-    case: "trade";
-  } | {
-    /**
-     * @generated from field: lakehouse.bronze.v1.BookChange book_change = 101;
-     */
-    value: BookChange;
-    case: "bookChange";
-  } | {
-    /**
-     * @generated from field: lakehouse.bronze.v1.BookSnapshot book_snapshot = 102;
-     */
-    value: BookSnapshot;
-    case: "bookSnapshot";
-  } | {
-    /**
-     * @generated from field: lakehouse.bronze.v1.Quote quote = 103;
-     */
-    value: Quote;
-    case: "quote";
-  } | {
-    /**
-     * @generated from field: lakehouse.bronze.v1.DerivativeTicker derivative_ticker = 104;
-     */
-    value: DerivativeTicker;
-    case: "derivativeTicker";
-  } | {
-    /**
-     * @generated from field: lakehouse.bronze.v1.Liquidation liquidation = 105;
-     */
-    value: Liquidation;
-    case: "liquidation";
-  } | {
-    /**
-     * @generated from field: lakehouse.bronze.v1.OptionSummary option_summary = 106;
-     */
-    value: OptionSummary;
-    case: "optionSummary";
-  } | {
-    /**
-     * @generated from field: lakehouse.bronze.v1.BookTicker book_ticker = 107;
-     */
-    value: BookTicker;
-    case: "bookTicker";
-  } | {
-    /**
-     * @generated from field: lakehouse.bronze.v1.GroupedBookSnapshot grouped_book_snapshot = 108;
-     */
-    value: GroupedBookSnapshot;
-    case: "groupedBookSnapshot";
-  } | {
-    /**
-     * @generated from field: lakehouse.bronze.v1.TradeBar trade_bar = 109;
-     */
-    value: TradeBar;
-    case: "tradeBar";
-  } | {
-    /**
-     * @generated from field: lakehouse.bronze.v1.ControlError error = 150;
-     */
-    value: ControlError;
-    case: "error";
-  } | {
-    /**
-     * @generated from field: lakehouse.bronze.v1.ControlDisconnect disconnect = 151;
-     */
-    value: ControlDisconnect;
-    case: "disconnect";
-  } | { case: undefined; value?: undefined };
-};
+  payload:
+    | {
+        /**
+         * @generated from field: lakehouse.bronze.v1.Trade trade = 100;
+         */
+        value: Trade
+        case: 'trade'
+      }
+    | {
+        /**
+         * @generated from field: lakehouse.bronze.v1.BookChange book_change = 101;
+         */
+        value: BookChange
+        case: 'bookChange'
+      }
+    | {
+        /**
+         * @generated from field: lakehouse.bronze.v1.BookSnapshot book_snapshot = 102;
+         */
+        value: BookSnapshot
+        case: 'bookSnapshot'
+      }
+    | {
+        /**
+         * @generated from field: lakehouse.bronze.v1.Quote quote = 103;
+         */
+        value: Quote
+        case: 'quote'
+      }
+    | {
+        /**
+         * @generated from field: lakehouse.bronze.v1.DerivativeTicker derivative_ticker = 104;
+         */
+        value: DerivativeTicker
+        case: 'derivativeTicker'
+      }
+    | {
+        /**
+         * @generated from field: lakehouse.bronze.v1.Liquidation liquidation = 105;
+         */
+        value: Liquidation
+        case: 'liquidation'
+      }
+    | {
+        /**
+         * @generated from field: lakehouse.bronze.v1.OptionSummary option_summary = 106;
+         */
+        value: OptionSummary
+        case: 'optionSummary'
+      }
+    | {
+        /**
+         * @generated from field: lakehouse.bronze.v1.BookTicker book_ticker = 107;
+         */
+        value: BookTicker
+        case: 'bookTicker'
+      }
+    | {
+        /**
+         * @generated from field: lakehouse.bronze.v1.GroupedBookSnapshot grouped_book_snapshot = 108;
+         */
+        value: GroupedBookSnapshot
+        case: 'groupedBookSnapshot'
+      }
+    | {
+        /**
+         * @generated from field: lakehouse.bronze.v1.TradeBar trade_bar = 109;
+         */
+        value: TradeBar
+        case: 'tradeBar'
+      }
+    | {
+        /**
+         * @generated from field: lakehouse.bronze.v1.ControlError error = 150;
+         */
+        value: ControlError
+        case: 'error'
+      }
+    | {
+        /**
+         * @generated from field: lakehouse.bronze.v1.ControlDisconnect disconnect = 151;
+         */
+        value: ControlDisconnect
+        case: 'disconnect'
+      }
+    | { case: undefined; value?: undefined }
+}
 
 /**
  * Describes the message lakehouse.bronze.v1.NormalizedEvent.
  * Use `create(NormalizedEventSchema)` to create a new message.
  */
-export const NormalizedEventSchema: GenMessage<NormalizedEvent> = /*@__PURE__*/
-  messageDesc(file_lakehouse_bronze_v1_normalized_event, 0);
+export const NormalizedEventSchema: GenMessage<NormalizedEvent> = /*@__PURE__*/ messageDesc(file_lakehouse_bronze_v1_normalized_event, 0)
 
 /**
  * @generated from message lakehouse.bronze.v1.Trade
  */
-export type Trade = Message<"lakehouse.bronze.v1.Trade"> & {
+export type Trade = Message<'lakehouse.bronze.v1.Trade'> & {
   /**
    * optional exchange trade id
    *
    * @generated from field: string trade_id = 1;
    */
-  tradeId: string;
+  tradeId: string
 
   /**
    * decimal as string
    *
    * @generated from field: string price_str = 2;
    */
-  priceStr: string;
+  priceStr: string
 
   /**
    * decimal as string
    *
    * @generated from field: string qty_str = 3;
    */
-  qtyStr: string;
+  qtyStr: string
 
   /**
    * aggressor side if known
    *
    * @generated from field: lakehouse.bronze.v1.Side side = 4;
    */
-  side: Side;
+  side: Side
 
   /**
    * optional sequence
    *
    * @generated from field: int64 sequence = 5;
    */
-  sequence: bigint;
+  sequence: bigint
 
   /**
    * event time from venue if available
    *
    * @generated from field: google.protobuf.Timestamp event_ts = 10;
    */
-  eventTs?: Timestamp;
-};
+  eventTs?: Timestamp
+}
 
 /**
  * Describes the message lakehouse.bronze.v1.Trade.
  * Use `create(TradeSchema)` to create a new message.
  */
-export const TradeSchema: GenMessage<Trade> = /*@__PURE__*/
-  messageDesc(file_lakehouse_bronze_v1_normalized_event, 1);
+export const TradeSchema: GenMessage<Trade> = /*@__PURE__*/ messageDesc(file_lakehouse_bronze_v1_normalized_event, 1)
 
 /**
  * @generated from message lakehouse.bronze.v1.BookChange
  */
-export type BookChange = Message<"lakehouse.bronze.v1.BookChange"> & {
+export type BookChange = Message<'lakehouse.bronze.v1.BookChange'> & {
   /**
    * @generated from field: lakehouse.bronze.v1.Side side = 1;
    */
-  side: Side;
+  side: Side
 
   /**
    * @generated from field: lakehouse.bronze.v1.Action action = 2;
    */
-  action: Action;
+  action: Action
 
   /**
    * decimal as string
    *
    * @generated from field: string price_str = 3;
    */
-  priceStr: string;
+  priceStr: string
 
   /**
    * decimal as string (0 for delete in some venues)
    *
    * @generated from field: string qty_str = 4;
    */
-  qtyStr: string;
+  qtyStr: string
 
   /**
    * optional: level index
    *
    * @generated from field: int32 level = 5;
    */
-  level: number;
+  level: number
 
   /**
    * optional sequence
    *
    * @generated from field: int64 sequence = 6;
    */
-  sequence: bigint;
+  sequence: bigint
 
   /**
    * @generated from field: google.protobuf.Timestamp event_ts = 10;
    */
-  eventTs?: Timestamp;
-};
+  eventTs?: Timestamp
+}
 
 /**
  * Describes the message lakehouse.bronze.v1.BookChange.
  * Use `create(BookChangeSchema)` to create a new message.
  */
-export const BookChangeSchema: GenMessage<BookChange> = /*@__PURE__*/
-  messageDesc(file_lakehouse_bronze_v1_normalized_event, 2);
+export const BookChangeSchema: GenMessage<BookChange> = /*@__PURE__*/ messageDesc(file_lakehouse_bronze_v1_normalized_event, 2)
 
 /**
  * @generated from message lakehouse.bronze.v1.BookSnapshot
  */
-export type BookSnapshot = Message<"lakehouse.bronze.v1.BookSnapshot"> & {
+export type BookSnapshot = Message<'lakehouse.bronze.v1.BookSnapshot'> & {
   /**
    * @generated from field: uint32 depth = 1;
    */
-  depth: number;
+  depth: number
 
   /**
    * @generated from field: repeated lakehouse.bronze.v1.BookSnapshot.Level bids = 2;
    */
-  bids: BookSnapshot_Level[];
+  bids: BookSnapshot_Level[]
 
   /**
    * @generated from field: repeated lakehouse.bronze.v1.BookSnapshot.Level asks = 3;
    */
-  asks: BookSnapshot_Level[];
+  asks: BookSnapshot_Level[]
 
   /**
    * @generated from field: google.protobuf.Timestamp event_ts = 10;
    */
-  eventTs?: Timestamp;
+  eventTs?: Timestamp
 
   /**
    * Optional snapshot metadata when computed on the server
@@ -294,454 +308,450 @@ export type BookSnapshot = Message<"lakehouse.bronze.v1.BookSnapshot"> & {
    *
    * @generated from field: uint32 grouping = 11;
    */
-  grouping: number;
+  grouping: number
 
   /**
    * interval used for periodic snapshots
    *
    * @generated from field: uint32 interval_ms = 12;
    */
-  intervalMs: number;
+  intervalMs: number
 
   /**
    * whether crossed levels were removed
    *
    * @generated from field: bool remove_crossed_levels = 13;
    */
-  removeCrossedLevels: boolean;
+  removeCrossedLevels: boolean
 
   /**
    * optional sequence identifier
    *
    * @generated from field: int64 sequence = 14;
    */
-  sequence: bigint;
-};
+  sequence: bigint
+}
 
 /**
  * Describes the message lakehouse.bronze.v1.BookSnapshot.
  * Use `create(BookSnapshotSchema)` to create a new message.
  */
-export const BookSnapshotSchema: GenMessage<BookSnapshot> = /*@__PURE__*/
-  messageDesc(file_lakehouse_bronze_v1_normalized_event, 3);
+export const BookSnapshotSchema: GenMessage<BookSnapshot> = /*@__PURE__*/ messageDesc(file_lakehouse_bronze_v1_normalized_event, 3)
 
 /**
  * @generated from message lakehouse.bronze.v1.BookSnapshot.Level
  */
-export type BookSnapshot_Level = Message<"lakehouse.bronze.v1.BookSnapshot.Level"> & {
+export type BookSnapshot_Level = Message<'lakehouse.bronze.v1.BookSnapshot.Level'> & {
   /**
    * @generated from field: string price_str = 1;
    */
-  priceStr: string;
+  priceStr: string
 
   /**
    * @generated from field: string qty_str = 2;
    */
-  qtyStr: string;
-};
+  qtyStr: string
+}
 
 /**
  * Describes the message lakehouse.bronze.v1.BookSnapshot.Level.
  * Use `create(BookSnapshot_LevelSchema)` to create a new message.
  */
-export const BookSnapshot_LevelSchema: GenMessage<BookSnapshot_Level> = /*@__PURE__*/
-  messageDesc(file_lakehouse_bronze_v1_normalized_event, 3, 0);
+export const BookSnapshot_LevelSchema: GenMessage<BookSnapshot_Level> =
+  /*@__PURE__*/
+  messageDesc(file_lakehouse_bronze_v1_normalized_event, 3, 0)
 
 /**
  * Grouped snapshot as a separate payload for clarity, although BookSnapshot may also carry metadata
  *
  * @generated from message lakehouse.bronze.v1.GroupedBookSnapshot
  */
-export type GroupedBookSnapshot = Message<"lakehouse.bronze.v1.GroupedBookSnapshot"> & {
+export type GroupedBookSnapshot = Message<'lakehouse.bronze.v1.GroupedBookSnapshot'> & {
   /**
    * @generated from field: uint32 depth = 1;
    */
-  depth: number;
+  depth: number
 
   /**
    * @generated from field: repeated lakehouse.bronze.v1.GroupedBookSnapshot.Level bids = 2;
    */
-  bids: GroupedBookSnapshot_Level[];
+  bids: GroupedBookSnapshot_Level[]
 
   /**
    * @generated from field: repeated lakehouse.bronze.v1.GroupedBookSnapshot.Level asks = 3;
    */
-  asks: GroupedBookSnapshot_Level[];
+  asks: GroupedBookSnapshot_Level[]
 
   /**
    * @generated from field: google.protobuf.Timestamp event_ts = 10;
    */
-  eventTs?: Timestamp;
+  eventTs?: Timestamp
 
   /**
    * @generated from field: uint32 grouping = 11;
    */
-  grouping: number;
+  grouping: number
 
   /**
    * @generated from field: uint32 interval_ms = 12;
    */
-  intervalMs: number;
+  intervalMs: number
 
   /**
    * @generated from field: bool remove_crossed_levels = 13;
    */
-  removeCrossedLevels: boolean;
+  removeCrossedLevels: boolean
 
   /**
    * @generated from field: int64 sequence = 14;
    */
-  sequence: bigint;
-};
+  sequence: bigint
+}
 
 /**
  * Describes the message lakehouse.bronze.v1.GroupedBookSnapshot.
  * Use `create(GroupedBookSnapshotSchema)` to create a new message.
  */
-export const GroupedBookSnapshotSchema: GenMessage<GroupedBookSnapshot> = /*@__PURE__*/
-  messageDesc(file_lakehouse_bronze_v1_normalized_event, 4);
+export const GroupedBookSnapshotSchema: GenMessage<GroupedBookSnapshot> =
+  /*@__PURE__*/
+  messageDesc(file_lakehouse_bronze_v1_normalized_event, 4)
 
 /**
  * @generated from message lakehouse.bronze.v1.GroupedBookSnapshot.Level
  */
-export type GroupedBookSnapshot_Level = Message<"lakehouse.bronze.v1.GroupedBookSnapshot.Level"> & {
+export type GroupedBookSnapshot_Level = Message<'lakehouse.bronze.v1.GroupedBookSnapshot.Level'> & {
   /**
    * @generated from field: string price_str = 1;
    */
-  priceStr: string;
+  priceStr: string
 
   /**
    * @generated from field: string qty_str = 2;
    */
-  qtyStr: string;
-};
+  qtyStr: string
+}
 
 /**
  * Describes the message lakehouse.bronze.v1.GroupedBookSnapshot.Level.
  * Use `create(GroupedBookSnapshot_LevelSchema)` to create a new message.
  */
-export const GroupedBookSnapshot_LevelSchema: GenMessage<GroupedBookSnapshot_Level> = /*@__PURE__*/
-  messageDesc(file_lakehouse_bronze_v1_normalized_event, 4, 0);
+export const GroupedBookSnapshot_LevelSchema: GenMessage<GroupedBookSnapshot_Level> =
+  /*@__PURE__*/
+  messageDesc(file_lakehouse_bronze_v1_normalized_event, 4, 0)
 
 /**
  * Trade bar computed over time/ticks/volume
  *
  * @generated from message lakehouse.bronze.v1.TradeBar
  */
-export type TradeBar = Message<"lakehouse.bronze.v1.TradeBar"> & {
+export type TradeBar = Message<'lakehouse.bronze.v1.TradeBar'> & {
   /**
    * time, tick, volume
    *
    * @generated from field: lakehouse.bronze.v1.BarKind kind = 1;
    */
-  kind: BarKind;
+  kind: BarKind
 
   /**
    * number of units (ticks/volume). For time this is the unscaled input interval
    *
    * @generated from field: uint64 interval = 2;
    */
-  interval: bigint;
+  interval: bigint
 
   /**
    * materialized time interval in ms (0 for non-time bars)
    *
    * @generated from field: uint32 interval_ms = 3;
    */
-  intervalMs: number;
+  intervalMs: number
 
   /**
    * @generated from field: string open_str = 4;
    */
-  openStr: string;
+  openStr: string
 
   /**
    * @generated from field: string high_str = 5;
    */
-  highStr: string;
+  highStr: string
 
   /**
    * @generated from field: string low_str = 6;
    */
-  lowStr: string;
+  lowStr: string
 
   /**
    * @generated from field: string close_str = 7;
    */
-  closeStr: string;
+  closeStr: string
 
   /**
    * @generated from field: string volume_str = 8;
    */
-  volumeStr: string;
+  volumeStr: string
 
   /**
    * @generated from field: uint64 trade_count = 9;
    */
-  tradeCount: bigint;
+  tradeCount: bigint
 
   /**
    * bar start
    *
    * @generated from field: google.protobuf.Timestamp event_ts = 10;
    */
-  eventTs?: Timestamp;
+  eventTs?: Timestamp
 
   /**
    * bar end
    *
    * @generated from field: google.protobuf.Timestamp end_ts = 11;
    */
-  endTs?: Timestamp;
-};
+  endTs?: Timestamp
+}
 
 /**
  * Describes the message lakehouse.bronze.v1.TradeBar.
  * Use `create(TradeBarSchema)` to create a new message.
  */
-export const TradeBarSchema: GenMessage<TradeBar> = /*@__PURE__*/
-  messageDesc(file_lakehouse_bronze_v1_normalized_event, 5);
+export const TradeBarSchema: GenMessage<TradeBar> = /*@__PURE__*/ messageDesc(file_lakehouse_bronze_v1_normalized_event, 5)
 
 /**
  * @generated from message lakehouse.bronze.v1.Quote
  */
-export type Quote = Message<"lakehouse.bronze.v1.Quote"> & {
+export type Quote = Message<'lakehouse.bronze.v1.Quote'> & {
   /**
    * @generated from field: string bid_price_str = 1;
    */
-  bidPriceStr: string;
+  bidPriceStr: string
 
   /**
    * @generated from field: string bid_qty_str = 2;
    */
-  bidQtyStr: string;
+  bidQtyStr: string
 
   /**
    * @generated from field: string ask_price_str = 3;
    */
-  askPriceStr: string;
+  askPriceStr: string
 
   /**
    * @generated from field: string ask_qty_str = 4;
    */
-  askQtyStr: string;
+  askQtyStr: string
 
   /**
    * @generated from field: google.protobuf.Timestamp event_ts = 10;
    */
-  eventTs?: Timestamp;
-};
+  eventTs?: Timestamp
+}
 
 /**
  * Describes the message lakehouse.bronze.v1.Quote.
  * Use `create(QuoteSchema)` to create a new message.
  */
-export const QuoteSchema: GenMessage<Quote> = /*@__PURE__*/
-  messageDesc(file_lakehouse_bronze_v1_normalized_event, 6);
+export const QuoteSchema: GenMessage<Quote> = /*@__PURE__*/ messageDesc(file_lakehouse_bronze_v1_normalized_event, 6)
 
 /**
  * @generated from message lakehouse.bronze.v1.DerivativeTicker
  */
-export type DerivativeTicker = Message<"lakehouse.bronze.v1.DerivativeTicker"> & {
+export type DerivativeTicker = Message<'lakehouse.bronze.v1.DerivativeTicker'> & {
   /**
    * @generated from field: string mark_price_str = 1;
    */
-  markPriceStr: string;
+  markPriceStr: string
 
   /**
    * @generated from field: string index_price_str = 2;
    */
-  indexPriceStr: string;
+  indexPriceStr: string
 
   /**
    * @generated from field: string funding_rate_str = 3;
    */
-  fundingRateStr: string;
+  fundingRateStr: string
 
   /**
    * @generated from field: google.protobuf.Timestamp event_ts = 10;
    */
-  eventTs?: Timestamp;
-};
+  eventTs?: Timestamp
+}
 
 /**
  * Describes the message lakehouse.bronze.v1.DerivativeTicker.
  * Use `create(DerivativeTickerSchema)` to create a new message.
  */
-export const DerivativeTickerSchema: GenMessage<DerivativeTicker> = /*@__PURE__*/
-  messageDesc(file_lakehouse_bronze_v1_normalized_event, 7);
+export const DerivativeTickerSchema: GenMessage<DerivativeTicker> = /*@__PURE__*/ messageDesc(file_lakehouse_bronze_v1_normalized_event, 7)
 
 /**
  * @generated from message lakehouse.bronze.v1.Liquidation
  */
-export type Liquidation = Message<"lakehouse.bronze.v1.Liquidation"> & {
+export type Liquidation = Message<'lakehouse.bronze.v1.Liquidation'> & {
   /**
    * @generated from field: lakehouse.bronze.v1.Side side = 1;
    */
-  side: Side;
+  side: Side
 
   /**
    * @generated from field: string price_str = 2;
    */
-  priceStr: string;
+  priceStr: string
 
   /**
    * @generated from field: string qty_str = 3;
    */
-  qtyStr: string;
+  qtyStr: string
 
   /**
    * @generated from field: string order_id = 4;
    */
-  orderId: string;
+  orderId: string
 
   /**
    * @generated from field: google.protobuf.Timestamp event_ts = 10;
    */
-  eventTs?: Timestamp;
-};
+  eventTs?: Timestamp
+}
 
 /**
  * Describes the message lakehouse.bronze.v1.Liquidation.
  * Use `create(LiquidationSchema)` to create a new message.
  */
-export const LiquidationSchema: GenMessage<Liquidation> = /*@__PURE__*/
-  messageDesc(file_lakehouse_bronze_v1_normalized_event, 8);
+export const LiquidationSchema: GenMessage<Liquidation> = /*@__PURE__*/ messageDesc(file_lakehouse_bronze_v1_normalized_event, 8)
 
 /**
  * @generated from message lakehouse.bronze.v1.OptionSummary
  */
-export type OptionSummary = Message<"lakehouse.bronze.v1.OptionSummary"> & {
+export type OptionSummary = Message<'lakehouse.bronze.v1.OptionSummary'> & {
   /**
    * @generated from field: string iv_str = 1;
    */
-  ivStr: string;
+  ivStr: string
 
   /**
    * @generated from field: string delta_str = 2;
    */
-  deltaStr: string;
+  deltaStr: string
 
   /**
    * @generated from field: string gamma_str = 3;
    */
-  gammaStr: string;
+  gammaStr: string
 
   /**
    * @generated from field: string theta_str = 4;
    */
-  thetaStr: string;
+  thetaStr: string
 
   /**
    * @generated from field: string vega_str = 5;
    */
-  vegaStr: string;
+  vegaStr: string
 
   /**
    * @generated from field: string oi_str = 6;
    */
-  oiStr: string;
+  oiStr: string
 
   /**
    * @generated from field: google.protobuf.Timestamp event_ts = 10;
    */
-  eventTs?: Timestamp;
-};
+  eventTs?: Timestamp
+}
 
 /**
  * Describes the message lakehouse.bronze.v1.OptionSummary.
  * Use `create(OptionSummarySchema)` to create a new message.
  */
-export const OptionSummarySchema: GenMessage<OptionSummary> = /*@__PURE__*/
-  messageDesc(file_lakehouse_bronze_v1_normalized_event, 9);
+export const OptionSummarySchema: GenMessage<OptionSummary> = /*@__PURE__*/ messageDesc(file_lakehouse_bronze_v1_normalized_event, 9)
 
 /**
  * @generated from message lakehouse.bronze.v1.BookTicker
  */
-export type BookTicker = Message<"lakehouse.bronze.v1.BookTicker"> & {
+export type BookTicker = Message<'lakehouse.bronze.v1.BookTicker'> & {
   /**
    * @generated from field: string best_bid_price_str = 1;
    */
-  bestBidPriceStr: string;
+  bestBidPriceStr: string
 
   /**
    * @generated from field: string best_bid_qty_str = 2;
    */
-  bestBidQtyStr: string;
+  bestBidQtyStr: string
 
   /**
    * @generated from field: string best_ask_price_str = 3;
    */
-  bestAskPriceStr: string;
+  bestAskPriceStr: string
 
   /**
    * @generated from field: string best_ask_qty_str = 4;
    */
-  bestAskQtyStr: string;
+  bestAskQtyStr: string
 
   /**
    * @generated from field: google.protobuf.Timestamp event_ts = 10;
    */
-  eventTs?: Timestamp;
-};
+  eventTs?: Timestamp
+}
 
 /**
  * Describes the message lakehouse.bronze.v1.BookTicker.
  * Use `create(BookTickerSchema)` to create a new message.
  */
-export const BookTickerSchema: GenMessage<BookTicker> = /*@__PURE__*/
-  messageDesc(file_lakehouse_bronze_v1_normalized_event, 10);
+export const BookTickerSchema: GenMessage<BookTicker> = /*@__PURE__*/ messageDesc(file_lakehouse_bronze_v1_normalized_event, 10)
 
 /**
  * @generated from message lakehouse.bronze.v1.ControlError
  */
-export type ControlError = Message<"lakehouse.bronze.v1.ControlError"> & {
+export type ControlError = Message<'lakehouse.bronze.v1.ControlError'> & {
   /**
    * @generated from field: string details = 1;
    */
-  details: string;
+  details: string
 
   /**
    * @generated from field: uint32 subsequent_errors = 2;
    */
-  subsequentErrors: number;
+  subsequentErrors: number
 
   /**
    * @generated from field: lakehouse.bronze.v1.ErrorCode code = 3;
    */
-  code: ErrorCode;
-};
+  code: ErrorCode
+}
 
 /**
  * Describes the message lakehouse.bronze.v1.ControlError.
  * Use `create(ControlErrorSchema)` to create a new message.
  */
-export const ControlErrorSchema: GenMessage<ControlError> = /*@__PURE__*/
-  messageDesc(file_lakehouse_bronze_v1_normalized_event, 11);
+export const ControlErrorSchema: GenMessage<ControlError> = /*@__PURE__*/ messageDesc(file_lakehouse_bronze_v1_normalized_event, 11)
 
 /**
  * @generated from message lakehouse.bronze.v1.ControlDisconnect
  */
-export type ControlDisconnect = Message<"lakehouse.bronze.v1.ControlDisconnect"> & {
+export type ControlDisconnect = Message<'lakehouse.bronze.v1.ControlDisconnect'> & {
   /**
    * @generated from field: string reason = 1;
    */
-  reason: string;
+  reason: string
 
   /**
    * websocket close code if applicable
    *
    * @generated from field: uint32 close_code = 2;
    */
-  closeCode: number;
-};
+  closeCode: number
+}
 
 /**
  * Describes the message lakehouse.bronze.v1.ControlDisconnect.
  * Use `create(ControlDisconnectSchema)` to create a new message.
  */
-export const ControlDisconnectSchema: GenMessage<ControlDisconnect> = /*@__PURE__*/
-  messageDesc(file_lakehouse_bronze_v1_normalized_event, 12);
+export const ControlDisconnectSchema: GenMessage<ControlDisconnect> =
+  /*@__PURE__*/
+  messageDesc(file_lakehouse_bronze_v1_normalized_event, 12)
 
 /**
  * Common enums
@@ -762,14 +772,13 @@ export enum Side {
   /**
    * @generated from enum value: SIDE_SELL = 2;
    */
-  SELL = 2,
+  SELL = 2
 }
 
 /**
  * Describes the enum lakehouse.bronze.v1.Side.
  */
-export const SideSchema: GenEnum<Side> = /*@__PURE__*/
-  enumDesc(file_lakehouse_bronze_v1_normalized_event, 0);
+export const SideSchema: GenEnum<Side> = /*@__PURE__*/ enumDesc(file_lakehouse_bronze_v1_normalized_event, 0)
 
 /**
  * @generated from enum lakehouse.bronze.v1.Action
@@ -792,14 +801,13 @@ export enum Action {
    *
    * @generated from enum value: ACTION_DELETE = 2;
    */
-  DELETE = 2,
+  DELETE = 2
 }
 
 /**
  * Describes the enum lakehouse.bronze.v1.Action.
  */
-export const ActionSchema: GenEnum<Action> = /*@__PURE__*/
-  enumDesc(file_lakehouse_bronze_v1_normalized_event, 1);
+export const ActionSchema: GenEnum<Action> = /*@__PURE__*/ enumDesc(file_lakehouse_bronze_v1_normalized_event, 1)
 
 /**
  * Describes from where this event originated
@@ -825,14 +833,13 @@ export enum Origin {
   /**
    * @generated from enum value: ORIGIN_ARCHIVE = 3;
    */
-  ARCHIVE = 3,
+  ARCHIVE = 3
 }
 
 /**
  * Describes the enum lakehouse.bronze.v1.Origin.
  */
-export const OriginSchema: GenEnum<Origin> = /*@__PURE__*/
-  enumDesc(file_lakehouse_bronze_v1_normalized_event, 2);
+export const OriginSchema: GenEnum<Origin> = /*@__PURE__*/ enumDesc(file_lakehouse_bronze_v1_normalized_event, 2)
 
 /**
  * @generated from enum lakehouse.bronze.v1.BarKind
@@ -856,14 +863,13 @@ export enum BarKind {
   /**
    * @generated from enum value: BAR_KIND_VOLUME = 3;
    */
-  VOLUME = 3,
+  VOLUME = 3
 }
 
 /**
  * Describes the enum lakehouse.bronze.v1.BarKind.
  */
-export const BarKindSchema: GenEnum<BarKind> = /*@__PURE__*/
-  enumDesc(file_lakehouse_bronze_v1_normalized_event, 3);
+export const BarKindSchema: GenEnum<BarKind> = /*@__PURE__*/ enumDesc(file_lakehouse_bronze_v1_normalized_event, 3)
 
 /**
  * @generated from enum lakehouse.bronze.v1.ErrorCode
@@ -900,12 +906,10 @@ export enum ErrorCode {
    *
    * @generated from enum value: ERROR_CODE_SOURCE_RATE_LIMIT = 4;
    */
-  SOURCE_RATE_LIMIT = 4,
+  SOURCE_RATE_LIMIT = 4
 }
 
 /**
  * Describes the enum lakehouse.bronze.v1.ErrorCode.
  */
-export const ErrorCodeSchema: GenEnum<ErrorCode> = /*@__PURE__*/
-  enumDesc(file_lakehouse_bronze_v1_normalized_event, 4);
-
+export const ErrorCodeSchema: GenEnum<ErrorCode> = /*@__PURE__*/ enumDesc(file_lakehouse_bronze_v1_normalized_event, 4)

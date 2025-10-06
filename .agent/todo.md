@@ -55,13 +55,13 @@
 
 - [x] Implement Pulsar publishing for normalized events.
 - [x] Wire Pulsar into TardisMachine event bus creation.
-- [ ] Add integration test verifying Pulsar publish using Testcontainers.
+- [x] Add integration test verifying Pulsar publish using Testcontainers.
 - [x] Add CLI support for Pulsar event bus options.
 - [x] Add unit tests for Pulsar config parsing.
-- [ ] Add regression test ensuring Pulsar publishing can be toggled off.
+- [x] Add regression test ensuring Pulsar publishing can be toggled off.
 - [x] Implement Silver Pulsar publishing for normalized events.
 - [x] Wire Silver Pulsar into TardisMachine event bus creation.
-- [ ] Add integration test verifying Silver Pulsar publish using Testcontainers.
+- [x] Add integration test verifying Silver Pulsar publish using Testcontainers.
 - [x] Add CLI support for Silver Pulsar event bus options.
 - [x] Add unit tests for Silver Pulsar config parsing.
 
@@ -69,12 +69,12 @@
 
 - [x] Implement SQS publishing for normalized events.
 - [x] Wire SQS into TardisMachine event bus creation.
-- [ ] Add integration test verifying SQS publish using LocalStack.
+- [x] Add integration test verifying SQS publish using LocalStack.
 - [x] Add CLI support for SQS event bus options.
 - [x] Add unit tests for SQS config parsing.
-- [ ] Add regression test ensuring SQS publishing can be toggled off.
+- [x] Add regression test ensuring SQS publishing can be toggled off.
 - [x] Implement Silver SQS publishing for normalized events.
 - [x] Wire Silver SQS into TardisMachine event bus creation.
-- [ ] Add integration test verifying Silver SQS publish using LocalStack.
+- [x] Add integration test verifying Silver SQS publish using LocalStack.
 - [x] Add CLI support for Silver SQS event bus options.
 - [x] Add unit tests for Silver SQS config parsing.

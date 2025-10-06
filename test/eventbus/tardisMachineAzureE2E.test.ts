@@ -2,7 +2,7 @@ import { TardisMachine } from '../../src'
 
 jest.setTimeout(60000)
 
-const PORT = 8093
+const PORT = 8109
 const HTTP_REPLAY_NORMALIZED_URL = `http://localhost:${PORT}/replay-normalized`
 const cacheDir = './.cache-azure-e2e'
 

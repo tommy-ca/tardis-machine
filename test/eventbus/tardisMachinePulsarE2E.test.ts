@@ -8,7 +8,7 @@ import { NormalizedEvent, NormalizedEventSchema, Origin } from '../../src/genera
 
 jest.setTimeout(240000)
 
-const PORT = 8095
+const PORT = 8107
 const HTTP_REPLAY_NORMALIZED_URL = `http://localhost:${PORT}/replay-normalized`
 const topic = 'persistent://public/default/bronze-events-e2e'
 const cacheDir = './.cache-pulsar-e2e'

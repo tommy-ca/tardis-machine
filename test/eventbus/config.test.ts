@@ -1,4 +1,11 @@
 import { parseKafkaEventBusConfig } from '../../src/eventbus/config'
+import {
+  parseKafkaEventBusConfig,
+  parseRabbitMQEventBusConfig,
+  parseKinesisEventBusConfig,
+  parseNatsEventBusConfig,
+  parseSilverKafkaEventBusConfig
+} from '../../src/eventbus/config'
 
 describe('parseKafkaEventBusConfig', () => {
   test('returns undefined when kafka brokers or topic missing', () => {
@@ -297,5 +304,159 @@ describe('parseKafkaEventBusConfig', () => {
         'kafka-topic-routing': 'trade-only'
       })
     ).toThrow('Invalid kafka-topic-routing entry "trade-only". Expected format payloadCase:topicName.')
+  })
+})
+
+describe('parseSilverKafkaEventBusConfig', () => {
+  test('returns undefined when kafka silver brokers or topic missing', () => {
+    expect(parseSilverKafkaEventBusConfig({})).toBeUndefined()
+    expect(parseSilverKafkaEventBusConfig({ 'kafka-silver-brokers': 'localhost:9092' })).toBeUndefined()
+    expect(parseSilverKafkaEventBusConfig({ 'kafka-silver-topic': 'events' })).toBeUndefined()
+  })
+
+  test('builds silver kafka config with routing and sasl', () => {
+    const config = parseSilverKafkaEventBusConfig({
+      'kafka-silver-brokers': 'localhost:9092,host2:9092',
+      'kafka-silver-topic': 'silver.records',
+      'kafka-silver-client-id': 'custom-silver-producer',
+      'kafka-silver-ssl': true,
+      'kafka-silver-topic-routing': 'trade:silver.trade,book_change:silver.books',
+      'kafka-silver-sasl-mechanism': 'plain',
+      'kafka-silver-sasl-username': 'user',
+      'kafka-silver-sasl-password': 'pass'
+    })
+
+    expect(config).toEqual({
+      provider: 'kafka-silver',
+      brokers: ['localhost:9092', 'host2:9092'],
+      topic: 'silver.records',
+      clientId: 'custom-silver-producer',
+      ssl: true,
+      topicByRecordType: {
+        trade: 'silver.trade',
+        book_change: 'silver.books'
+      },
+      sasl: {
+        mechanism: 'plain',
+        username: 'user',
+        password: 'pass'
+      }
+    })
+  })
+
+  test('applies batch tuning options when provided', () => {
+    const config = parseSilverKafkaEventBusConfig({
+      'kafka-silver-brokers': 'localhost:9092',
+      'kafka-silver-topic': 'silver.records',
+      'kafka-silver-max-batch-size': 512,
+      'kafka-silver-max-batch-delay-ms': 125
+    })
+
+    expect(config).toMatchObject({
+      maxBatchSize: 512,
+      maxBatchDelayMs: 125
+    })
+  })
+
+  test('rejects invalid silver kafka compression', () => {
+    expect(() =>
+      parseSilverKafkaEventBusConfig({
+        'kafka-silver-brokers': 'localhost:9092',
+        'kafka-silver-topic': 'silver.records',
+        'kafka-silver-compression': 'brotli'
+      })
+    ).toThrow('kafka-silver-compression must be one of none,gzip,snappy,lz4,zstd.')
+  })
+
+  test('rejects blank silver kafka topic strings', () => {
+    expect(() =>
+      parseSilverKafkaEventBusConfig({
+        'kafka-silver-brokers': 'localhost:9092',
+        'kafka-silver-topic': '   '
+      })
+    ).toThrow('kafka-silver-topic must be a non-empty string.')
+  })
+
+  test('rejects unknown record type names', () => {
+    expect(() =>
+      parseSilverKafkaEventBusConfig({
+        'kafka-silver-brokers': 'localhost:9092',
+        'kafka-silver-topic': 'silver.records',
+        'kafka-silver-include-records': 'trade, candles'
+      })
+    ).toThrow('Unknown record type(s) for kafka-silver-include-records: candles.')
+  })
+
+  test('rejects unknown record types in topic routing', () => {
+    expect(() =>
+      parseSilverKafkaEventBusConfig({
+        'kafka-silver-brokers': 'localhost:9092',
+        'kafka-silver-topic': 'silver.records',
+        'kafka-silver-topic-routing': 'trade:silver.trade, candles:silver.candles'
+      })
+    ).toThrow('Unknown record type(s) for kafka-silver-topic-routing: candles.')
+  })
+
+  test('accepts snake_case record names in topic routing', () => {
+    const config = parseSilverKafkaEventBusConfig({
+      'kafka-silver-brokers': 'localhost:9092',
+      'kafka-silver-topic': 'silver.records',
+      'kafka-silver-topic-routing': 'book_snapshot:silver.snapshots, grouped_book_snapshot:silver.grouped'
+    })
+
+    expect(config).toMatchObject({
+      topicByRecordType: {
+        book_snapshot: 'silver.snapshots',
+        grouped_book_snapshot: 'silver.grouped'
+      }
+    })
+  })
+
+  test('rejects invalid silver kafka ack levels', () => {
+    expect(() =>
+      parseSilverKafkaEventBusConfig({
+        'kafka-silver-brokers': 'localhost:9092',
+        'kafka-silver-topic': 'silver.records',
+        'kafka-silver-acks': 'maybe'
+      })
+    ).toThrow('kafka-silver-acks must be one of all,leader,none,1,0,-1.')
+  })
+
+  test('rejects invalid silver kafka static header entries', () => {
+    expect(() =>
+      parseSilverKafkaEventBusConfig({
+        'kafka-silver-brokers': 'localhost:9092',
+        'kafka-silver-topic': 'silver.records',
+        'kafka-silver-static-headers': 'env'
+      })
+    ).toThrow('kafka-silver-static-headers entries must be key:value pairs.')
+
+    expect(() =>
+      parseSilverKafkaEventBusConfig({
+        'kafka-silver-brokers': 'localhost:9092',
+        'kafka-silver-topic': 'silver.records',
+        'kafka-silver-static-headers': 'payloadCase:overwritten'
+      })
+    ).toThrow('kafka-silver-static-headers cannot override reserved header "payloadCase".')
+  })
+
+  test('rejects unknown silver key template placeholders', () => {
+    expect(() =>
+      parseSilverKafkaEventBusConfig({
+        'kafka-silver-brokers': 'localhost:9092',
+        'kafka-silver-topic': 'silver.records',
+        'kafka-silver-key-template': '{{unknown}}'
+      })
+    ).toThrow('Unknown kafka-silver-key-template placeholder "{{unknown}}".')
+  })
+
+  test('throws on invalid silver topic routing entry', () => {
+    expect(() =>
+      parseSilverKafkaEventBusConfig({
+        'kafka-silver-brokers': 'localhost:9092',
+        'kafka-silver-topic': 'silver.records',
+        'kafka-silver-topic-routing': 'trade-only'
+      })
+    ).toThrow('Invalid kafka-silver-topic-routing entry "trade-only". Expected format recordType:topic.')
   })
 })

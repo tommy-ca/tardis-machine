@@ -97,6 +97,26 @@
 - Tune publishing throughput via `--redis-max-batch-size` (events per batch) and `--redis-max-batch-delay-ms` (max milliseconds to wait before flushing).
 - Attach deployment metadata with `--redis-static-headers`, supplying comma separated `key:value` pairs that become constant Redis metadata on every record.
 
+### Pulsar Publishing
+
+- Publish normalized market data to Apache Pulsar by supplying `--pulsar-service-url` and `--pulsar-topic` flags.
+- Use `--pulsar-topic-routing` to route specific payload cases (e.g. `trade`, `bookChange`) to dedicated topics via a comma separated `payloadCase:topic` list. Payload case names must match the normalized Bronze cases (`trade`, `bookChange`, `bookSnapshot`, `groupedBookSnapshot`, `quote`, `derivativeTicker`, `liquidation`, `optionSummary`, `bookTicker`, `tradeBar`, `error`, `disconnect`).
+- Reduce downstream load by specifying `--pulsar-include-payloads` with a comma separated payload case allow-list (others are dropped before batching).
+- Provide authentication via `--pulsar-token` for secure deployments.
+- Shape Pulsar message keys with `--pulsar-key-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{payloadCase}}`, or `{{meta.request_id}}`.
+- Tune publishing throughput via `--pulsar-max-batch-size` (events per batch) and `--pulsar-max-batch-delay-ms` (max milliseconds to wait before flushing).
+- Select compression with `--pulsar-compression-type` (`NONE`, `LZ4`, `ZLIB`, `ZSTD`, `SNAPPY`).
+- Attach deployment metadata with `--pulsar-static-properties`, supplying comma separated `key:value` pairs that become constant Pulsar properties on every message.
+
+### SQS Publishing
+
+- Publish normalized market data to AWS SQS by supplying `--sqs-queue-url` and `--sqs-region` flags.
+- Use `--sqs-queue-routing` to route specific payload cases (e.g. `trade`, `bookChange`) to dedicated queues via a comma separated `payloadCase:queueUrl` list. Payload case names must match the normalized Bronze cases (`trade`, `bookChange`, `bookSnapshot`, `groupedBookSnapshot`, `quote`, `derivativeTicker`, `liquidation`, `optionSummary`, `bookTicker`, `tradeBar`, `error`, `disconnect`).
+- Reduce downstream load by specifying `--sqs-include-payloads` with a comma separated payload case allow-list (others are dropped before batching).
+- Provide AWS credentials via `--sqs-access-key-id` and `--sqs-secret-access-key`, or rely on IAM roles/instance profiles.
+- Tune publishing throughput via `--sqs-max-batch-size` (events per batch, max 10) and `--sqs-max-batch-delay-ms` (max milliseconds to wait before flushing).
+- Attach deployment metadata with `--sqs-static-message-attributes`, supplying comma separated `key:value` pairs that become constant SQS message attributes on every message.
+
 ### Silver Layer Publishing
 
 The Silver layer provides analytics-ready data with fixed scales and strong typing, complementing the existing Bronze layer. Silver records are published to event buses using the same infrastructure but with dedicated configuration flags.
@@ -149,13 +169,33 @@ The Silver layer provides analytics-ready data with fixed scales and strong typi
 - Tune publishing throughput via `--redis-silver-max-batch-size` (events per batch) and `--redis-silver-max-batch-delay-ms` (max milliseconds to wait before flushing).
 - Attach deployment metadata with `--redis-silver-static-headers`, supplying comma separated `key:value` pairs that become constant Redis metadata on every record.
 
+#### Silver Pulsar Publishing
+
+- Publish Silver layer records to Apache Pulsar by supplying `--pulsar-silver-service-url` and `--pulsar-silver-topic` flags.
+- Use `--pulsar-silver-topic-routing` to route specific record types (e.g. `trade`, `book_change`) to dedicated topics via a comma separated `recordType:topic` list. Record type names must match the Silver record types.
+- Reduce downstream load by specifying `--pulsar-silver-include-records` with a comma separated record type allow-list (others are dropped before batching).
+- Provide authentication via `--pulsar-silver-token` for secure deployments.
+- Shape Pulsar keys with `--pulsar-silver-key-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{recordType}}`.
+- Tune publishing throughput via `--pulsar-silver-max-batch-size` (events per batch) and `--pulsar-silver-max-batch-delay-ms` (max milliseconds to wait before flushing).
+- Select compression with `--pulsar-silver-compression-type` (`NONE`, `LZ4`, `ZLIB`, `ZSTD`, `SNAPPY`).
+- Attach deployment metadata with `--pulsar-silver-static-properties`, supplying comma separated `key:value` pairs that become constant Pulsar properties on every message.
+
+#### Silver SQS Publishing
+
+- Publish Silver layer records to AWS SQS by supplying `--sqs-silver-queue-url` and `--sqs-silver-region` flags.
+- Use `--sqs-silver-queue-routing` to route specific record types (e.g. `trade`, `book_change`) to dedicated queues via a comma separated `recordType:queueUrl` list. Record type names must match the Silver record types.
+- Reduce downstream load by specifying `--sqs-silver-include-records` with a comma separated record type allow-list (others are dropped before batching).
+- Provide AWS credentials via `--sqs-silver-access-key-id` and `--sqs-silver-secret-access-key`, or rely on IAM roles/instance profiles.
+- Tune publishing throughput via `--sqs-silver-max-batch-size` (events per batch, max 10) and `--sqs-silver-max-batch-delay-ms` (max milliseconds to wait before flushing).
+- Attach deployment metadata with `--sqs-silver-static-message-attributes`, supplying comma separated `key:value` pairs that become constant SQS message attributes on every message.
+
 ### Keeping Schemas and Builds in Sync
 
 Normalized event schemas live under `schemas/proto`, and generated TypeScript bindings are emitted into `src/generated`. Whenever schemas change, run `npm run buf:generate` to refresh the Buf-generated sources and `npm run build` to update the compiled `dist/` artifacts that power the CLI entry point.
 
 ### Event Bus Integration Test Prerequisites
 
-Event bus publishing is covered by integration tests in `test/eventbus`. These rely on Testcontainers and require a local Docker daemon with at least 2 CPU cores, 4 GB of memory, and the ability to pull the `confluentinc/cp-kafka:7.5.3`, `rabbitmq:3-management-alpine`, `localstack/localstack:3.0`, `nats:2.10`, and `redis:7-alpine` images. Ensure Docker is running before invoking `npm test`; otherwise event bus suites will be skipped after a timeout.
+Event bus publishing is covered by integration tests in `test/eventbus`. These rely on Testcontainers and require a local Docker daemon with at least 2 CPU cores, 4 GB of memory, and the ability to pull the `confluentinc/cp-kafka:7.5.3`, `rabbitmq:3-management-alpine`, `localstack/localstack:3.0`, `nats:2.10`, `redis:7-alpine`, and `apachepulsar/pulsar:3.0.0` images. Ensure Docker is running before invoking `npm test`; otherwise event bus suites will be skipped after a timeout.
 
 ### Event Bus Maintenance Checklist
 
@@ -168,6 +208,10 @@ Event bus publishing is covered by integration tests in `test/eventbus`. These r
 - For NATS: Ensure `--nats-servers` points to healthy NATS servers and subjects are appropriately configured for your routing needs.
 - For Redis: Ensure `--redis-url` points to a healthy Redis instance and streams are appropriately configured for your routing needs.
 - For Redis: Review batching knobs regularly: `--redis-max-batch-size` and `--redis-max-batch-delay-ms` should align with throughput requirements.
+- For Pulsar: Ensure `--pulsar-service-url` points to a healthy Pulsar cluster and topics are appropriately configured for your routing needs.
+- For Pulsar: Review batching knobs regularly: `--pulsar-max-batch-size` and `--pulsar-max-batch-delay-ms` should align with throughput requirements.
+- For SQS: Confirm `--sqs-region` and queue URLs are correct; ensure IAM permissions allow `SendMessage` on the specified queues.
+- For SQS: Review batching knobs regularly: `--sqs-max-batch-size` should stay below SQS `SendMessageBatch` limits (10 messages), and `--sqs-max-batch-delay-ms` must align with downstream latency budgets.
 - For Silver Kafka: Verify `--kafka-silver-brokers` reflects the current cluster endpoints; apply same broker maintenance as Bronze layer.
 - For Silver Kafka: Confirm `--kafka-silver-acks` and `--kafka-silver-idempotent` match broker durability targets.
 - For Silver Kafka: Review batching knobs regularly: `--kafka-silver-max-batch-size` and `--kafka-silver-max-batch-delay-ms` should align with throughput requirements.
@@ -177,6 +221,10 @@ Event bus publishing is covered by integration tests in `test/eventbus`. These r
 - For Silver NATS: Ensure `--nats-silver-servers` points to healthy NATS servers and subjects are appropriately configured.
 - For Silver Redis: Ensure `--redis-silver-url` points to a healthy Redis instance and streams are appropriately configured for your routing needs.
 - For Silver Redis: Review batching knobs regularly: `--redis-silver-max-batch-size` and `--redis-silver-max-batch-delay-ms` should align with throughput requirements.
+- For Silver Pulsar: Ensure `--pulsar-silver-service-url` points to a healthy Pulsar cluster and topics are appropriately configured for your routing needs.
+- For Silver Pulsar: Review batching knobs regularly: `--pulsar-silver-max-batch-size` and `--pulsar-silver-max-batch-delay-ms` should align with throughput requirements.
+- For Silver SQS: Confirm `--sqs-silver-region` and queue URLs are correct; ensure IAM permissions allow `SendMessage` on the specified queues.
+- For Silver SQS: Review batching knobs regularly: `--sqs-silver-max-batch-size` should stay below SQS `SendMessageBatch` limits (10 messages), and `--sqs-silver-max-batch-delay-ms` must align with downstream latency budgets.
 - Confirm header contracts after schema updates by consuming a sample message and validating Buf-decoded payloads alongside the emitted `recordType` and `dataType` headers for Silver layer.
 - Track retries via application logs; repeated send attempt warnings indicate sustained pressure and should trigger broker-side health checks.
 - Re-run `npm run buf:generate` and rebuild whenever `schemas/proto` changes to keep binary payloads matching the deployed Buf schema version.

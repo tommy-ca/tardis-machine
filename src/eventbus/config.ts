@@ -1,4 +1,4 @@
-import type { BronzePayloadCase, EventBusConfig, KafkaEventBusConfig } from './types'
+import type { BronzePayloadCase, EventBusConfig, KafkaEventBusConfig, RabbitMQEventBusConfig } from './types'
 import { compileKeyBuilder } from './keyTemplate'
 
 const ALLOWED_COMPRESSION = new Set(['none', 'gzip', 'snappy', 'lz4', 'zstd'])
@@ -96,9 +96,7 @@ function parseTopicRouting(raw: unknown): KafkaEventBusConfig['topicByPayloadCas
   }
 
   if (invalidPayloadCases.size > 0) {
-    throw new Error(
-      `Unknown payload case(s) for kafka-topic-routing: ${Array.from(invalidPayloadCases).join(', ')}.`
-    )
+    throw new Error(`Unknown payload case(s) for kafka-topic-routing: ${Array.from(invalidPayloadCases).join(', ')}.`)
   }
 
   return map
@@ -271,6 +269,70 @@ function parsePositiveInteger(value: unknown, optionName: string): number | unde
   return numeric
 }
 
+export function parseRabbitMQEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
+  const urlRaw = argv['rabbitmq-url']
+  const exchangeRaw = argv['rabbitmq-exchange']
+
+  if (!urlRaw || !exchangeRaw) {
+    return undefined
+  }
+
+  const url = typeof urlRaw === 'string' ? urlRaw.trim() : ''
+  if (url === '') {
+    throw new Error('rabbitmq-url must be a non-empty string.')
+  }
+
+  const exchange = typeof exchangeRaw === 'string' ? exchangeRaw.trim() : ''
+  if (exchange === '') {
+    throw new Error('rabbitmq-exchange must be a non-empty string.')
+  }
+
+  const rabbitmqConfig: RabbitMQEventBusConfig = {
+    url,
+    exchange
+  }
+
+  const exchangeTypeRaw = argv['rabbitmq-exchange-type']
+  if (exchangeTypeRaw !== undefined) {
+    if (typeof exchangeTypeRaw !== 'string') {
+      throw new Error('rabbitmq-exchange-type must be a string.')
+    }
+    const exchangeType = exchangeTypeRaw.trim().toLowerCase()
+    if (!['direct', 'topic', 'headers', 'fanout'].includes(exchangeType)) {
+      throw new Error('rabbitmq-exchange-type must be one of direct,topic,headers,fanout.')
+    }
+    rabbitmqConfig.exchangeType = exchangeType as 'direct' | 'topic' | 'headers' | 'fanout'
+  }
+
+  const routingKeyTemplateRaw = argv['rabbitmq-routing-key-template']
+  if (routingKeyTemplateRaw !== undefined) {
+    if (typeof routingKeyTemplateRaw !== 'string') {
+      throw new Error('rabbitmq-routing-key-template must be a non-empty string.')
+    }
+    const routingKeyTemplate = routingKeyTemplateRaw.trim()
+    if (routingKeyTemplate === '') {
+      throw new Error('rabbitmq-routing-key-template must be a non-empty string.')
+    }
+    compileKeyBuilder(routingKeyTemplate)
+    rabbitmqConfig.routingKeyTemplate = routingKeyTemplate
+  }
+
+  const includePayloadCases = parseIncludePayloadCases(argv['rabbitmq-include-payloads'])
+  if (includePayloadCases) {
+    rabbitmqConfig.includePayloadCases = includePayloadCases
+  }
+
+  const staticHeaders = parseStaticHeaders(argv['rabbitmq-static-headers'])
+  if (staticHeaders) {
+    rabbitmqConfig.staticHeaders = staticHeaders
+  }
+
+  return {
+    provider: 'rabbitmq',
+    ...rabbitmqConfig
+  }
+}
+
 export function parseKafkaEventBusConfig(argv: Record<string, any>): EventBusConfig | undefined {
   const brokersRaw = argv['kafka-brokers']
   const topicRaw = argv['kafka-topic']
@@ -349,10 +411,7 @@ export function parseKafkaEventBusConfig(argv: Record<string, any>): EventBusCon
     kafkaConfig.maxBatchSize = maxBatchSize
   }
 
-  const maxBatchDelayMs = parsePositiveInteger(
-    argv['kafka-max-batch-delay-ms'],
-    'kafka-max-batch-delay-ms'
-  )
+  const maxBatchDelayMs = parsePositiveInteger(argv['kafka-max-batch-delay-ms'], 'kafka-max-batch-delay-ms')
   if (maxBatchDelayMs !== undefined) {
     kafkaConfig.maxBatchDelayMs = maxBatchDelayMs
   }
@@ -378,9 +437,7 @@ export function parseKafkaEventBusConfig(argv: Record<string, any>): EventBusCon
   }
 }
 
-function buildPayloadCaseLookup(
-  cases: ReadonlySet<BronzePayloadCase>
-): Map<string, BronzePayloadCase> {
+function buildPayloadCaseLookup(cases: ReadonlySet<BronzePayloadCase>): Map<string, BronzePayloadCase> {
   const lookup = new Map<string, BronzePayloadCase>()
   for (const payloadCase of cases) {
     lookup.set(toPayloadCaseKey(payloadCase), payloadCase)
@@ -397,9 +454,7 @@ function normalizePayloadCase(raw: string): BronzePayloadCase | undefined {
 }
 
 function toPayloadCaseKey(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]/gi, '')
+  return value.toLowerCase().replace(/[^a-z0-9]/gi, '')
 }
 
 export type { KafkaEventBusConfig }

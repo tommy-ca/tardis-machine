@@ -19,15 +19,15 @@ enum Action {
 
 // Bronze envelope for normalized data and control messages
 message NormalizedEvent {
-  string source = 1;                        // tardis-machine | tardis-node | archive
-  string exchange = 2;                      // e.g., "binance"
-  string symbol = 3;                        // e.g., "btcusdt" (optional for some controls)
-  google.protobuf.Timestamp local_ts = 4;   // server/local timestamp at ingress
+  string source = 1; // tardis-machine | tardis-node | archive
+  string exchange = 2; // e.g., "binance"
+  string symbol = 3; // e.g., "btcusdt" (optional for some controls)
+  google.protobuf.Timestamp local_ts = 4; // server/local timestamp at ingress
   // Optional pipeline ingest timestamp (may be set by producer or consumer layer)
   google.protobuf.Timestamp ingest_ts = 5;
   // Origin of the data (realtime, replay, archive)
   Origin origin = 6;
-  map<string, string> meta = 10;            // optional extras (session, shard, etc.)
+  map<string, string> meta = 10; // optional extras (session, shard, etc.)
 
   oneof payload {
     Trade trade = 100;
@@ -55,21 +55,21 @@ enum Origin {
 }
 
 message Trade {
-  string trade_id = 1;                      // optional exchange trade id
-  string price_str = 2;                     // decimal as string
-  string qty_str = 3;                       // decimal as string
-  Side side = 4;                            // aggressor side if known
-  int64 sequence = 5;                       // optional sequence
-  google.protobuf.Timestamp event_ts = 10;  // event time from venue if available
+  string trade_id = 1; // optional exchange trade id
+  string price_str = 2; // decimal as string
+  string qty_str = 3; // decimal as string
+  Side side = 4; // aggressor side if known
+  int64 sequence = 5; // optional sequence
+  google.protobuf.Timestamp event_ts = 10; // event time from venue if available
 }
 
 message BookChange {
   Side side = 1;
   Action action = 2;
-  string price_str = 3;                     // decimal as string
-  string qty_str = 4;                       // decimal as string (0 for delete in some venues)
-  int32 level = 5;                          // optional: level index
-  int64 sequence = 6;                       // optional sequence
+  string price_str = 3; // decimal as string
+  string qty_str = 4; // decimal as string (0 for delete in some venues)
+  int32 level = 5; // optional: level index
+  int64 sequence = 6; // optional sequence
   google.protobuf.Timestamp event_ts = 10;
 }
 
@@ -79,11 +79,14 @@ message BookSnapshot {
   repeated Level asks = 3;
   google.protobuf.Timestamp event_ts = 10;
   // Optional snapshot metadata when computed on the server
-  uint32 grouping = 11;                   // group size if grouped snapshots are used
-  uint32 interval_ms = 12;                // interval used for periodic snapshots
-  bool remove_crossed_levels = 13;        // whether crossed levels were removed
-  int64 sequence = 14;                    // optional sequence identifier
-  message Level { string price_str = 1; string qty_str = 2; }
+  uint32 grouping = 11; // group size if grouped snapshots are used
+  uint32 interval_ms = 12; // interval used for periodic snapshots
+  bool remove_crossed_levels = 13; // whether crossed levels were removed
+  int64 sequence = 14; // optional sequence identifier
+  message Level {
+    string price_str = 1;
+    string qty_str = 2;
+  }
 }
 
 // Grouped snapshot as a separate payload for clarity, although BookSnapshot may also carry metadata
@@ -96,14 +99,17 @@ message GroupedBookSnapshot {
   uint32 interval_ms = 12;
   bool remove_crossed_levels = 13;
   int64 sequence = 14;
-  message Level { string price_str = 1; string qty_str = 2; }
+  message Level {
+    string price_str = 1;
+    string qty_str = 2;
+  }
 }
 
 // Trade bar computed over time/ticks/volume
 message TradeBar {
-  BarKind kind = 1;                   // time, tick, volume
-  uint64 interval = 2;                // number of units (ticks/volume). For time this is the unscaled input interval
-  uint32 interval_ms = 3;             // materialized time interval in ms (0 for non-time bars)
+  BarKind kind = 1; // time, tick, volume
+  uint64 interval = 2; // number of units (ticks/volume). For time this is the unscaled input interval
+  uint32 interval_ms = 3; // materialized time interval in ms (0 for non-time bars)
   string open_str = 4;
   string high_str = 5;
   string low_str = 6;
@@ -111,7 +117,7 @@ message TradeBar {
   string volume_str = 8;
   uint64 trade_count = 9;
   google.protobuf.Timestamp event_ts = 10; // bar start
-  google.protobuf.Timestamp end_ts = 11;   // bar end
+  google.protobuf.Timestamp end_ts = 11; // bar end
 }
 
 enum BarKind {
@@ -122,46 +128,61 @@ enum BarKind {
 }
 
 message Quote {
-  string bid_price_str = 1; string bid_qty_str = 2;
-  string ask_price_str = 3; string ask_qty_str = 4;
+  string bid_price_str = 1;
+  string bid_qty_str = 2;
+  string ask_price_str = 3;
+  string ask_qty_str = 4;
   google.protobuf.Timestamp event_ts = 10;
 }
 
 message DerivativeTicker {
-  string mark_price_str = 1; string index_price_str = 2; string funding_rate_str = 3;
+  string mark_price_str = 1;
+  string index_price_str = 2;
+  string funding_rate_str = 3;
   google.protobuf.Timestamp event_ts = 10;
 }
 
 message Liquidation {
-  Side side = 1; string price_str = 2; string qty_str = 3; string order_id = 4;
+  Side side = 1;
+  string price_str = 2;
+  string qty_str = 3;
+  string order_id = 4;
   google.protobuf.Timestamp event_ts = 10;
 }
 
 message OptionSummary {
-  string iv_str = 1; string delta_str = 2; string gamma_str = 3; string theta_str = 4; string vega_str = 5; string oi_str = 6;
+  string iv_str = 1;
+  string delta_str = 2;
+  string gamma_str = 3;
+  string theta_str = 4;
+  string vega_str = 5;
+  string oi_str = 6;
   google.protobuf.Timestamp event_ts = 10;
 }
 
 message BookTicker {
-  string best_bid_price_str = 1; string best_bid_qty_str = 2; string best_ask_price_str = 3; string best_ask_qty_str = 4;
+  string best_bid_price_str = 1;
+  string best_bid_qty_str = 2;
+  string best_ask_price_str = 3;
+  string best_ask_qty_str = 4;
   google.protobuf.Timestamp event_ts = 10;
 }
 
 enum ErrorCode {
   ERROR_CODE_UNSPECIFIED = 0;
-  ERROR_CODE_WS_CONNECT = 1;       // websocket connect error
-  ERROR_CODE_WS_SEND = 2;          // send failure/backpressure
-  ERROR_CODE_SOURCE_AUTH = 3;      // auth error to source
-  ERROR_CODE_SOURCE_RATE_LIMIT = 4;// rate limiting
+  ERROR_CODE_WS_CONNECT = 1; // websocket connect error
+  ERROR_CODE_WS_SEND = 2; // send failure/backpressure
+  ERROR_CODE_SOURCE_AUTH = 3; // auth error to source
+  ERROR_CODE_SOURCE_RATE_LIMIT = 4; // rate limiting
 }
 
 message ControlError {
-  string details = 1; 
-  uint32 subsequent_errors = 2; 
+  string details = 1;
+  uint32 subsequent_errors = 2;
   ErrorCode code = 3;
 }
 
-message ControlDisconnect { 
-  string reason = 1; 
+message ControlDisconnect {
+  string reason = 1;
   uint32 close_code = 2; // websocket close code if applicable
 }

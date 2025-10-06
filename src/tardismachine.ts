@@ -5,7 +5,7 @@ import { App, DISABLED, TemplatedApp } from 'uWebSockets.js'
 import { replayHttp, createReplayNormalizedHttpHandler, healthCheck } from './http'
 import { createReplayNormalizedWSHandler, replayWS, createStreamNormalizedWSHandler } from './ws'
 import { debug } from './debug'
-import { KafkaEventBus } from './eventbus'
+import { KafkaEventBus, RabbitMQEventBus } from './eventbus'
 import type { EventBusConfig, NormalizedEventSink, NormalizedMessage, PublishFn, PublishInjection, PublishMeta } from './eventbus/types'
 
 const pkg = require('../package.json')
@@ -155,8 +155,11 @@ export class TardisMachine {
     if (config.provider === 'kafka') {
       return new KafkaEventBus(config)
     }
+    if (config.provider === 'rabbitmq') {
+      return new RabbitMQEventBus(config)
+    }
 
-    throw new Error(`Unsupported event bus provider: ${config.provider}`)
+    throw new Error(`Unsupported event bus provider: ${(config as any).provider}`)
   }
 
   private _createPublishFunction(bus: NormalizedEventSink): PublishFn {

@@ -1,12 +1,7 @@
 import type { NormalizedEvent, Origin } from '../generated/lakehouse/bronze/v1/normalized_event_pb'
 import type { Disconnect, NormalizedData } from 'tardis-dev'
 
-export type ControlErrorCode =
-  | 'unspecified'
-  | 'ws_connect'
-  | 'ws_send'
-  | 'source_auth'
-  | 'source_rate_limit'
+export type ControlErrorCode = 'unspecified' | 'ws_connect' | 'ws_send' | 'source_auth' | 'source_rate_limit'
 
 export type ControlErrorMessage = {
   type: 'error'
@@ -95,9 +90,22 @@ export type KafkaEventBusConfig = {
   idempotent?: boolean
 }
 
+export type RabbitMQEventBusConfig = {
+  url: string
+  exchange: string
+  exchangeType?: 'direct' | 'topic' | 'headers' | 'fanout'
+  /** Optional routing key template for constructing routing keys */
+  routingKeyTemplate?: string
+  /** Optional allow-list of payload cases to publish */
+  includePayloadCases?: BronzePayloadCase[]
+  /** Static headers applied to every message */
+  staticHeaders?: Record<string, string>
+}
+
 export type EventBusConfig =
-  | (
-      {
-        provider: 'kafka'
-      } & KafkaEventBusConfig
-    )
+  | ({
+      provider: 'kafka'
+    } & KafkaEventBusConfig)
+  | ({
+      provider: 'rabbitmq'
+    } & RabbitMQEventBusConfig)

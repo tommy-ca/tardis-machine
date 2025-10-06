@@ -7,7 +7,7 @@ const cluster = require('cluster')
 const numCPUs = require('os').cpus().length
 const isDocker = require('is-docker')
 const pkg = require('../package.json')
-const { parseKafkaEventBusConfig } = require('../dist/eventbus/config')
+const { parseKafkaEventBusConfig, parseRabbitMQEventBusConfig } = require('../dist/eventbus/config')
 
 const DEFAULT_PORT = 8000
 const argv = yargs
@@ -117,6 +117,33 @@ const argv = yargs
     describe: 'Kafka SASL password'
   })
 
+  .option('rabbitmq-url', {
+    type: 'string',
+    describe: 'RabbitMQ connection URL for normalized event publishing'
+  })
+  .option('rabbitmq-exchange', {
+    type: 'string',
+    describe: 'RabbitMQ exchange name for normalized events'
+  })
+  .option('rabbitmq-exchange-type', {
+    type: 'string',
+    choices: ['direct', 'topic', 'headers', 'fanout'],
+    describe: 'RabbitMQ exchange type',
+    default: 'direct'
+  })
+  .option('rabbitmq-routing-key-template', {
+    type: 'string',
+    describe: 'Template for RabbitMQ routing keys, e.g. {{exchange}}.{{payloadCase}}.{{symbol}}'
+  })
+  .option('rabbitmq-include-payloads', {
+    type: 'string',
+    describe: 'Comma separated payload cases to publish (others dropped)'
+  })
+  .option('rabbitmq-static-headers', {
+    type: 'string',
+    describe: 'Comma separated key:value pairs applied as static RabbitMQ headers'
+  })
+
   .help()
   .version()
   .usage('$0 [options]')
@@ -135,7 +162,7 @@ if (enableDebug) {
 const { TardisMachine } = require('../dist')
 
 async function start() {
-  const eventBusConfig = parseKafkaEventBusConfig(argv)
+  const eventBusConfig = parseKafkaEventBusConfig(argv) || parseRabbitMQEventBusConfig(argv)
 
   const machine = new TardisMachine({
     apiKey: argv['api-key'],

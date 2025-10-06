@@ -6,7 +6,7 @@ import {
   GetRecordsCommand,
   GetShardIteratorCommand
 } from '@aws-sdk/client-kinesis'
-import { LocalstackContainer, StartedLocalstackContainer } from '@testcontainers/localstack'
+import { LocalstackContainer, StartedLocalStackContainer } from '@testcontainers/localstack'
 import { fromBinary } from '@bufbuild/protobuf'
 import { rm } from 'fs/promises'
 import { TardisMachine } from '../../src'
@@ -21,7 +21,7 @@ const cacheDir = './.cache-kinesis-e2e'
 const localstackImage = 'localstack/localstack:3.0'
 const startTimeoutMs = 180000
 
-let container: StartedLocalstackContainer
+let container: StartedLocalStackContainer
 let kinesis: KinesisClient
 let shouldSkip = false
 
@@ -226,7 +226,7 @@ async function collectEvents(kinesis: KinesisClient, streamName: string, minCoun
 }
 
 async function startLocalStackContainer() {
-  const container = new LocalStackContainer(localstackImage).withServices('kinesis').withStartupTimeout(startTimeoutMs)
+  const container = new LocalstackContainer(localstackImage).withEnvironment({ SERVICES: 'kinesis' }).withStartupTimeout(startTimeoutMs)
   return container.start()
 }
 

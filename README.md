@@ -139,6 +139,15 @@ The Silver layer provides analytics-ready data with fixed scales and strong typi
 - Shape subjects with `--nats-silver-subject-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{recordType}}`.
 - Attach deployment metadata with `--nats-silver-static-headers`, supplying comma separated `key:value` pairs that become constant NATS headers on every message.
 
+#### Silver Redis Publishing
+
+- Publish Silver layer records to Redis streams by supplying `--redis-silver-url` and `--redis-silver-stream` flags.
+- Use `--redis-silver-stream-routing` to route specific record types (e.g. `trade`, `book_change`) to dedicated streams via a comma separated `recordType:stream` list. Record type names must match the Silver record types.
+- Reduce downstream load by specifying `--redis-silver-include-records` with a comma separated record type allow-list (others are dropped before batching).
+- Shape stream keys with `--redis-silver-key-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{recordType}}`.
+- Tune publishing throughput via `--redis-silver-max-batch-size` (events per batch) and `--redis-silver-max-batch-delay-ms` (max milliseconds to wait before flushing).
+- Attach deployment metadata with `--redis-silver-static-headers`, supplying comma separated `key:value` pairs that become constant Redis metadata on every record.
+
 ### Keeping Schemas and Builds in Sync
 
 Normalized event schemas live under `schemas/proto`, and generated TypeScript bindings are emitted into `src/generated`. Whenever schemas change, run `npm run buf:generate` to refresh the Buf-generated sources and `npm run build` to update the compiled `dist/` artifacts that power the CLI entry point.
@@ -165,6 +174,8 @@ Event bus publishing is covered by integration tests in `test/eventbus`. These r
 - For Silver Kinesis: Confirm `--kinesis-silver-region` and stream name are correct; ensure IAM permissions allow `PutRecords` on the specified stream.
 - For Silver Kinesis: Review batching knobs regularly: `--kinesis-silver-max-batch-size` should stay below Kinesis `PutRecords` limits (500 records).
 - For Silver NATS: Ensure `--nats-silver-servers` points to healthy NATS servers and subjects are appropriately configured.
+- For Silver Redis: Ensure `--redis-silver-url` points to a healthy Redis instance and streams are appropriately configured for your routing needs.
+- For Silver Redis: Review batching knobs regularly: `--redis-silver-max-batch-size` and `--redis-silver-max-batch-delay-ms` should align with throughput requirements.
 - Confirm header contracts after schema updates by consuming a sample message and validating Buf-decoded payloads alongside the emitted `recordType` and `dataType` headers for Silver layer.
 - Track retries via application logs; repeated send attempt warnings indicate sustained pressure and should trigger broker-side health checks.
 - Re-run `npm run buf:generate` and rebuild whenever `schemas/proto` changes to keep binary payloads matching the deployed Buf schema version.

@@ -3,6 +3,7 @@ import {
   parseRabbitMQEventBusConfig,
   parseKinesisEventBusConfig,
   parseNatsEventBusConfig,
+  parseRedisEventBusConfig,
   parseSilverKafkaEventBusConfig
 } from '../../src/eventbus/config'
 
@@ -303,6 +304,218 @@ describe('parseKafkaEventBusConfig', () => {
         'kafka-topic-routing': 'trade-only'
       })
     ).toThrow('Invalid kafka-topic-routing entry "trade-only". Expected format payloadCase:topicName.')
+  })
+})
+
+describe('parseRedisEventBusConfig', () => {
+  test('returns undefined when redis url or stream missing', () => {
+    expect(parseRedisEventBusConfig({})).toBeUndefined()
+    expect(parseRedisEventBusConfig({ 'redis-url': 'redis://localhost:6379' })).toBeUndefined()
+    expect(parseRedisEventBusConfig({ 'redis-stream': 'events' })).toBeUndefined()
+  })
+
+  test('builds redis config with routing and filtering', () => {
+    const config = parseRedisEventBusConfig({
+      'redis-url': 'redis://localhost:6379',
+      'redis-stream': 'bronze.events',
+      'redis-stream-routing': 'trade:bronze.trade,bookChange:bronze.books',
+      'redis-include-payloads': 'trade,bookChange',
+      'redis-static-headers': 'env:prod,region:us-east-1',
+      'redis-key-template': '{{exchange}}.{{payloadCase}}.{{symbol}}',
+      'redis-max-batch-size': 256,
+      'redis-max-batch-delay-ms': 50
+    })
+
+    expect(config).toEqual({
+      provider: 'redis',
+      url: 'redis://localhost:6379',
+      stream: 'bronze.events',
+      streamByPayloadCase: {
+        trade: 'bronze.trade',
+        bookChange: 'bronze.books'
+      },
+      includePayloadCases: ['trade', 'bookChange'],
+      staticHeaders: {
+        env: 'prod',
+        region: 'us-east-1'
+      },
+      keyTemplate: '{{exchange}}.{{payloadCase}}.{{symbol}}',
+      maxBatchSize: 256,
+      maxBatchDelayMs: 50
+    })
+  })
+
+  test('applies batch tuning options when provided', () => {
+    const config = parseRedisEventBusConfig({
+      'redis-url': 'redis://localhost:6379',
+      'redis-stream': 'bronze.events',
+      'redis-max-batch-size': 512,
+      'redis-max-batch-delay-ms': 125
+    })
+
+    expect(config).toMatchObject({
+      maxBatchSize: 512,
+      maxBatchDelayMs: 125
+    })
+  })
+
+  test('parses redis key template string', () => {
+    const config = parseRedisEventBusConfig({
+      'redis-url': 'redis://localhost:6379',
+      'redis-stream': 'bronze.events',
+      'redis-key-template': '{{exchange}}.{{payloadCase}}.{{symbol}}'
+    })
+
+    expect(config).toMatchObject({
+      keyTemplate: '{{exchange}}.{{payloadCase}}.{{symbol}}'
+    })
+  })
+
+  test('parses redis static headers', () => {
+    const config = parseRedisEventBusConfig({
+      'redis-url': 'redis://localhost:6379',
+      'redis-stream': 'bronze.events',
+      'redis-static-headers': 'env:prod, region:us-east-1,trace-id:abc123 '
+    })
+
+    expect(config).toMatchObject({
+      staticHeaders: {
+        env: 'prod',
+        region: 'us-east-1',
+        'trace-id': 'abc123'
+      }
+    })
+  })
+
+  test('parses allowed payload cases list', () => {
+    const config = parseRedisEventBusConfig({
+      'redis-url': 'redis://localhost:6379',
+      'redis-stream': 'bronze.events',
+      'redis-include-payloads': 'trade, bookChange, trade'
+    })
+
+    expect(config).toMatchObject({ includePayloadCases: ['trade', 'bookChange'] })
+  })
+
+  test('accepts snake_case payload names in include list', () => {
+    const config = parseRedisEventBusConfig({
+      'redis-url': 'redis://localhost:6379',
+      'redis-stream': 'bronze.events',
+      'redis-include-payloads': 'book_change, TRADE_BAR, quote'
+    })
+
+    expect(config).toMatchObject({
+      includePayloadCases: ['bookChange', 'tradeBar', 'quote']
+    })
+  })
+
+  test('accepts snake_case payload names in stream routing', () => {
+    const config = parseRedisEventBusConfig({
+      'redis-url': 'redis://localhost:6379',
+      'redis-stream': 'bronze.events',
+      'redis-stream-routing': 'book_snapshot:bronze.snapshots, grouped_book_snapshot:bronze.grouped'
+    })
+
+    expect(config).toMatchObject({
+      streamByPayloadCase: {
+        bookSnapshot: 'bronze.snapshots',
+        groupedBookSnapshot: 'bronze.grouped'
+      }
+    })
+  })
+
+  test('rejects non-positive batch tuning values', () => {
+    expect(() =>
+      parseRedisEventBusConfig({
+        'redis-url': 'redis://localhost:6379',
+        'redis-stream': 'bronze.events',
+        'redis-max-batch-size': 0
+      })
+    ).toThrow('redis-max-batch-size must be a positive integer.')
+
+    expect(() =>
+      parseRedisEventBusConfig({
+        'redis-url': 'redis://localhost:6379',
+        'redis-stream': 'bronze.events',
+        'redis-max-batch-delay-ms': -1
+      })
+    ).toThrow('redis-max-batch-delay-ms must be a positive integer.')
+  })
+
+  test('rejects blank redis stream strings', () => {
+    expect(() =>
+      parseRedisEventBusConfig({
+        'redis-url': 'redis://localhost:6379',
+        'redis-stream': '   '
+      })
+    ).toThrow('redis-stream must be a non-empty string.')
+  })
+
+  test('rejects blank redis url strings', () => {
+    expect(() =>
+      parseRedisEventBusConfig({
+        'redis-url': '   ',
+        'redis-stream': 'events'
+      })
+    ).toThrow('redis-url must be a non-empty string.')
+  })
+
+  test('rejects unknown payload case names', () => {
+    expect(() =>
+      parseRedisEventBusConfig({
+        'redis-url': 'redis://localhost:6379',
+        'redis-stream': 'bronze.events',
+        'redis-include-payloads': 'trade, candles'
+      })
+    ).toThrow('Unknown payload case(s) for redis-include-payloads: candles.')
+  })
+
+  test('rejects unknown payload cases in stream routing', () => {
+    expect(() =>
+      parseRedisEventBusConfig({
+        'redis-url': 'redis://localhost:6379',
+        'redis-stream': 'bronze.events',
+        'redis-stream-routing': 'trade:bronze.trade, candles:bronze.candles'
+      })
+    ).toThrow('Unknown payload case(s) for redis-stream-routing: candles.')
+  })
+
+  test('rejects invalid redis static header entries', () => {
+    expect(() =>
+      parseRedisEventBusConfig({
+        'redis-url': 'redis://localhost:6379',
+        'redis-stream': 'bronze.events',
+        'redis-static-headers': 'env'
+      })
+    ).toThrow('redis-static-headers entries must be key:value pairs.')
+
+    expect(() =>
+      parseRedisEventBusConfig({
+        'redis-url': 'redis://localhost:6379',
+        'redis-stream': 'bronze.events',
+        'redis-static-headers': 'payloadCase:overwritten'
+      })
+    ).toThrow('redis-static-headers cannot override reserved header "payloadCase".')
+  })
+
+  test('rejects unknown key template placeholders', () => {
+    expect(() =>
+      parseRedisEventBusConfig({
+        'redis-url': 'redis://localhost:6379',
+        'redis-stream': 'bronze.events',
+        'redis-key-template': '{{unknown}}'
+      })
+    ).toThrow('Unknown redis-key-template placeholder "{{unknown}}".')
+  })
+
+  test('throws on invalid stream routing entry', () => {
+    expect(() =>
+      parseRedisEventBusConfig({
+        'redis-url': 'redis://localhost:6379',
+        'redis-stream': 'bronze.events',
+        'redis-stream-routing': 'trade-only'
+      })
+    ).toThrow('Invalid redis-stream-routing entry "trade-only". Expected format payloadCase:stream.')
   })
 })
 

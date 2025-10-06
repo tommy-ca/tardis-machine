@@ -1,33 +1,33 @@
 import { Kafka, logLevel, Producer, SASLOptions, CompressionTypes } from 'kafkajs'
 import { SilverNormalizedEventEncoder } from './silverMapper'
 import { compileSilverKeyBuilder } from './keyTemplate'
-import type { SilverEvent, SilverRecordType, SilverKafkaEventBusConfig, SilverEventSink, NormalizedMessage, PublishMeta } from './types'
-import { wait } from '../helpers'
+import type { SilverEvent, SilverRecordType, SilverKafkaEventBusConfig, NormalizedMessage, PublishMeta } from './types'
+import { BaseSilverEventBusPublisher, CommonSilverConfig } from './baseSilverPublisher'
 import { debug } from '../debug'
 import * as fs from 'fs'
 import * as path from 'path'
 
 const log = debug.extend('eventbus')
 
-const DEFAULT_BATCH_SIZE = 256
-const DEFAULT_BATCH_DELAY_MS = 25
-const MAX_RETRY_ATTEMPTS = 3
-
-export class SilverKafkaEventBus implements SilverEventSink {
+export class SilverKafkaEventBus extends BaseSilverEventBusPublisher {
   private readonly encoder: SilverNormalizedEventEncoder
   private readonly kafka: Kafka
   private readonly producer: Producer
   private schemaId?: number
-  private readonly buffer: SilverEvent[] = []
-  private flushTimer?: NodeJS.Timeout
-  private sendingPromise: Promise<void> = Promise.resolve()
-  private closed = false
   private readonly compression?: CompressionTypes
   private readonly staticHeaders?: Array<[string, Buffer]>
-  private readonly allowedRecordTypes?: Set<SilverRecordType>
   private readonly acks?: -1 | 0 | 1
+  private readonly topic: string
+  private readonly topicByRecordType?: Record<string, string>
+  private readonly metaHeadersPrefix?: string
 
   constructor(private readonly config: SilverKafkaEventBusConfig) {
+    const commonConfig: CommonSilverConfig = {
+      maxBatchSize: config.maxBatchSize,
+      maxBatchDelayMs: config.maxBatchDelayMs,
+      includeRecordTypes: config.includeRecordTypes
+    }
+    super(commonConfig)
     const keyBuilder = config.keyTemplate ? compileSilverKeyBuilder(config.keyTemplate) : undefined
     this.encoder = new SilverNormalizedEventEncoder(keyBuilder)
     this.kafka = new Kafka({
@@ -46,9 +46,9 @@ export class SilverKafkaEventBus implements SilverEventSink {
       this.staticHeaders = Object.entries(config.staticHeaders).map(([key, value]) => [key, Buffer.from(value)])
     }
     this.acks = config.acks
-    if (config.includeRecordTypes) {
-      this.allowedRecordTypes = new Set(config.includeRecordTypes)
-    }
+    this.topic = config.topic
+    this.topicByRecordType = config.topicByRecordType
+    this.metaHeadersPrefix = config.metaHeadersPrefix
   }
 
   async start() {
@@ -82,164 +82,54 @@ export class SilverKafkaEventBus implements SilverEventSink {
     }
   }
 
-  async publish(message: NormalizedMessage, meta: PublishMeta): Promise<void> {
-    if (this.closed) {
-      return
-    }
-
-    const events = this.filterEvents(this.encoder.encode(message, meta))
-    if (events.length === 0) {
-      return
-    }
-
-    this.buffer.push(...events)
-
-    if (this.buffer.length >= (this.config.maxBatchSize ?? DEFAULT_BATCH_SIZE)) {
-      this.flushImmediately()
-    } else {
-      this.scheduleFlush()
-    }
+  protected encodeEvents(message: NormalizedMessage, meta: PublishMeta): SilverEvent[] {
+    return this.encoder.encode(message, meta)
   }
 
-  private scheduleFlush() {
-    if (this.flushTimer) {
-      return
-    }
-
-    const delay = this.config.maxBatchDelayMs ?? DEFAULT_BATCH_DELAY_MS
-    this.flushTimer = setTimeout(() => {
-      this.flushTimer = undefined
-      this.flushImmediately()
-    }, delay)
-  }
-
-  private flushImmediately() {
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer)
-      this.flushTimer = undefined
-    }
-
-    if (this.buffer.length === 0) {
-      return
-    }
-
-    const batchSize = this.config.maxBatchSize ?? DEFAULT_BATCH_SIZE
-    const batches: SilverEvent[][] = []
-
-    while (this.buffer.length > 0) {
-      const chunk = this.buffer.splice(0, batchSize)
-      if (chunk.length > 0) {
-        batches.push(chunk)
-      }
-    }
-
-    this.sendingPromise = this.sendingPromise
-      .then(async () => {
-        for (let index = 0; index < batches.length; index++) {
-          const batch = batches[index]
-          if (batch.length === 0) {
-            continue
-          }
-
-          try {
-            await this.sendBatch(batch)
-          } catch (error) {
-            for (let remainingIndex = batches.length - 1; remainingIndex > index; remainingIndex--) {
-              const remainingBatch = batches[remainingIndex]
-              if (remainingBatch.length > 0) {
-                this.buffer.unshift(...remainingBatch)
+  protected async sendBatch(batch: SilverEvent[]): Promise<void> {
+    const groups = this.groupByTopic(batch)
+    for (const [topic, events] of groups) {
+      if (this.schemaId) {
+        // Use schema registry encoding
+        const { SchemaRegistry } = await import('@kafkajs/confluent-schema-registry')
+        const registry = new SchemaRegistry({
+          host: this.config.schemaRegistry!.url,
+          auth: this.config.schemaRegistry!.auth
+            ? {
+                username: this.config.schemaRegistry!.auth.username,
+                password: this.config.schemaRegistry!.auth.password
               }
-            }
-            throw error
-          }
-        }
-      })
-      .catch((error) => {
-        log('Failed to send Silver Kafka batch: %o', error)
-        // try again after short delay
-        queueMicrotask(() => this.scheduleFlush())
-      })
-  }
-
-  private async sendBatch(batch: SilverEvent[]): Promise<void> {
-    let attempt = 0
-    while (attempt < MAX_RETRY_ATTEMPTS) {
-      attempt++
-      try {
-        const groups = this.groupByTopic(batch)
-        for (const [topic, events] of groups) {
-          if (this.schemaId) {
-            // Use schema registry encoding
-            const { SchemaRegistry } = await import('@kafkajs/confluent-schema-registry')
-            const registry = new SchemaRegistry({
-              host: this.config.schemaRegistry!.url,
-              auth: this.config.schemaRegistry!.auth
-                ? {
-                    username: this.config.schemaRegistry!.auth.username,
-                    password: this.config.schemaRegistry!.auth.password
-                  }
-                : undefined
-            })
-            const messages = await Promise.all(
-              events.map(async (event) => ({
-                key: event.key,
-                value: await registry.encode(this.schemaId!, Buffer.from(event.binary)),
-                headers: this.buildHeaders(event)
-              }))
-            )
-            await this.producer.send({
-              topic,
-              messages,
-              compression: this.compression,
-              acks: this.acks
-            })
-          } else {
-            await this.producer.send({
-              topic,
-              messages: events.map((event) => ({
-                key: event.key,
-                value: Buffer.from(event.binary),
-                headers: this.buildHeaders(event)
-              })),
-              compression: this.compression,
-              acks: this.acks
-            })
-          }
-        }
-        return
-      } catch (error) {
-        log('Silver Kafka send attempt %d failed: %o', attempt, error)
-        if (attempt >= MAX_RETRY_ATTEMPTS) {
-          // requeue events for future flush to preserve at-least-once semantics
-          this.buffer.unshift(...batch)
-          throw error
-        }
-        const backoffMs = Math.min(200 * attempt, 1000)
-        await wait(backoffMs)
+            : undefined
+        })
+        const messages = await Promise.all(
+          events.map(async (event) => ({
+            key: event.key,
+            value: await registry.encode(this.schemaId!, Buffer.from(event.binary)),
+            headers: this.buildHeaders(event)
+          }))
+        )
+        await this.producer.send({
+          topic,
+          messages,
+          compression: this.compression,
+          acks: this.acks
+        })
+      } else {
+        await this.producer.send({
+          topic,
+          messages: events.map((event) => ({
+            key: event.key,
+            value: this.encodeValue(event.binary),
+            headers: this.buildHeaders(event)
+          })),
+          compression: this.compression,
+          acks: this.acks
+        })
       }
     }
   }
 
-  async flush(): Promise<void> {
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer)
-      this.flushTimer = undefined
-    }
-
-    if (this.buffer.length > 0) {
-      this.flushImmediately()
-    }
-
-    await this.sendingPromise
-  }
-
-  async close(): Promise<void> {
-    if (this.closed) {
-      return
-    }
-
-    this.closed = true
-    await this.flush()
+  protected async doClose(): Promise<void> {
     await this.producer.disconnect()
   }
 
@@ -258,16 +148,18 @@ export class SilverKafkaEventBus implements SilverEventSink {
   }
 
   private resolveTopic(recordType: SilverRecordType): string {
-    const { topicByRecordType, topic } = this.config
-    return topicByRecordType?.[recordType] ?? topic
+    return this.topicByRecordType?.[recordType] ?? this.topic
   }
 
-  private filterEvents(events: SilverEvent[]): SilverEvent[] {
-    if (!this.allowedRecordTypes) {
-      return events
+  private encodeValue(binary: Uint8Array): Buffer {
+    if (this.schemaId !== undefined) {
+      const buffer = Buffer.alloc(5 + binary.length)
+      buffer.writeUInt8(0, 0) // magic byte
+      buffer.writeUInt32BE(this.schemaId, 1) // schema ID
+      buffer.set(binary, 5)
+      return buffer
     }
-
-    return events.filter((event) => this.allowedRecordTypes!.has(event.recordType))
+    return Buffer.from(binary)
   }
 
   private buildHeaders(event: SilverEvent): Record<string, Buffer> {
@@ -282,7 +174,7 @@ export class SilverKafkaEventBus implements SilverEventSink {
       }
     }
 
-    const prefix = this.config.metaHeadersPrefix
+    const prefix = this.metaHeadersPrefix
     if (!prefix) {
       return headers
     }

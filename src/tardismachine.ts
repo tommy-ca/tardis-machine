@@ -171,6 +171,9 @@ export class TardisMachine {
       })
     })
 
+    // Wait a bit for ports to be released
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
     if (this._eventLoopTimerId !== undefined) {
       clearInterval(this._eventLoopTimerId)
     }

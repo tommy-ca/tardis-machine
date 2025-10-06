@@ -88,6 +88,15 @@
 - Shape subjects with `--nats-subject-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{payloadCase}}`, or `{{meta.request_id}}`.
 - Attach deployment metadata with `--nats-static-headers`, supplying comma separated `key:value` pairs that become constant NATS headers on every message.
 
+### Redis Publishing
+
+- Publish normalized market data to Redis streams by supplying `--redis-url` and `--redis-stream` flags.
+- Use `--redis-stream-routing` to route specific payload cases (e.g. `trade`, `bookChange`) to dedicated streams via a comma separated `payloadCase:stream` list. Payload case names must match the normalized Bronze cases (`trade`, `bookChange`, `bookSnapshot`, `groupedBookSnapshot`, `quote`, `derivativeTicker`, `liquidation`, `optionSummary`, `bookTicker`, `tradeBar`, `error`, `disconnect`).
+- Reduce downstream load by specifying `--redis-include-payloads` with a comma separated payload case allow-list (others are dropped before batching).
+- Shape stream keys with `--redis-key-template`, using placeholders like `{{exchange}}`, `{{symbol}}`, `{{payloadCase}}`, or `{{meta.request_id}}`.
+- Tune publishing throughput via `--redis-max-batch-size` (events per batch) and `--redis-max-batch-delay-ms` (max milliseconds to wait before flushing).
+- Attach deployment metadata with `--redis-static-headers`, supplying comma separated `key:value` pairs that become constant Redis metadata on every record.
+
 ### Silver Layer Publishing
 
 The Silver layer provides analytics-ready data with fixed scales and strong typing, complementing the existing Bronze layer. Silver records are published to event buses using the same infrastructure but with dedicated configuration flags.
@@ -136,7 +145,7 @@ Normalized event schemas live under `schemas/proto`, and generated TypeScript bi
 
 ### Event Bus Integration Test Prerequisites
 
-Event bus publishing is covered by integration tests in `test/eventbus`. These rely on Testcontainers and require a local Docker daemon with at least 2 CPU cores, 4 GB of memory, and the ability to pull the `confluentinc/cp-kafka:7.5.3`, `rabbitmq:3-management-alpine`, `localstack/localstack:3.0`, and `nats:2.10` images. Ensure Docker is running before invoking `npm test`; otherwise event bus suites will be skipped after a timeout.
+Event bus publishing is covered by integration tests in `test/eventbus`. These rely on Testcontainers and require a local Docker daemon with at least 2 CPU cores, 4 GB of memory, and the ability to pull the `confluentinc/cp-kafka:7.5.3`, `rabbitmq:3-management-alpine`, `localstack/localstack:3.0`, `nats:2.10`, and `redis:7-alpine` images. Ensure Docker is running before invoking `npm test`; otherwise event bus suites will be skipped after a timeout.
 
 ### Event Bus Maintenance Checklist
 
@@ -147,6 +156,8 @@ Event bus publishing is covered by integration tests in `test/eventbus`. These r
 - For Kinesis: Confirm `--kinesis-region` and stream name are correct; ensure IAM permissions allow `PutRecords` on the specified stream.
 - For Kinesis: Review batching knobs regularly: `--kinesis-max-batch-size` should stay below Kinesis `PutRecords` limits (500 records), and `--kinesis-max-batch-delay-ms` must align with downstream latency budgets.
 - For NATS: Ensure `--nats-servers` points to healthy NATS servers and subjects are appropriately configured for your routing needs.
+- For Redis: Ensure `--redis-url` points to a healthy Redis instance and streams are appropriately configured for your routing needs.
+- For Redis: Review batching knobs regularly: `--redis-max-batch-size` and `--redis-max-batch-delay-ms` should align with throughput requirements.
 - For Silver Kafka: Verify `--kafka-silver-brokers` reflects the current cluster endpoints; apply same broker maintenance as Bronze layer.
 - For Silver Kafka: Confirm `--kafka-silver-acks` and `--kafka-silver-idempotent` match broker durability targets.
 - For Silver Kafka: Review batching knobs regularly: `--kafka-silver-max-batch-size` and `--kafka-silver-max-batch-delay-ms` should align with throughput requirements.

@@ -5,6 +5,7 @@ import {
   parseNatsEventBusConfig,
   parseRedisEventBusConfig,
   parseSQSEventBusConfig,
+  parsePulsarEventBusConfig,
   parseSilverKafkaEventBusConfig
 } from '../../src/eventbus/config'
 
@@ -910,5 +911,154 @@ describe('parseSQSEventBusConfig', () => {
         'sqs-queue-routing': 'trade-only'
       })
     ).toThrow('Invalid sqs-queue-routing entry "trade-only". Expected format payloadCase:queueUrl.')
+  })
+})
+
+describe('parsePulsarEventBusConfig', () => {
+  test('returns undefined when pulsar service url or topic missing', () => {
+    expect(parsePulsarEventBusConfig({})).toBeUndefined()
+    expect(parsePulsarEventBusConfig({ 'pulsar-service-url': 'pulsar://localhost:6650' })).toBeUndefined()
+    expect(parsePulsarEventBusConfig({ 'pulsar-topic': 'events' })).toBeUndefined()
+  })
+
+  test('builds pulsar config with routing and token', () => {
+    const config = parsePulsarEventBusConfig({
+      'pulsar-service-url': 'pulsar://localhost:6650',
+      'pulsar-topic': 'bronze.events',
+      'pulsar-token': 'token123',
+      'pulsar-topic-routing': 'trade:bronze.trade,bookChange:bronze.books',
+      'pulsar-include-payloads': 'trade,bookChange',
+      'pulsar-static-properties': 'env:prod,region:us-east-1',
+      'pulsar-key-template': '{{exchange}}.{{payloadCase}}.{{symbol}}',
+      'pulsar-max-batch-size': 256,
+      'pulsar-max-batch-delay-ms': 50,
+      'pulsar-compression-type': 'LZ4'
+    })
+
+    expect(config).toEqual({
+      provider: 'pulsar',
+      serviceUrl: 'pulsar://localhost:6650',
+      topic: 'bronze.events',
+      token: 'token123',
+      topicByPayloadCase: {
+        trade: 'bronze.trade',
+        bookChange: 'bronze.books'
+      },
+      includePayloadCases: ['trade', 'bookChange'],
+      staticProperties: {
+        env: 'prod',
+        region: 'us-east-1'
+      },
+      keyTemplate: '{{exchange}}.{{payloadCase}}.{{symbol}}',
+      maxBatchSize: 256,
+      maxBatchDelayMs: 50,
+      compressionType: 'LZ4'
+    })
+  })
+
+  test('applies batch tuning options when provided', () => {
+    const config = parsePulsarEventBusConfig({
+      'pulsar-service-url': 'pulsar://localhost:6650',
+      'pulsar-topic': 'bronze.events',
+      'pulsar-max-batch-size': 512,
+      'pulsar-max-batch-delay-ms': 125
+    })
+
+    expect(config).toMatchObject({
+      maxBatchSize: 512,
+      maxBatchDelayMs: 125
+    })
+  })
+
+  test('rejects invalid pulsar compression type', () => {
+    expect(() =>
+      parsePulsarEventBusConfig({
+        'pulsar-service-url': 'pulsar://localhost:6650',
+        'pulsar-topic': 'bronze.events',
+        'pulsar-compression-type': 'BROTLI'
+      })
+    ).toThrow('pulsar-compression-type must be one of NONE,LZ4,ZLIB,ZSTD,SNAPPY.')
+  })
+
+  test('rejects blank pulsar topic strings', () => {
+    expect(() =>
+      parsePulsarEventBusConfig({
+        'pulsar-service-url': 'pulsar://localhost:6650',
+        'pulsar-topic': '   '
+      })
+    ).toThrow('pulsar-topic must be a non-empty string.')
+  })
+
+  test('rejects unknown payload case names', () => {
+    expect(() =>
+      parsePulsarEventBusConfig({
+        'pulsar-service-url': 'pulsar://localhost:6650',
+        'pulsar-topic': 'bronze.events',
+        'pulsar-include-payloads': 'trade, candles'
+      })
+    ).toThrow('Unknown payload case(s) for pulsar-include-payloads: candles.')
+  })
+
+  test('rejects unknown payload cases in topic routing', () => {
+    expect(() =>
+      parsePulsarEventBusConfig({
+        'pulsar-service-url': 'pulsar://localhost:6650',
+        'pulsar-topic': 'bronze.events',
+        'pulsar-topic-routing': 'trade:bronze.trade, candles:bronze.candles'
+      })
+    ).toThrow('Unknown payload case(s) for pulsar-topic-routing: candles.')
+  })
+
+  test('accepts snake_case payload names in topic routing', () => {
+    const config = parsePulsarEventBusConfig({
+      'pulsar-service-url': 'pulsar://localhost:6650',
+      'pulsar-topic': 'bronze.events',
+      'pulsar-topic-routing': 'book_snapshot:bronze.snapshots, grouped_book_snapshot:bronze.grouped'
+    })
+
+    expect(config).toMatchObject({
+      topicByPayloadCase: {
+        bookSnapshot: 'bronze.snapshots',
+        groupedBookSnapshot: 'bronze.grouped'
+      }
+    })
+  })
+
+  test('rejects invalid pulsar static property entries', () => {
+    expect(() =>
+      parsePulsarEventBusConfig({
+        'pulsar-service-url': 'pulsar://localhost:6650',
+        'pulsar-topic': 'bronze.events',
+        'pulsar-static-properties': 'env'
+      })
+    ).toThrow('pulsar-static-properties entries must be key:value pairs.')
+
+    expect(() =>
+      parsePulsarEventBusConfig({
+        'pulsar-service-url': 'pulsar://localhost:6650',
+        'pulsar-topic': 'bronze.events',
+        'pulsar-static-properties': 'payloadCase:overwritten'
+      })
+    ).toThrow('pulsar-static-properties cannot override reserved header "payloadCase".')
+  })
+
+  test('rejects unknown key template placeholders', () => {
+    expect(() =>
+      parsePulsarEventBusConfig({
+        'pulsar-service-url': 'pulsar://localhost:6650',
+        'pulsar-topic': 'bronze.events',
+        'pulsar-key-template': '{{unknown}}'
+      })
+    ).toThrow('Unknown pulsar-key-template placeholder "{{unknown}}".')
+  })
+
+  test('throws on invalid topic routing entry', () => {
+    expect(() =>
+      parsePulsarEventBusConfig({
+        'pulsar-service-url': 'pulsar://localhost:6650',
+        'pulsar-topic': 'bronze.events',
+        'pulsar-topic-routing': 'trade-only'
+      })
+    ).toThrow('Invalid pulsar-topic-routing entry "trade-only". Expected format payloadCase:topicName.')
   })
 })

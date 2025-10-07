@@ -2,7 +2,7 @@
 
 ## Goal
 
-- Extend `tardis-machine` so it can publish normalized market data events to external event buses (starting with Apache Kafka).
+- Focus `tardis-machine` event publishing on Apache Kafka as the single supported event bus.
 - Ensure published payloads follow the Buf-managed Protobuf schemas located under `schemas/proto`.
 
 ## Functional Requirements
@@ -30,8 +30,7 @@
 ## Interfaces
 
 - Extend `TardisMachine` constructor options to accept an `eventBus` configuration object.
-- Introduce an internal publisher abstraction so additional backends (e.g., AWS Kinesis) can be added later.
-- Kafka implementation should use `kafkajs` for Node.js with configurable client/batch options.
+- Maintain a Kafka-specific publisher implementation using `kafkajs` with configurable client/batch options.
 - Expose compression tuning via CLI env/flags (e.g. `--kafka-compression`).
 - Publish WS control errors as Bronze `ControlError` payloads so downstream systems observe retry behavior.
 
@@ -39,7 +38,7 @@
 
 - Introduce Buf CLI workflows (format, lint, generate) and TypeScript generation via `@bufbuild/protoc-gen-es` to avoid runtime reflection encoding.
 - Generated TypeScript code should live under `src/generated` (git committed) and feed publisher encoding.
-- Maintain compatibility tests under `test/proto` to ensure schema and generated code fidelity.
+- Maintain compatibility tests under `test/proto` (or integration suites) to ensure schema and generated code fidelity.
 - Support Confluent Schema Registry for Kafka publishing, registering Protobuf schemas and encoding messages with schema IDs for better schema evolution.
 
 ## Testing Strategy

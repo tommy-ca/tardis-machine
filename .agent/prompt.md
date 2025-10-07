@@ -2,6 +2,10 @@ Your job is to update this repo to with new feature to publish message to event 
 
 Make a commit and push your changes after every atomic change.
 
+## Project
+- focus on kafka as event streaming bus
+- remove other eventbus for the time
+
 ## Principles
 
 - TDD

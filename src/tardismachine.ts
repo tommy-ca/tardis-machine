@@ -5,31 +5,7 @@ import { App, DISABLED, TemplatedApp } from 'uWebSockets.js'
 import { replayHttp, createReplayNormalizedHttpHandler, healthCheck } from './http'
 import { createReplayNormalizedWSHandler, replayWS, createStreamNormalizedWSHandler } from './ws'
 import { debug } from './debug'
-import {
-  KafkaEventBus,
-  SilverKafkaEventBus,
-  RabbitMQEventBus,
-  KinesisEventBus,
-  NatsEventBus,
-  RedisEventBus,
-  SQSEventBus,
-  PulsarEventBus,
-  AzureEventHubsEventBus,
-  PubSubEventBus,
-  MQTTEventBus,
-  ActiveMQEventBus,
-  SilverActiveMQEventBus,
-  SilverMQTTEventBus,
-  SilverPubSubEventBus,
-  SilverPulsarEventBus,
-  SilverSQSEventBus,
-  SilverRabbitMQEventBus,
-  SilverKinesisEventBus,
-  SilverNatsEventBus,
-  SilverRedisEventBus,
-  SilverAzureEventBus,
-  ConsoleEventBus
-} from './eventbus'
+import { KafkaEventBus, SilverKafkaEventBus } from './eventbus'
 import type {
   EventBusConfig,
   NormalizedEventSink,
@@ -217,73 +193,12 @@ export class TardisMachine {
     if (config.provider === 'kafka') {
       return new KafkaEventBus(config)
     }
-    if (config.provider === 'rabbitmq') {
-      return new RabbitMQEventBus(config)
-    }
-    if (config.provider === 'kinesis') {
-      return new KinesisEventBus(config)
-    }
-    if (config.provider === 'nats') {
-      return new NatsEventBus(config)
-    }
-    if (config.provider === 'redis') {
-      return new RedisEventBus(config)
-    }
-    if (config.provider === 'sqs') {
-      return new SQSEventBus(config)
-    }
-    if (config.provider === 'pulsar') {
-      return new PulsarEventBus(config)
-    }
-    if (config.provider === 'azure-event-hubs') {
-      return new AzureEventHubsEventBus(config)
-    }
-    if (config.provider === 'pubsub') {
-      return new PubSubEventBus(config)
-    }
-    if (config.provider === 'mqtt') {
-      return new MQTTEventBus(config)
-    }
-    if (config.provider === 'activemq') {
-      return new ActiveMQEventBus(config)
-    }
-    if (config.provider === 'console') {
-      return new ConsoleEventBus(config)
-    }
-
     throw new Error(`Unsupported event bus provider: ${(config as any).provider}`)
   }
 
   private _createSilverEventBus(config: EventBusConfig): SilverEventSink {
     if (config.provider === 'kafka-silver') {
       return new SilverKafkaEventBus(config)
-    }
-    if (config.provider === 'rabbitmq-silver') {
-      return new SilverRabbitMQEventBus(config)
-    }
-    if (config.provider === 'kinesis-silver') {
-      return new SilverKinesisEventBus(config)
-    }
-    if (config.provider === 'nats-silver') {
-      return new SilverNatsEventBus(config)
-    }
-    if (config.provider === 'redis-silver') {
-      return new SilverRedisEventBus(config)
-    }
-    if (config.provider === 'pulsar-silver') {
-      return new SilverPulsarEventBus(config)
-    }
-    if (config.provider === 'sqs-silver') {
-      return new SilverSQSEventBus(config)
-    }
-    if (config.provider === 'pubsub-silver') {
-      return new SilverPubSubEventBus(config)
-    }
-    if (config.provider === 'mqtt-silver') {
-      return new SilverMQTTEventBus(config)
-    }
-    if (config.provider === 'activemq-silver') {
-      return new SilverActiveMQEventBus(config)
     }
 
     throw new Error(`Unsupported silver event bus provider: ${(config as any).provider}`)

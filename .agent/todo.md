@@ -2,9 +2,9 @@
 
 ## Kafka Buf Publishing
 
-- [ ] Verify Bronze schema registry path with Buf-coded payloads end-to-end.
+- [x] Verify Bronze schema registry path with Buf-coded payloads end-to-end.
 - [x] Ensure CLI/README guidance reflects Kafka-only publishing flags.
-- [ ] Capture schema registry smoke-test coverage for Bronze payloads.
+- [x] Capture schema registry smoke-test coverage for Bronze payloads.
 
 ## Repository Maintenance
 

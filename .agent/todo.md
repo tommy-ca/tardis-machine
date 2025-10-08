@@ -10,4 +10,4 @@
 
 - [x] Prune or archive outdated specs for non-Kafka buses under `.agent/specs`.
 - [x] Remove Silver event bus references from developer notes and docs.
-- [ ] Run `npm run buf:generate` and `npm test` before release candidates.
+- [ ] Run `npm run buf:generate` and `npm test` before release candidates. (Buf regenerate completed 2025-10-08; `npm test` blocked by Kafka schema registry container timeout, rerun when Docker networking is available.)

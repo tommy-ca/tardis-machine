@@ -30,6 +30,7 @@
     "src",
     "dist",
     "bin",
+    "schemas",
     "benchmark.js"
   ],
   "keywords": [

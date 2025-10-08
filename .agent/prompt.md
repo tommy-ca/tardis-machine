@@ -4,7 +4,11 @@ Make a commit and push your changes after every atomic change.
 
 ## Project
 - focus on kafka as event streaming bus
+- publish normalized events to event streaming bus
 - remove other eventbus for the time
+
+## Testing
+- when run commands or background jobs, monitor with timeout
 
 ## Principles
 

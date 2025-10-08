@@ -61,7 +61,6 @@
   "license": "MPL-2.0",
   "dependencies": {
     "@bufbuild/protobuf": "^2.9.0",
-    "@kafkajs/confluent-schema-registry": "^3.9.0",
     "debug": "^4.4.1",
     "find-my-way": "^9.3.0",
     "is-docker": "^2.2.1",

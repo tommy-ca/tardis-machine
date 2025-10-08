@@ -65,18 +65,8 @@ Tardis Machine now focuses exclusively on Kafka for streaming normalized (Bronze
 - Attach deployment metadata with `--kafka-static-headers` and emit meta fields as headers with `--kafka-meta-headers-prefix`.
 - Integrate Schema Registry via `--kafka-schema-registry-url` and optional basic-auth credentials.
 
-### Kafka Silver Publishing
-
-- Enable Silver publishing with `--kafka-silver-brokers` and `--kafka-silver-topic`.
-- Route curated record types (e.g. `trade`, `book_change`) using `--kafka-silver-topic-routing=recordType:topic`.
-- Drop unused record types with `--kafka-silver-include-records`.
-- Shape keys with `--kafka-silver-key-template` and emit metadata headers with `--kafka-silver-meta-headers-prefix`.
-- Control durability and throughput via `--kafka-silver-acks`, `--kafka-silver-idempotent`, `--kafka-silver-max-batch-size`, and `--kafka-silver-max-batch-delay-ms`.
-- Configure compression via `--kafka-silver-compression` and static headers with `--kafka-silver-static-headers`.
-- Register Silver protobuf schemas using `--kafka-silver-schema-registry-url` and optional auth flags.
-
 ### Operational Tips
 
-- Keep `--kafka-brokers` and `--kafka-silver-brokers` aligned with the current cluster endpoints; refresh configs during broker maintenance.
+- Keep `--kafka-brokers` aligned with the current cluster endpoints; refresh configs during broker maintenance.
 - Monitor send retries in logs; sustained retry warnings indicate downstream pressure that may require Kafka tuning.
 - After updating protobuf definitions under `schemas/proto`, run `npm run buf:generate` and `npm run build` so the published payloads match the latest Buf schemas.

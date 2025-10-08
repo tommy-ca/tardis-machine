@@ -3,12 +3,11 @@
 ## Kafka Buf Publishing
 
 - [ ] Verify Bronze schema registry path with Buf-coded payloads end-to-end.
-- [ ] Add Silver schema registry coverage ensuring Buf payload + schema ID framing.
-- [ ] Align Silver Kafka schema registry encoding with Bronze logic.
+- [x] Ensure CLI/README guidance reflects Kafka-only publishing flags.
+- [ ] Capture schema registry smoke-test coverage for Bronze payloads.
 
 ## Repository Maintenance
 
-- [ ] Refresh event bus specification to reflect Kafka-only scope.
-- [ ] Prune or archive outdated specs for non-Kafka buses.
-- [ ] Document schema registry workflow updates in README.
+- [x] Prune or archive outdated specs for non-Kafka buses under `.agent/specs`.
+- [x] Remove Silver event bus references from developer notes and docs.
 - [ ] Run `npm run buf:generate` and `npm test` before release candidates.

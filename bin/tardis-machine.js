@@ -8,7 +8,7 @@ const cluster = require('cluster')
 const numCPUs = require('os').cpus().length
 const isDocker = require('is-docker')
 const pkg = require('../package.json')
-const { parseKafkaEventBusConfig, parseSilverKafkaEventBusConfig } = require('../dist/eventbus/config')
+const { parseKafkaEventBusConfig } = require('../dist/eventbus/config')
 
 const DEFAULT_PORT = 8000
 
@@ -128,89 +128,6 @@ const argv = yargs
     type: 'string',
     describe: 'Schema Registry auth password'
   })
-  .option('kafka-silver-brokers', {
-    type: 'string',
-    describe: 'Comma separated Kafka broker list for silver event publishing'
-  })
-  .option('kafka-silver-topic', {
-    type: 'string',
-    describe: 'Kafka topic name for silver events'
-  })
-  .option('kafka-silver-include-records', {
-    type: 'string',
-    describe: 'Comma separated record types to publish (others dropped)'
-  })
-  .option('kafka-silver-topic-routing', {
-    type: 'string',
-    describe: 'Comma separated recordType:topic pairs overriding the base topic'
-  })
-  .option('kafka-silver-client-id', {
-    type: 'string',
-    describe: 'Kafka client id used by silver publisher'
-  })
-  .option('kafka-silver-ssl', {
-    type: 'boolean',
-    describe: 'Enable SSL when connecting to Kafka brokers for silver',
-    default: false
-  })
-  .option('kafka-silver-meta-headers-prefix', {
-    type: 'string',
-    describe: 'Prefix applied when emitting normalized meta as Kafka headers for silver'
-  })
-  .option('kafka-silver-static-headers', {
-    type: 'string',
-    describe: 'Comma separated key:value pairs applied as static Kafka headers for silver'
-  })
-  .option('kafka-silver-key-template', {
-    type: 'string',
-    describe: 'Template for Kafka record keys for silver, e.g. {{exchange}}/{{recordType}}/{{symbol}}'
-  })
-  .option('kafka-silver-max-batch-size', {
-    type: 'number',
-    describe: 'Maximum number of silver events per Kafka batch'
-  })
-  .option('kafka-silver-max-batch-delay-ms', {
-    type: 'number',
-    describe: 'Maximum milliseconds events can wait before forced flush for silver'
-  })
-  .option('kafka-silver-compression', {
-    type: 'string',
-    choices: ['none', 'gzip', 'snappy', 'lz4', 'zstd'],
-    describe: 'Compression codec applied to Kafka batches for silver'
-  })
-  .option('kafka-silver-acks', {
-    type: 'string',
-    describe: 'Ack level for Kafka sends for silver (all, leader, none, 1, 0, -1)'
-  })
-  .option('kafka-silver-idempotent', {
-    type: 'boolean',
-    describe: 'Enable Kafka idempotent producer semantics for silver'
-  })
-  .option('kafka-silver-sasl-mechanism', {
-    type: 'string',
-    choices: ['plain', 'scram-sha-256', 'scram-sha-512'],
-    describe: 'Kafka SASL mechanism for silver'
-  })
-  .option('kafka-silver-sasl-username', {
-    type: 'string',
-    describe: 'Kafka SASL username for silver'
-  })
-  .option('kafka-silver-sasl-password', {
-    type: 'string',
-    describe: 'Kafka SASL password for silver'
-  })
-  .option('kafka-silver-schema-registry-url', {
-    type: 'string',
-    describe: 'Schema Registry URL for silver Kafka publishing'
-  })
-  .option('kafka-silver-schema-registry-auth-username', {
-    type: 'string',
-    describe: 'Schema Registry auth username for silver'
-  })
-  .option('kafka-silver-schema-registry-auth-password', {
-    type: 'string',
-    describe: 'Schema Registry auth password for silver'
-  })
   .help()
   .version()
   .usage('$0 [options]')
@@ -229,14 +146,12 @@ const { TardisMachine } = require('../dist')
 
 async function start() {
   const eventBusConfig = parseKafkaEventBusConfig(argv)
-  const silverEventBusConfig = parseSilverKafkaEventBusConfig(argv)
 
   const machine = new TardisMachine({
     apiKey: argv['api-key'],
     cacheDir: argv['cache-dir'],
     clearCache: argv['clear-cache'],
-    eventBus: eventBusConfig,
-    silverEventBus: silverEventBusConfig
+    eventBus: eventBusConfig
   })
 
   let suffix = ''
